@@ -842,7 +842,7 @@ const UserMessageItem: React.FC<{ message: CoworkMessage; skills: Skill[] }> = R
                 {message.content?.trim() && (
                   <MarkdownContent
                     content={message.content}
-                    className="max-w-none whitespace-pre-wrap break-words text-[14px] leading-[1.5]"
+                    className="user-message-markdown max-w-none break-words text-[14px] leading-[1.5]"
                   />
                 )}
                 {imageAttachments.length > 0 && (
@@ -1855,11 +1855,11 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         onScroll={handleMessagesScroll}
         className="flex-1 overflow-y-auto min-h-0 pt-2 scroll-smooth [scrollbar-gutter:stable]"
       >
-        <div className="max-w-4xl mx-auto px-1 md:px-2 pb-6">
+        <div className="max-w-4xl mx-auto px-1 md:px-2 pb-2">
           <div className="space-y-1">
             {renderConversationTurns()}
           </div>
-          <div className="h-20" />
+          <div className="h-2" />
         </div>
       </div>
 
@@ -1883,6 +1883,9 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 };
 
 export default CoworkSessionDetail;
+
+
+
 
 
 
