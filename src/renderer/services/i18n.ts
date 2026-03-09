@@ -351,6 +351,9 @@ const translations: Record<LanguageType, Record<string, string>> = {
     coworkToolInput: '工具参数',
     coworkToolResult: '执行结果',
     coworkToolRunning: '执行中',
+    coworkExecuting: '正在执行',
+    coworkPreparingResponse: '正在整理回复',
+    coworkExecutionInProgress: '模型仍在处理当前请求',
     coworkTodosTitle: 'Todos',
     coworkTodoItems: '项',
     coworkTodoCompleted: '已完成',
@@ -1134,6 +1137,9 @@ const translations: Record<LanguageType, Record<string, string>> = {
     coworkToolInput: 'Tool Input',
     coworkToolResult: 'Result',
     coworkToolRunning: 'Running...',
+    coworkExecuting: 'Working...',
+    coworkPreparingResponse: 'Preparing response...',
+    coworkExecutionInProgress: 'The model is still processing this request',
     coworkTodosTitle: 'Todos',
     coworkTodoItems: 'items',
     coworkTodoCompleted: 'completed',
@@ -1711,3 +1717,5 @@ class I18nService {
 }
 
 export const i18nService = new I18nService(); 
+
+

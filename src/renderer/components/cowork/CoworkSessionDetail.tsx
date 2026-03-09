@@ -547,6 +547,24 @@ const hasRenderableAssistantContent = (turn: ConversationTurn): boolean => (
   getVisibleAssistantItems(turn.assistantItems).length > 0
 );
 
+const getStreamingIndicatorLabel = (turn: ConversationTurn): string => {
+  const visibleItems = getVisibleAssistantItems(turn.assistantItems);
+  const lastItem = visibleItems[visibleItems.length - 1];
+  if (!lastItem) {
+    return i18nService.t('coworkExecuting');
+  }
+  if (lastItem.type === 'assistant') {
+    if (lastItem.message.metadata?.isThinking) {
+      return i18nService.t('thinking');
+    }
+    return i18nService.t('coworkPreparingResponse');
+  }
+  if (lastItem.type === 'tool_group' && !lastItem.group.toolResult) {
+    return i18nService.t('coworkToolRunning');
+  }
+  return i18nService.t('coworkPreparingResponse');
+};
+
 const getToolResultLineCount = (result: string): number => {
   if (!result) return 0;
   return result.split('\n').length;
@@ -926,14 +944,36 @@ const AssistantMessageItem: React.FC<{
   );
 };
 
-const TypingDots: React.FC = () => (
-  <div className="flex items-center space-x-1.5 py-1">
+const TypingDots: React.FC<{ className?: string }> = ({ className = 'py-1' }) => (
+  <div className={['flex items-center space-x-1.5', className].filter(Boolean).join(' ')}>
     <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
     <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
     <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
   </div>
 );
 
+const ExecutionStatusIndicator: React.FC<{
+  label: string;
+  showTypingDots?: boolean;
+}> = ({ label, showTypingDots = false }) => (
+  <div className="rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary-lighter/10 px-3 py-2.5">
+    <div className="flex items-center gap-3">
+      <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary-lighter/15">
+        <span className="absolute h-full w-full rounded-full border border-primary/20 animate-ping" />
+        <span className="relative h-2.5 w-2.5 rounded-full bg-current animate-pulse" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[12px] font-medium dark:text-dark-text text-text-primary">
+          {label}
+        </div>
+        <div className="text-[11px] dark:text-dark-text-secondary text-text-secondary">
+          {i18nService.t('coworkExecutionInProgress')}
+        </div>
+      </div>
+      {showTypingDots && <TypingDots className="py-0" />}
+    </div>
+  </div>
+);
 const ThinkingBlock: React.FC<{
   message: CoworkMessage;
   mapDisplayText?: (value: string) => string;
@@ -985,12 +1025,16 @@ const AssistantTurnBlock: React.FC<{
   resolveLocalFilePath?: (href: string, text: string) => string | null;
   mapDisplayText?: (value: string) => string;
   showTypingIndicator?: boolean;
+  showExecutionIndicator?: boolean;
+  executionIndicatorLabel?: string;
   showCopyButtons?: boolean;
 }> = ({
   turn,
   resolveLocalFilePath,
   mapDisplayText,
   showTypingIndicator = false,
+  showExecutionIndicator = false,
+  executionIndicatorLabel,
   showCopyButtons = true,
 }) => {
   const visibleAssistantItems = getVisibleAssistantItems(turn.assistantItems);
@@ -1111,7 +1155,13 @@ const AssistantTurnBlock: React.FC<{
                   </div>
                 );
               })}
-              {showTypingIndicator && <TypingDots />}
+              {showExecutionIndicator && executionIndicatorLabel && (
+                <ExecutionStatusIndicator
+                  label={executionIndicatorLabel}
+                  showTypingDots={showTypingIndicator}
+                />
+              )}
+              {showTypingIndicator && !showExecutionIndicator && <TypingDots />}
             </div>
           </div>
         </div>
@@ -1574,6 +1624,8 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
             }}
             resolveLocalFilePath={resolveLocalFilePath}
             showTypingIndicator
+            showExecutionIndicator
+            executionIndicatorLabel={i18nService.t('coworkExecuting')}
             showCopyButtons={!isStreaming}
           />
         </div>
@@ -1582,8 +1634,12 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
     return turns.map((turn, index) => {
       const isLastTurn = index === turns.length - 1;
+      const showExecutionIndicator = isStreaming && isLastTurn;
       const showTypingIndicator = isStreaming && isLastTurn && !hasRenderableAssistantContent(turn);
       const showAssistantBlock = turn.assistantItems.length > 0 || showTypingIndicator;
+      const executionIndicatorLabel = showExecutionIndicator
+        ? getStreamingIndicatorLabel(turn)
+        : undefined;
 
       return (
         <div key={turn.id} className="relative">
@@ -1599,6 +1655,8 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
                 resolveLocalFilePath={resolveLocalFilePath}
                 mapDisplayText={mapDisplayText}
                 showTypingIndicator={showTypingIndicator}
+                showExecutionIndicator={showExecutionIndicator}
+                executionIndicatorLabel={executionIndicatorLabel}
                 showCopyButtons={!isStreaming}
               />
             </div>
@@ -1825,3 +1883,8 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 };
 
 export default CoworkSessionDetail;
+
+
+
+
+
