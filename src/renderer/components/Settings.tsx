@@ -197,8 +197,8 @@ const normalizeApiFormat = (value: unknown): 'anthropic' | 'openai' => (
   value === 'openai' ? 'openai' : 'anthropic'
 );
 const ABOUT_CONTACT_EMAIL = 'diclaw.project@rd.netease.com';
-const ABOUT_USER_MANUAL_URL = 'https://diosclaw.youdao.com/#/docs/diosclaw_user_manual';
-const ABOUT_SERVICE_TERMS_URL = 'https://c.youdao.com/dict/hardware/diosclaw/diosclaw_service.html';
+const ABOUT_USER_MANUAL_URL = 'https://www.wenge.com/about/index.html';
+const ABOUT_SERVICE_TERMS_URL = 'https://www.wenge.com/about/index.html';
 
 const copyTextFallback = (text: string): boolean => {
   const textarea = document.createElement('textarea');
@@ -2939,10 +2939,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
               </div>
 
               <p className="mt-5 text-xs dark:text-dark-text-secondary text-text-secondary">
-                {language === 'zh' ? '网易有道 版权所有' : 'NetEase Youdao. All rights reserved.'}
+                {language === 'zh' ? '中科闻歌 版权所有' : 'Zhongke Wenge. All rights reserved.'}
               </p>
               <p className="mt-1 text-xs dark:text-dark-text-secondary text-text-secondary">
-                Copyright &copy; {new Date().getFullYear()} NetEase Youdao. All Rights Reserved.
+                Copyright &copy; {new Date().getFullYear()} Zhongke Wenge. All Rights Reserved.
               </p>
             </div>
           </div>
@@ -3315,4 +3315,3 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 };
 
 export default Settings; 
-

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>7×24 小时帮你干活的全场景个人助理，由网易有道开发</strong>
+  <strong>7×24 小时帮你干活的全场景个人助理，由中科闻歌开发</strong>
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 ---
 
-**DiClaw** 是由[网易有道](https://www.youdao.com/)开发的全场景个人助理 Agent。它 7×24 小时待命，能够帮你完成日常办公中的各类事务 —— 数据分析、制作 PPT、生成视频、撰写文档、搜索信息、收发邮件、定时任务，以及更多。
+**DiClaw** 是由[中科闻歌](https://www.wenge.com/about/index.html)开发的全场景个人助理 Agent。它 7×24 小时待命，能够帮你完成日常办公中的各类事务 —— 数据分析、制作 PPT、生成视频、撰写文档、搜索信息、收发邮件、定时任务，以及更多。
 
 DiClaw 的核心是 **Cowork 模式**，它能在本地或沙箱环境中执行工具、操作文件、运行命令，一切都在你的监督下自主完成。此外，DiClaw 支持通过钉钉、飞书、Telegram、Discord 等 IM 平台远程触发，让你在手机上也能随时指挥 Agent 工作。
 
@@ -384,4 +384,4 @@ PR 描述中请包含：变更说明、关联 issue、UI 变更附截图，以�
 
 ---
 
-由[网易有道](https://www.youdao.com/)开发维护。
+由[中科闻歌](https://www.wenge.com/about/index.html)开发维护。
