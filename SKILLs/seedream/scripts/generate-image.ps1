@@ -18,7 +18,7 @@ if ($nodePath) {
     $NodeBin = $env:DIOSCLAW_ELECTRON_PATH
     $EnvVars["ELECTRON_RUN_AS_NODE"] = "1"
 } else {
-    Write-Output '{"success":false,"error":"未找到 Node.js 运行时。请安装 Node.js 或确保 DiosClaw Electron 可用。"}'
+    Write-Output '{"success":false,"error":"未找到 Node.js 运行时。请安装 Node.js 或确保 DiClaw Electron 可用。"}'
     exit 1
 }
 

@@ -35,11 +35,11 @@ Once `npx` is present, proceed with the wrapper script. A global install of `pla
 ## Skill path (set once)
 
 ```bash
-export SKILLS_ROOT="${DIOSCLAW_SKILLS_ROOT:-${SKILLS_ROOT:-$HOME/Library/Application Support/DiosClaw/SKILLs}}"
+export SKILLS_ROOT="${DIOSCLAW_SKILLS_ROOT:-${SKILLS_ROOT:-$HOME/Library/Application Support/DiClaw/SKILLs}}"
 export PWCLI="$SKILLS_ROOT/playwright/scripts/playwright_cli.sh"
 ```
 
-Installed skills resolve from `$DIOSCLAW_SKILLS_ROOT` / `$SKILLS_ROOT` (production default: app `userData/SKILLs`, macOS usually `~/Library/Application Support/DiosClaw/SKILLs`).
+Installed skills resolve from `$DIOSCLAW_SKILLS_ROOT` / `$SKILLS_ROOT` (production default: app `userData/SKILLs`, macOS usually `~/Library/Application Support/DiClaw/SKILLs`).
 
 ## Quick start
 

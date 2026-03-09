@@ -1,7 +1,7 @@
-# DiosClaw — All-in-One Personal Assistant Agent
+# DiClaw — All-in-One Personal Assistant Agent
 
 <p align="center">
-  <img src="public/logo.png" alt="DiosClaw" width="120">
+  <img src="public/logo.png" alt="DiClaw" width="120">
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 ---
 
-**DiosClaw** is an all-in-one personal assistant Agent developed by [NetEase Youdao](https://www.youdao.com/). It works around the clock to handle your everyday tasks — data analysis, making presentations, generating videos, writing documents, searching the web, sending emails, scheduling tasks, and more.
+**DiClaw** is an all-in-one personal assistant Agent developed by [NetEase Youdao](https://www.youdao.com/). It works around the clock to handle your everyday tasks — data analysis, making presentations, generating videos, writing documents, searching the web, sending emails, scheduling tasks, and more.
 
 At its core is **Cowork mode** — it executes tools, manipulates files, and runs commands in a local or sandboxed environment, all under your supervision. You can also chat with agent via Telegram, Discord, DingTalk or Feishu (Lark) and get work done from your phone anytime, anywhere.
 
@@ -57,7 +57,7 @@ At its core is **Cowork mode** — it executes tools, manipulates files, and run
 
 ```bash
 # Clone the repository
-git clone https://github.com/netease-youdao/DiosClaw.git
+git clone https://github.com/netease-youdao/DiClaw.git
 cd diosclaw
 
 # Install dependencies
@@ -104,7 +104,7 @@ npm run dist:linux
 ```
 
 Windows builds bundle a portable Python runtime under `resources/python-win` (included as installer resource `python-win`), so end users do not need to install Python manually.
-The bundled runtime is interpreter-focused and does not preinstall DiosClaw skill Python packages; those can be installed at runtime on demand.
+The bundled runtime is interpreter-focused and does not preinstall DiClaw skill Python packages; those can be installed at runtime on demand.
 By default, packaging downloads the official Python embeddable runtime from python.org if no prebuilt archive is provided.
 For offline/non-network builds, provide a prebuilt runtime archive explicitly.
 
@@ -115,7 +115,7 @@ Offline/runtime source options for packaging:
 
 ## Architecture
 
-DiosClaw uses Electron's strict process isolation. All cross-process communication goes through IPC.
+DiClaw uses Electron's strict process isolation. All cross-process communication goes through IPC.
 
 ### Process Model
 
@@ -179,7 +179,7 @@ SKILLs/                              # Skill definitions
 
 ## Cowork System
 
-Cowork is the core feature of DiosClaw — an AI working session system built on the Claude Agent SDK. Designed for productivity scenarios, it can autonomously complete complex tasks like data analysis, document generation, and information retrieval.
+Cowork is the core feature of DiClaw — an AI working session system built on the Claude Agent SDK. Designed for productivity scenarios, it can autonomously complete complex tasks like data analysis, document generation, and information retrieval.
 
 ### Execution Modes
 
@@ -205,7 +205,7 @@ All tool invocations involving file system access, terminal commands, or network
 
 ## Skills System
 
-DiosClaw ships with 16 built-in skills covering productivity, creative, and automation scenarios, configured via `SKILLs/skills.config.json`:
+DiClaw ships with 16 built-in skills covering productivity, creative, and automation scenarios, configured via `SKILLs/skills.config.json`:
 
 | Skill | Function | Typical Use Case |
 |-------|----------|-----------------|
@@ -230,7 +230,7 @@ Custom skills can be created via `skill-creator` and hot-loaded at runtime.
 
 ## Scheduled Tasks
 
-DiosClaw supports scheduled tasks that let the Agent automatically execute recurring work on a set schedule.
+DiClaw supports scheduled tasks that let the Agent automatically execute recurring work on a set schedule.
 
 ### How to Create
 
@@ -251,7 +251,7 @@ Scheduled tasks are powered by Cron expressions, supporting minute, hourly, dail
 
 ## IM Integration — Mobile Remote Control
 
-DiosClaw can bridge the Agent to multiple IM platforms. Send a message from your phone via IM to remotely trigger the desktop Agent — command your personal assistant anytime, anywhere.
+DiClaw can bridge the Agent to multiple IM platforms. Send a message from your phone via IM to remotely trigger the desktop Agent — command your personal assistant anytime, anywhere.
 
 | Platform | Protocol | Description |
 |----------|----------|-------------|
@@ -266,12 +266,12 @@ Configure the corresponding platform Token/Secret in the Settings panel to enabl
 
 ## Persistent Memory
 
-DiosClaw has a built-in memory system that remembers your personal information and preferences across sessions, making the Agent more helpful the more you use it.
+DiClaw has a built-in memory system that remembers your personal information and preferences across sessions, making the Agent more helpful the more you use it.
 
 ### How Memories Are Captured
 
 - **Automatic Extraction** — During conversations, the system automatically identifies and stores your personal details (name, occupation), preferences (language, format, style), and personal facts (pets, tools you use) — no manual effort required
-- **Explicit Requests** — Tell the Agent directly, e.g., "remember that I prefer Markdown format" or "note down that my project is called DiosClaw," and it will store the memory with higher confidence
+- **Explicit Requests** — Tell the Agent directly, e.g., "remember that I prefer Markdown format" or "note down that my project is called DiClaw," and it will store the memory with higher confidence
 - **Manual Management** — Add, edit, or delete memory entries in the Memory management panel within Settings
 
 ### How It Works
@@ -311,7 +311,7 @@ All data is stored in a local SQLite database (`diosclaw.sqlite` in the user dat
 
 ## Security Model
 
-DiosClaw enforces security at multiple layers:
+DiClaw enforces security at multiple layers:
 
 - **Process Isolation** — Context isolation enabled, node integration disabled
 - **Permission Gating** — Tool invocations require explicit user approval
@@ -379,7 +379,7 @@ Please include in your PR description: a summary of changes, linked issue (if an
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=netease-youdao/DiosClaw&type=date&legend=top-left)](https://www.star-history.com/#netease-youdao/DiosClaw&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=netease-youdao/DiClaw&type=date&legend=top-left)](https://www.star-history.com/#netease-youdao/DiClaw&type=date&legend=top-left)
 
 ---
 

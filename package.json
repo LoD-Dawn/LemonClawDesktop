@@ -1,9 +1,9 @@
 {
-  "name": "diosclaw",
+  "name": "diclaw",
   "private": true,
   "author": {
-    "name": "DiosClaw",
-    "email": "diosclaw.project@rd.netease.com"
+    "name": "DiClaw",
+    "email": "diclaw.project@rd.netease.com"
   },
   "license": "MIT",
   "version": "0.2.2",

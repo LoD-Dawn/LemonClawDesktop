@@ -94,7 +94,7 @@ const resolveInlineAttachmentDir = (cwd?: string): string => {
       return path.join(resolved, '.cowork-temp', 'attachments', 'manual');
     }
   }
-  return path.join(app.getPath('temp'), 'diosclaw', 'attachments');
+  return path.join(app.getPath('temp'), 'diclaw', 'attachments');
 };
 
 const ensurePngFileName = (value: string): string => {
@@ -111,7 +111,7 @@ const buildLogExportFileName = (): string => {
   const now = new Date();
   const datePart = `${now.getFullYear()}${padTwoDigits(now.getMonth() + 1)}${padTwoDigits(now.getDate())}`;
   const timePart = `${padTwoDigits(now.getHours())}${padTwoDigits(now.getMinutes())}${padTwoDigits(now.getSeconds())}`;
-  return `diosclaw-logs-${datePart}-${timePart}.zip`;
+  return `diclaw-logs-${datePart}-${timePart}.zip`;
 };
 
 const truncateIpcString = (value: string, maxChars: number): string => {
@@ -295,8 +295,8 @@ const enableVerboseLogging =
   process.env.ELECTRON_ENABLE_LOGGING === '1' ||
   process.env.ELECTRON_ENABLE_LOGGING === 'true';
 const disableGpu =
-  process.env.DIOSCLAW_DISABLE_GPU === '1' ||
-  process.env.DIOSCLAW_DISABLE_GPU === 'true' ||
+  process.env.DICLAW_DISABLE_GPU === '1' ||
+  process.env.DICLAW_DISABLE_GPU === 'true' ||
   process.env.ELECTRON_DISABLE_GPU === '1' ||
   process.env.ELECTRON_DISABLE_GPU === 'true';
 const reloadOnChildProcessGone =
@@ -2614,7 +2614,7 @@ if (!gotTheLock) {
     // We don't trigger permission dialogs at startup to avoid annoying users
 
     // Ensure default working directory exists
-    const defaultProjectDir = path.join(os.homedir(), 'diosclaw', 'project');
+    const defaultProjectDir = path.join(os.homedir(), 'diclaw', 'project');
     if (!fs.existsSync(defaultProjectDir)) {
       fs.mkdirSync(defaultProjectDir, { recursive: true });
       console.log('Created default project directory:', defaultProjectDir);
@@ -2749,3 +2749,4 @@ if (!gotTheLock) {
     }
   });
 } 
+

@@ -191,7 +191,7 @@ function buildSkillEnv(): Record<string, string | undefined> {
 
   // Expose Electron executable so skill scripts can run JS with ELECTRON_RUN_AS_NODE
   // even when system Node.js is not installed.
-  env.DIOSCLAW_ELECTRON_PATH = getElectronNodeRuntimePath();
+  env.DICLAW_ELECTRON_PATH = getElectronNodeRuntimePath();
   appendPythonRuntimeToEnv(env);
 
   // Re-normalize after appendPythonRuntimeToEnv may have added a PATH key
@@ -722,15 +722,15 @@ const downloadGithubArchive = async (
     archiveUrlCandidates.push(
       {
         url: `https://github.com/${source.owner}/${source.repo}/archive/refs/heads/${encodedRef}.zip`,
-        headers: { 'User-Agent': 'DiosClaw Skill Downloader' },
+        headers: { 'User-Agent': 'DiClaw Skill Downloader' },
       },
       {
         url: `https://github.com/${source.owner}/${source.repo}/archive/refs/tags/${encodedRef}.zip`,
-        headers: { 'User-Agent': 'DiosClaw Skill Downloader' },
+        headers: { 'User-Agent': 'DiClaw Skill Downloader' },
       },
       {
         url: `https://github.com/${source.owner}/${source.repo}/archive/${encodedRef}.zip`,
-        headers: { 'User-Agent': 'DiosClaw Skill Downloader' },
+        headers: { 'User-Agent': 'DiClaw Skill Downloader' },
       }
     );
   }
@@ -739,7 +739,7 @@ const downloadGithubArchive = async (
     url: `https://api.github.com/repos/${source.owner}/${source.repo}/zipball${encodedRef ? `/${encodedRef}` : ''}`,
     headers: {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'DiosClaw Skill Downloader',
+      'User-Agent': 'DiClaw Skill Downloader',
       'X-GitHub-Api-Version': '2022-11-28',
     },
   });
@@ -807,7 +807,7 @@ const isRemoteZipUrl = (source: string): boolean => {
 const downloadZipUrl = async (zipUrl: string, tempRoot: string): Promise<string> => {
   const response = await session.defaultSession.fetch(zipUrl, {
     method: 'GET',
-    headers: { 'User-Agent': 'DiosClaw Skill Downloader' },
+    headers: { 'User-Agent': 'DiClaw Skill Downloader' },
   });
 
   if (!response.ok) {
@@ -1221,7 +1221,7 @@ export class SkillManager {
         const stat = fs.statSync(localSource);
         if (stat.isFile()) {
           if (isZipFile(localSource)) {
-            const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'diosclaw-skill-zip-'));
+            const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'diclaw-skill-zip-'));
             await extractZip(localSource, { dir: tempRoot });
             localSource = tempRoot;
             cleanupPath = tempRoot;
@@ -1232,7 +1232,7 @@ export class SkillManager {
           }
         }
       } else if (isRemoteZipUrl(trimmed)) {
-        const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'diosclaw-skill-zip-'));
+        const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'diclaw-skill-zip-'));
         cleanupPath = tempRoot;
         localSource = await downloadZipUrl(trimmed, tempRoot);
       } else {
@@ -1240,7 +1240,7 @@ export class SkillManager {
         if (!normalized) {
           return { success: false, error: 'Invalid skill source. Use owner/repo, repo URL, or a GitHub tree/blob URL.' };
         }
-        const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'diosclaw-skill-'));
+        const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'diclaw-skill-'));
         cleanupPath = tempRoot;
         const repoName = normalizeFolderName(normalized.repoNameHint || deriveRepoName(normalized.repoUrl));
         const clonePath = path.join(tempRoot, repoName);
@@ -1264,14 +1264,14 @@ export class SkillManager {
               const archiveMessage = extractErrorMessage(archiveError);
               if (errno === 'ENOENT' && process.platform === 'win32') {
                 throw new Error(
-                  'Git executable not found. Please install Git for Windows or reinstall DiosClaw with bundled PortableGit.'
+                  'Git executable not found. Please install Git for Windows or reinstall DiClaw with bundled PortableGit.'
                   + ` Archive fallback also failed: ${archiveMessage}`
                 );
               }
               throw new Error(`Git clone failed: ${gitMessage}. Archive fallback failed: ${archiveMessage}`);
             }
           } else if (errno === 'ENOENT' && process.platform === 'win32') {
-            throw new Error('Git executable not found. Please install Git for Windows or reinstall DiosClaw with bundled PortableGit.');
+            throw new Error('Git executable not found. Please install Git for Windows or reinstall DiClaw with bundled PortableGit.');
           } else {
             throw error;
           }
@@ -1921,3 +1921,4 @@ export const __skillManagerTestUtils = {
   isTruthy,
   extractDescription,
 };
+

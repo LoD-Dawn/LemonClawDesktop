@@ -238,7 +238,7 @@ export function appendPythonRuntimeToEnv(env: Record<string, string | undefined>
 
   if (pathEntries.length > 0) {
     env.PATH = appendWindowsPath(env.PATH, pathEntries);
-    env.DIOSCLAW_PYTHON_ROOT = pathEntries[0];
+    env.DICLAW_PYTHON_ROOT = pathEntries[0];
   }
 
   return env;
@@ -388,3 +388,4 @@ export async function ensurePythonPipReady(): Promise<{ success: boolean; error?
     return { success: false, error: message };
   }
 }
+

@@ -1,7 +1,7 @@
-# DiosClaw — 全场景个人助理 Agent
+# DiClaw — 全场景个人助理 Agent
 
 <p align="center">
-  <img src="public/logo.png" alt="DiosClaw" width="120">
+  <img src="public/logo.png" alt="DiClaw" width="120">
 </p>
 
 <p align="center">
@@ -23,9 +23,9 @@
 
 ---
 
-**DiosClaw** 是由[网易有道](https://www.youdao.com/)开发的全场景个人助理 Agent。它 7×24 小时待命，能够帮你完成日常办公中的各类事务 —— 数据分析、制作 PPT、生成视频、撰写文档、搜索信息、收发邮件、定时任务，以及更多。
+**DiClaw** 是由[网易有道](https://www.youdao.com/)开发的全场景个人助理 Agent。它 7×24 小时待命，能够帮你完成日常办公中的各类事务 —— 数据分析、制作 PPT、生成视频、撰写文档、搜索信息、收发邮件、定时任务，以及更多。
 
-DiosClaw 的核心是 **Cowork 模式**，它能在本地或沙箱环境中执行工具、操作文件、运行命令，一切都在你的监督下自主完成。此外，DiosClaw 支持通过钉钉、飞书、Telegram、Discord 等 IM 平台远程触发，让你在手机上也能随时指挥 Agent 工作。
+DiClaw 的核心是 **Cowork 模式**，它能在本地或沙箱环境中执行工具、操作文件、运行命令，一切都在你的监督下自主完成。此外，DiClaw 支持通过钉钉、飞书、Telegram、Discord 等 IM 平台远程触发，让你在手机上也能随时指挥 Agent 工作。
 
 ## 核心特性
 
@@ -57,7 +57,7 @@ DiosClaw 的核心是 **Cowork 模式**，它能在本地或沙箱环境中执�
 
 ```bash
 # 克隆仓库
-git clone https://github.com/netease-youdao/DiosClaw.git
+git clone https://github.com/netease-youdao/DiClaw.git
 cd diosclaw
 
 # 安装依赖
@@ -104,7 +104,7 @@ npm run dist:linux
 ```
 
 Windows 打包会内置便携 Python 运行时到 `resources/python-win`（安装包资源目录为 `python-win`），终端用户无需手动安装 Python。
-该运行时以解释器为主，不预装 DiosClaw 技能所需的 Python 三方包；相关依赖可在运行时按需安装。
+该运行时以解释器为主，不预装 DiClaw 技能所需的 Python 三方包；相关依赖可在运行时按需安装。
 默认情况下，如果未提供预构建压缩包，打包脚本会直接从 python.org 下载官方 embeddable Python 运行时。
 离线或无法联网的构建场景，请显式提供预构建运行时压缩包。
 
@@ -115,7 +115,7 @@ Windows 打包会内置便携 Python 运行时到 `resources/python-win`（安�
 
 ## 架构概览
 
-DiosClaw 采用 Electron 严格进程隔离架构，所有跨进程通信通过 IPC 完成。
+DiClaw 采用 Electron 严格进程隔离架构，所有跨进程通信通过 IPC 完成。
 
 ### 进程模型
 
@@ -179,7 +179,7 @@ SKILLs/                              # 技能定义目录
 
 ## Cowork 系统
 
-Cowork 是 DiosClaw 的核心功能 —— 基于 Claude Agent SDK 的 AI 工作会话系统。它面向办公场景设计，能够自主完成数据分析、文档生成、信息检索等复杂任务。
+Cowork 是 DiClaw 的核心功能 —— 基于 Claude Agent SDK 的 AI 工作会话系统。它面向办公场景设计，能够自主完成数据分析、文档生成、信息检索等复杂任务。
 
 ### 执行模式
 
@@ -206,7 +206,7 @@ Cowork 通过 IPC 事件实现实时双向通信：
 
 ## 技能系统
 
-DiosClaw 内置 16 种技能，覆盖办公、创作、自动化等多种场景，通过 `SKILLs/skills.config.json` 配置启停和排序：
+DiClaw 内置 16 种技能，覆盖办公、创作、自动化等多种场景，通过 `SKILLs/skills.config.json` 配置启停和排序：
 
 | 技能 | 功能 | 典型场景 |
 |------|------|---------|
@@ -231,7 +231,7 @@ DiosClaw 内置 16 种技能，覆盖办公、创作、自动化等多种场景�
 
 ## 定时任务
 
-DiosClaw 支持创建定时任务，让 Agent 按计划自动执行重复性工作。
+DiClaw 支持创建定时任务，让 Agent 按计划自动执行重复性工作。
 
 ### 创建方式
 
@@ -252,7 +252,7 @@ DiosClaw 支持创建定时任务，让 Agent 按计划自动执行重复性工�
 
 ## IM 集成 — 手机端远程操控
 
-DiosClaw 支持将 Agent 桥接到多种 IM 平台。在手机上通过 IM 发送消息即可远程触发桌面端的 Agent 执行任务，随时随地指挥你的个人助理。
+DiClaw 支持将 Agent 桥接到多种 IM 平台。在手机上通过 IM 发送消息即可远程触发桌面端的 Agent 执行任务，随时随地指挥你的个人助理。
 
 | 平台 | 协议 | 说明 |
 |------|------|------|
@@ -267,12 +267,12 @@ DiosClaw 支持将 Agent 桥接到多种 IM 平台。在手机上通过 IM 发�
 
 ## 持久记忆
 
-DiosClaw 内置记忆系统，能够跨会话记住你的个人信息和偏好，让 Agent 越用越懂你。
+DiClaw 内置记忆系统，能够跨会话记住你的个人信息和偏好，让 Agent 越用越懂你。
 
 ### 记忆获取方式
 
 - **自动提取** — 对话过程中，系统自动识别并记录你的个人信息（姓名、职业等）、偏好习惯（喜好的语言、格式、风格）和个人事实（养的宠物、使用的工具等），无需手动操作
-- **主动告知** — 在对话中直接说「记住我喜欢用 Markdown 格式」「记下我的项目叫 DiosClaw」等，Agent 会以更高置信度存储
+- **主动告知** — 在对话中直接说「记住我喜欢用 Markdown 格式」「记下我的项目叫 DiClaw」等，Agent 会以更高置信度存储
 - **手动管理** — 在设置面板的记忆管理界面中手动添加、编辑或删除记忆条目
 
 ### 工作机制
@@ -312,7 +312,7 @@ DiosClaw 内置记忆系统，能够跨会话记住你的个人信息和偏好�
 
 ## 安全模型
 
-DiosClaw 在多个层面实施安全控制：
+DiClaw 在多个层面实施安全控制：
 
 - **进程隔离** — context isolation 启用，node integration 禁用
 - **权限门控** — 敏感工具调用需用户明确审批
@@ -379,7 +379,7 @@ PR 描述中请包含：变更说明、关联 issue、UI 变更附截图，以�
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=netease-youdao/DiosClaw&type=date&legend=top-left)](https://www.star-history.com/#netease-youdao/DiosClaw&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=netease-youdao/DiClaw&type=date&legend=top-left)](https://www.star-history.com/#netease-youdao/DiClaw&type=date&legend=top-left)
 
 
 ---

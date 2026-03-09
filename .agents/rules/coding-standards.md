@@ -1,4 +1,4 @@
-# Antigravity Rule: DiosClaw Coding Standards & Architecture
+# Antigravity Rule: DiClaw Coding Standards & Architecture
 
 *This file provides guidance to AI coding agents (like Antigravity / Gemini) when working with code in this repository. It is a direct port of the original AGENTS.md / CLAUDE.md.*
 
@@ -30,7 +30,7 @@ npm run dist:linux      # Linux (.AppImage)
 
 ## Architecture Overview
 
-DiosClaw is an Electron + React desktop application with two primary modes:
+DiClaw is an Electron + React desktop application with two primary modes:
 1. **Cowork Mode** - AI-assisted coding sessions using Claude Agent SDK with tool execution
 2. **Artifacts System** - Rich preview of code outputs (HTML, SVG, React, Mermaid)
 

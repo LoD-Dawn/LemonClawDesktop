@@ -196,7 +196,7 @@ const normalizeBaseUrl = (baseUrl: string): string => baseUrl.trim().replace(/\/
 const normalizeApiFormat = (value: unknown): 'anthropic' | 'openai' => (
   value === 'openai' ? 'openai' : 'anthropic'
 );
-const ABOUT_CONTACT_EMAIL = 'diosclaw.project@rd.netease.com';
+const ABOUT_CONTACT_EMAIL = 'diclaw.project@rd.netease.com';
 const ABOUT_USER_MANUAL_URL = 'https://diosclaw.youdao.com/#/docs/diosclaw_user_manual';
 const ABOUT_SERVICE_TERMS_URL = 'https://c.youdao.com/dict/hardware/diosclaw/diosclaw_service.html';
 
@@ -2820,7 +2820,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
             {/* Logo & App Name */}
             <img
               src="logo.png"
-              alt="DiosClaw"
+              alt="DiClaw"
               className="w-16 h-16 mb-3 cursor-pointer select-none"
               onClick={() => {
                 const next = logoClickCount + 1;
@@ -2830,7 +2830,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                 }
               }}
             />
-            <h3 className="text-lg font-semibold dark:text-dark-text text-text-primary">DiosClaw</h3>
+            <h3 className="text-lg font-semibold dark:text-dark-text text-text-primary">DiClaw</h3>
             <span className="text-xs dark:text-dark-text-secondary text-text-secondary mt-1">v{appVersion}</span>
 
             {/* Info Card */}
@@ -3315,3 +3315,4 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 };
 
 export default Settings; 
+

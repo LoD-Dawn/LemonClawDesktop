@@ -5,8 +5,8 @@
  * Features:
  * - Cross-platform execution (macOS/Linux can prepare assets for Windows packaging)
  * - Optional strict mode: --required (fail build if not prepared)
- * - Offline archive support via DIOSCLAW_PORTABLE_GIT_ARCHIVE
- * - Mirror URL override via DIOSCLAW_PORTABLE_GIT_URL
+ * - Offline archive support via DICLAW_PORTABLE_GIT_ARCHIVE
+ * - Mirror URL override via DICLAW_PORTABLE_GIT_URL
  * - Unified extraction via 7zip-bin (path7za)
  */
 
@@ -202,14 +202,14 @@ function ensurePortableGitRuntimeDirs(required) {
 }
 
 async function resolveArchive(required) {
-  const envArchive = resolveInputPath(process.env.DIOSCLAW_PORTABLE_GIT_ARCHIVE);
+  const envArchive = resolveInputPath(process.env.DICLAW_PORTABLE_GIT_ARCHIVE);
   if (envArchive) {
     if (!isNonEmptyFile(envArchive)) {
       throw new Error(
-        `DIOSCLAW_PORTABLE_GIT_ARCHIVE points to an invalid file: ${envArchive}`
+        `DICLAW_PORTABLE_GIT_ARCHIVE points to an invalid file: ${envArchive}`
       );
     }
-    console.log(`[setup-mingit] Using local archive from DIOSCLAW_PORTABLE_GIT_ARCHIVE: ${envArchive}`);
+    console.log(`[setup-mingit] Using local archive from DICLAW_PORTABLE_GIT_ARCHIVE: ${envArchive}`);
     return { archivePath: envArchive, source: 'env-archive' };
   }
 
@@ -218,8 +218,8 @@ async function resolveArchive(required) {
     return { archivePath: DEFAULT_ARCHIVE_PATH, source: 'cache' };
   }
 
-  const urlFromEnv = typeof process.env.DIOSCLAW_PORTABLE_GIT_URL === 'string'
-    ? process.env.DIOSCLAW_PORTABLE_GIT_URL.trim()
+  const urlFromEnv = typeof process.env.DICLAW_PORTABLE_GIT_URL === 'string'
+    ? process.env.DICLAW_PORTABLE_GIT_URL.trim()
     : '';
   const downloadUrl = urlFromEnv || DEFAULT_PORTABLE_GIT_URL;
 
@@ -233,8 +233,8 @@ async function resolveArchive(required) {
     if (required) {
       throw new Error(
         'Unable to obtain PortableGit archive. '
-        + 'Set DIOSCLAW_PORTABLE_GIT_ARCHIVE to a local offline package or '
-        + 'set DIOSCLAW_PORTABLE_GIT_URL to a reachable mirror. '
+        + 'Set DICLAW_PORTABLE_GIT_ARCHIVE to a local offline package or '
+        + 'set DICLAW_PORTABLE_GIT_URL to a reachable mirror. '
         + `Original error: ${error instanceof Error ? error.message : String(error)}`
       );
     }
@@ -249,7 +249,7 @@ async function resolveArchive(required) {
 
 async function ensurePortableGit(options = {}) {
   const required = Boolean(options.required);
-  const shouldRun = process.platform === 'win32' || required || process.env.DIOSCLAW_SETUP_MINGIT_FORCE === '1';
+  const shouldRun = process.platform === 'win32' || required || process.env.DICLAW_SETUP_MINGIT_FORCE === '1';
 
   if (!shouldRun) {
     console.log('[setup-mingit] Skip on non-Windows host (pass --required to force cross-platform preparation).');
@@ -303,3 +303,4 @@ module.exports = {
   ensurePortableGit,
   findPortableGitBash,
 };
+

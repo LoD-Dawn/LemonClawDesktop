@@ -410,7 +410,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
             <div className="relative px-6 py-6 md:px-9 md:py-7 space-y-5">
               <div className="inline-flex items-center gap-2 rounded-full border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/75 bg-surface/90 px-3 py-1 text-xs dark:text-dark-text-secondary text-text-secondary">
                 <SparklesIcon className="h-3.5 w-3.5" />
-                <span>DiosClaw</span>
+                <span>DiClaw</span>
               </div>
 
               <div className="space-y-3">

@@ -198,8 +198,8 @@ function buildPathSearchRoots(cwd, requestEnv) {
     if (typeof requestEnv.SKILLS_ROOT === 'string') {
       pushRoot(requestEnv.SKILLS_ROOT);
     }
-    if (typeof requestEnv.DIOSCLAW_SKILLS_ROOT === 'string') {
-      pushRoot(requestEnv.DIOSCLAW_SKILLS_ROOT);
+    if (typeof requestEnv.DICLAW_SKILLS_ROOT === 'string') {
+      pushRoot(requestEnv.DICLAW_SKILLS_ROOT);
     }
   }
 
@@ -293,8 +293,8 @@ function resolveFallbackPath(filePath, searchRoots, requestEnv) {
   if (normalizedLower.startsWith(TMP_WORKSPACE_SKILLS_PREFIX) && requestEnv && typeof requestEnv === 'object') {
     const skillsRoot = typeof requestEnv.SKILLS_ROOT === 'string'
       ? requestEnv.SKILLS_ROOT
-      : typeof requestEnv.DIOSCLAW_SKILLS_ROOT === 'string'
-        ? requestEnv.DIOSCLAW_SKILLS_ROOT
+      : typeof requestEnv.DICLAW_SKILLS_ROOT === 'string'
+        ? requestEnv.DICLAW_SKILLS_ROOT
         : null;
     if (skillsRoot && path.isAbsolute(skillsRoot)) {
       const skillsCandidate = path.join(skillsRoot, normalized.slice(TMP_WORKSPACE_SKILLS_PREFIX.length));
@@ -339,8 +339,8 @@ function resolveSkillsRootFromEnv(requestEnv) {
   if (!requestEnv || typeof requestEnv !== 'object') return null;
   const skillsRoot = typeof requestEnv.SKILLS_ROOT === 'string'
     ? requestEnv.SKILLS_ROOT
-    : typeof requestEnv.DIOSCLAW_SKILLS_ROOT === 'string'
-      ? requestEnv.DIOSCLAW_SKILLS_ROOT
+    : typeof requestEnv.DICLAW_SKILLS_ROOT === 'string'
+      ? requestEnv.DICLAW_SKILLS_ROOT
       : null;
   if (!skillsRoot || !path.isAbsolute(skillsRoot)) return null;
   return skillsRoot;
@@ -1931,3 +1931,4 @@ main().catch((error) => {
   console.error('Agent runner crashed:', error);
   process.exit(1);
 });
+

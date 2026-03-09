@@ -17,7 +17,7 @@ elif [ -n "${DIOSCLAW_ELECTRON_PATH:-}" ] && [ -x "${DIOSCLAW_ELECTRON_PATH}" ];
   NODE_BIN="$DIOSCLAW_ELECTRON_PATH"
   NODE_ENV_PREFIX=("ELECTRON_RUN_AS_NODE=1")
 else
-  echo '{"success":false,"error":"未找到 Node.js 运行时。请安装 Node.js 或确保 DiosClaw Electron 可用。"}' >&2
+  echo '{"success":false,"error":"未找到 Node.js 运行时。请安装 Node.js 或确保 DiClaw Electron 可用。"}' >&2
   exit 1
 fi
 

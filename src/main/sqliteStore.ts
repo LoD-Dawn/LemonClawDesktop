@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
-import { DB_FILENAME } from './appConstants';
+import { DB_FILENAME, LEGACY_DB_FILENAME } from './appConstants';
 
 type ChangePayload<T = unknown> = {
   key: string;
@@ -43,6 +43,11 @@ export class SqliteStore {
   static async create(userDataPath?: string): Promise<SqliteStore> {
     const basePath = userDataPath ?? app.getPath('userData');
     const dbPath = path.join(basePath, DB_FILENAME);
+    const legacyDbPath = path.join(basePath, LEGACY_DB_FILENAME);
+
+    if (!fs.existsSync(dbPath) && fs.existsSync(legacyDbPath)) {
+      fs.copyFileSync(legacyDbPath, dbPath);
+    }
 
     // Initialize SQL.js with WASM file path (cached promise for reuse)
     if (!SqliteStore.sqlPromise) {
