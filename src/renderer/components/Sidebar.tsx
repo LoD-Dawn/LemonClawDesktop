@@ -333,7 +333,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       </svg>
                     </div>
                     <div className="text-sm font-medium">
-                      <span className="dark:text-dark-text-secondary text-text-secondary">中科闻歌-xx</span>
+                      <span className="dark:text-dark-text-secondary text-text-secondary">中科闻歌</span>
                     </div>
                   </div>
                 </div>
