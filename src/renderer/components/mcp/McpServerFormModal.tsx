@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 import { i18nService } from '../../services/i18n';
 import { McpServerConfig, McpServerFormData, McpRegistryEntry } from '../../types/mcp';
+
 
 interface McpServerFormModalProps {
   isOpen: boolean;
@@ -343,9 +345,7 @@ const McpServerFormModal: React.FC<McpServerFormModalProps> = ({
                         onClick={() => handleRemoveEnvRow(index)}
                         className="p-1 text-text-secondary dark:text-dark-text-secondary hover:text-red-500 dark:hover:text-red-400 transition-colors flex-shrink-0"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                          <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                        </svg>
+                        <XMarkIcon className="w-4 h-4" />
                       </button>
                     )}
                     {row.required && (
@@ -403,9 +403,7 @@ const McpServerFormModal: React.FC<McpServerFormModalProps> = ({
                       onClick={() => handleRemoveHeaderRow(index)}
                       className="p-1 text-text-secondary dark:text-dark-text-secondary hover:text-red-500 dark:hover:text-red-400 transition-colors flex-shrink-0"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                      </svg>
+                      <XMarkIcon className="w-4 h-4" />
                     </button>
                   </div>
                 ))}

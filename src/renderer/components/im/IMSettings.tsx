@@ -445,11 +445,10 @@ const IMSettings: React.FC = () => {
             <div
               key={platform}
               onClick={() => setActivePlatform(platform)}
-              className={`flex items-center p-2 rounded-xl cursor-pointer transition-colors ${
-                activePlatform === platform
-                  ? 'bg-primary/10 dark:bg-primary/20 border border-primary/30 shadow-subtle'
-                  : 'dark:bg-dark-surface/50 bg-surface hover:bg-surface-hover dark:hover:bg-dark-surface-hover border border-transparent'
-              }`}
+              className={`flex items-center p-2 rounded-xl cursor-pointer transition-colors ${activePlatform === platform
+                ? 'bg-primary/10 dark:bg-primary/20 border border-primary/30 shadow-subtle'
+                : 'dark:bg-dark-surface/50 bg-surface hover:bg-surface-hover dark:hover:bg-dark-surface-hover border border-transparent'
+                }`}
             >
               <div className="flex flex-1 items-center">
                 <div className="mr-2 flex h-7 w-7 items-center justify-center">
@@ -459,30 +458,27 @@ const IMSettings: React.FC = () => {
                     className="w-6 h-6 object-contain rounded-md"
                   />
                 </div>
-                <span className={`text-sm font-medium truncate ${
-                  activePlatform === platform
-                    ? 'text-primary'
-                    : 'dark:text-dark-text text-text-primary'
-                }`}>
+                <span className={`text-sm font-medium truncate ${activePlatform === platform
+                  ? 'text-primary'
+                  : 'dark:text-dark-text text-text-primary'
+                  }`}>
                   {i18nService.t(platform)}
                 </span>
               </div>
               <div className="flex items-center ml-2">
                 <div
-                  className={`w-7 h-4 rounded-full flex items-center transition-colors ${
-                    isEnabled
-                      ? (isConnected ? 'bg-green-500' : 'bg-yellow-500')
-                      : 'dark:bg-dark-border bg-border'
-                  } ${(!canToggle || togglingPlatform === platform) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  className={`w-7 h-4 rounded-full flex items-center transition-colors ${isEnabled
+                    ? (isConnected ? 'bg-green-500' : 'bg-yellow-500')
+                    : 'dark:bg-dark-border bg-border'
+                    } ${(!canToggle || togglingPlatform === platform) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     handlePlatformToggle(platform);
                   }}
                 >
                   <div
-                    className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${
-                      isEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
-                    }`}
+                    className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${isEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                      }`}
                   />
                 </div>
               </div>
@@ -507,11 +503,10 @@ const IMSettings: React.FC = () => {
               {`${i18nService.t(activePlatform)}${i18nService.t('settings')}`}
             </h3>
           </div>
-          <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            getPlatformConnected(activePlatform) || getPlatformStarting(activePlatform)
-              ? 'bg-green-500/15 text-green-600 dark:text-green-400'
-              : 'bg-gray-500/15 text-gray-500 dark:text-gray-400'
-          }`}>
+          <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPlatformConnected(activePlatform) || getPlatformStarting(activePlatform)
+            ? 'bg-green-500/15 text-green-600 dark:text-green-400'
+            : 'bg-gray-500/15 text-gray-500 dark:text-gray-400'
+            }`}>
             {getPlatformConnected(activePlatform)
               ? i18nService.t('connected')
               : getPlatformStarting(activePlatform)
@@ -1167,9 +1162,8 @@ const IMSettings: React.FC = () => {
                 </p>
               </div>
               <div
-                className={`w-10 h-5 rounded-full flex items-center transition-colors cursor-pointer ${
-                  config.nim.qchatEnabled ? 'bg-green-500' : 'dark:bg-dark-border bg-border'
-                }`}
+                className={`w-10 h-5 rounded-full flex items-center transition-colors cursor-pointer ${config.nim.qchatEnabled ? 'bg-green-500' : 'dark:bg-dark-border bg-border'
+                  }`}
                 onClick={() => {
                   const newValue = !config.nim.qchatEnabled;
                   handleNimChange('qchatEnabled', newValue);
@@ -1177,9 +1171,8 @@ const IMSettings: React.FC = () => {
                 }}
               >
                 <div
-                  className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${
-                    config.nim.qchatEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                  }`}
+                  className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${config.nim.qchatEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
                 />
               </div>
             </div>

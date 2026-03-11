@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CoworkSessionSummary, CoworkSessionStatus } from '../../types/cowork';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import EllipsisHorizontalIcon from '../icons/EllipsisHorizontalIcon';
-import PencilSquareIcon from '../icons/PencilSquareIcon';
-import TrashIcon from '../icons/TrashIcon';
+import { EllipsisHorizontalIcon, ExclamationTriangleIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ListChecksIcon from '../icons/ListChecksIcon';
+import PushPinIcon from '../icons/PushPinIcon';
 import { i18nService } from '../../services/i18n';
 
 interface CoworkSessionItemProps {
@@ -28,27 +26,6 @@ const statusLabels: Record<CoworkSessionStatus, string> = {
   completed: 'coworkStatusCompleted',
   error: 'coworkStatusError',
 };
-
-const PushPinIcon: React.FC<React.SVGProps<SVGSVGElement> & { slashed?: boolean }> = ({
-  slashed,
-  ...props
-}) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <g transform="rotate(45 12 12)">
-      <path d="M9 3h6l-1 5 2 2v2H8v-2l2-2-1-5z" />
-      <path d="M12 12v9" />
-    </g>
-    {slashed && <path d="M5 5L19 19" />}
-  </svg>
-);
 
 const formatRelativeTime = (timestamp: number): { compact: string; full: string } => {
   const now = Date.now();
@@ -382,7 +359,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         >
           {session.pinned ? (
             <span className="relative block h-4 w-4">
-              <PushPinIcon className="h-4 w-4 transition-opacity duration-150 group-hover:opacity-0" />
+              <PushPinIcon className="h-4 w-4 transition-opacity duration-150 group-hover:opacity-0" strokeWidth={2} />
               <EllipsisHorizontalIcon className="absolute inset-0 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
             </span>
           ) : (
@@ -415,6 +392,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
               {item.key === 'pin' && (
                 <PushPinIcon
                   slashed={session.pinned}
+                  strokeWidth={2}
                   className={`h-4 w-4 ${session.pinned ? 'opacity-60' : ''}`}
                 />
               )}

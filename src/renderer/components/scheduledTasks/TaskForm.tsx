@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { scheduledTaskService } from '../../services/scheduledTask';
@@ -408,9 +409,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
                     i18nService.t(`scheduledTasksFormNotify${p.charAt(0).toUpperCase() + p.slice(1)}`)
                   ).join(', ')}
             </span>
-            <svg className={`w-4 h-4 ml-2 transition-transform ${notifyDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <ChevronDownIcon className={`w-4 h-4 ml-2 transition-transform ${notifyDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
           {notifyDropdownOpen && (
             <div className="absolute z-10 bottom-full mb-1 w-full rounded-lg border dark:border-claude-darkBorder border-claude-border dark:bg-claude-darkSurface bg-white shadow-lg py-1">

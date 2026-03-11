@@ -6,6 +6,8 @@ import { scheduledTaskService } from '../../services/scheduledTask';
 import { i18nService } from '../../services/i18n';
 import type { ScheduledTask, Schedule } from '../../types/scheduledTask';
 import { EllipsisVerticalIcon, ClockIcon, PlusIcon } from '@heroicons/react/24/outline';
+import SpinnerIcon from '../icons/SpinnerIcon';
+
 
 const weekdayKeys: Record<number, string> = {
   0: 'scheduledTasksFormWeekSun',
@@ -136,10 +138,7 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
         {/* Running indicator */}
         {task.state.runningAtMs && (
           <span className="inline-flex items-center text-xs text-blue-500">
-            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-              <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-75" />
-            </svg>
+            <SpinnerIcon className="w-3 h-3 animate-spin" />
           </span>
         )}
 

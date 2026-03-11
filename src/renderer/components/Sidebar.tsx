@@ -6,14 +6,21 @@ import { i18nService, type LanguageType } from '../services/i18n';
 import CoworkSessionList from './cowork/CoworkSessionList';
 import ComposeIcon from './icons/ComposeIcon';
 import ConnectorIcon from './icons/ConnectorIcon';
-import SearchIcon from './icons/SearchIcon';
-import ClockIcon from './icons/ClockIcon';
-import PuzzleIcon from './icons/PuzzleIcon';
 import SidebarToggleIcon from './icons/SidebarToggleIcon';
 import TrashIcon from './icons/TrashIcon';
-import GlobeAltIcon from './icons/GlobeAltIcon';
-import ChevronRightIcon from './icons/ChevronRightIcon';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import {
+  AdjustmentsHorizontalIcon,
+  ArrowRightOnRectangleIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  GlobeAltIcon,
+  MagnifyingGlassIcon,
+  PuzzlePieceIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline';
+
 
 interface SidebarProps {
   onShowSettings: () => void;
@@ -216,7 +223,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClick={onOpenSearch}
             className={`${navButtonBase} ${navButtonInactive}`}
           >
-            <SearchIcon className="h-4 w-4" />
+            <MagnifyingGlassIcon className="h-4 w-4" />
             {i18nService.t('search')}
           </button>
           <button
@@ -238,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               : navButtonInactive
               }`}
           >
-            <PuzzleIcon className="h-4 w-4" />
+            <PuzzlePieceIcon className="h-4 w-4" />
             {i18nService.t('skills')}
           </button>
           <button
@@ -317,7 +324,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               aria-expanded={showSettingsMenu}
             >
               <span className="inline-flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M14 17H5" /><path d="M19 7h-9" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></svg>
+                <AdjustmentsHorizontalIcon className="h-4 w-4" />
                 {i18nService.t('settings')}
               </span>
 
@@ -327,10 +334,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="px-4 pb-2 pt-3">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-7 w-7 items-center justify-center rounded-full dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text-secondary text-text-secondary">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                        <path d="M20 21a8 8 0 0 0-16 0" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
+                      <UserCircleIcon className="h-4 w-4" />
                     </div>
                     <div className="text-sm font-medium">
                       <span className="dark:text-dark-text-secondary text-text-secondary">中科闻歌</span>
@@ -348,7 +352,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
                     role="menuitem"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-current"><path d="M14 17H5" /><path d="M19 7h-9" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></svg>
+                    <AdjustmentsHorizontalIcon className="h-4 w-4 text-current" />
                     {i18nService.t('settings')}
                   </button>
                   <div className="my-1">
@@ -390,20 +394,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             >
                               <span className="flex-1 text-left">{option.label}</span>
                               <span className={`text-primary transition-opacity ${selected ? 'opacity-100' : 'opacity-0'}`}>
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="h-4 w-4"
-                                >
-                                  <path d="M20 6 9 17l-5-5" />
-                                </svg>
+                                <CheckIcon className="h-4 w-4 stroke-[2.5]" />
                               </span>
                             </button>
                           );
@@ -424,11 +415,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       aria-label={i18nService.t('logout')}
                       role="menuitem"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                        <polyline points="16 17 21 12 16 7" />
-                        <line x1="21" y1="12" x2="9" y2="12" />
-                      </svg>
+                      <ArrowRightOnRectangleIcon className="h-4 w-4" />
                       {i18nService.t('logout')}
                     </button>
                   )}

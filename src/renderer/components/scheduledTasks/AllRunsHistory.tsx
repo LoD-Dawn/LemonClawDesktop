@@ -5,6 +5,8 @@ import { scheduledTaskService } from '../../services/scheduledTask';
 import { i18nService } from '../../services/i18n';
 import type { ScheduledTaskRunWithName } from '../../types/scheduledTask';
 import { ClockIcon } from '@heroicons/react/24/outline';
+import SpinnerIcon from '../icons/SpinnerIcon';
+
 
 function formatDuration(ms: number | null): string {
   if (!ms) return '-';
@@ -101,10 +103,7 @@ const AllRunsHistory: React.FC = () => {
               <div className="text-sm font-medium dark:text-dark-text text-text-primary truncate">
                 {run.taskName}
                 {run.status === 'running' && (
-                  <svg className="inline-block w-3 h-3 ml-1.5 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-75" />
-                  </svg>
+                  <SpinnerIcon className="inline-block w-3 h-3 ml-1.5 animate-spin text-blue-500" />
                 )}
               </div>
               <div className="mt-1 flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">

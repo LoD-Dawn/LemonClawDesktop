@@ -8,8 +8,12 @@ import CoworkPromptInput from './CoworkPromptInput';
 import MarkdownContent from '../MarkdownContent';
 import {
   CheckIcon,
+  ClipboardDocumentIcon,
+  EllipsisHorizontalIcon,
   InformationCircleIcon,
+  PencilSquareIcon,
   ShareIcon,
+  TrashIcon,
   ExclamationTriangleIcon,
   ChevronRightIcon,
   PhotoIcon,
@@ -19,11 +23,10 @@ import { coworkService } from '../../services/cowork';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ComposeIcon from '../icons/ComposeIcon';
 import PuzzleIcon from '../icons/PuzzleIcon';
-import EllipsisHorizontalIcon from '../icons/EllipsisHorizontalIcon';
-import PencilSquareIcon from '../icons/PencilSquareIcon';
-import TrashIcon from '../icons/TrashIcon';
+import PushPinIcon from '../icons/PushPinIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
 import { getCompactFolderName } from '../../utils/path';
+
 
 interface CoworkSessionDetailProps {
   onManageSkills?: () => void;
@@ -73,28 +76,6 @@ const domRectToCaptureRect = (rect: DOMRect): CaptureRect => ({
   width: Math.max(0, Math.round(rect.width)),
   height: Math.max(0, Math.round(rect.height)),
 });
-
-// PushPinIcon component for pin/unpin functionality
-const PushPinIcon: React.FC<React.SVGProps<SVGSVGElement> & { slashed?: boolean }> = ({
-  slashed,
-  ...props
-}) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.5}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <g transform="rotate(45 12 12)">
-      <path d="M9 3h6l-1 5 2 2v2H8v-2l2-2-1-5z" />
-      <path d="M12 12v9" />
-    </g>
-    {slashed && <path d="M5 5L19 19" />}
-  </svg>
-);
 
 const formatUnknown = (value: unknown): string => {
   if (typeof value === 'string') {
@@ -778,38 +759,9 @@ const CopyButton: React.FC<{
       title={i18nService.t('copyToClipboard')}
     >
       {copied ? (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="w-4 h-4 text-green-500"
-          aria-hidden="true"
-        >
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
+        <CheckIcon className="w-4 h-4 text-green-500" aria-hidden="true" />
       ) : (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="w-4 h-4 text-[var(--icon-secondary)]"
-          aria-hidden="true"
-        >
-          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
-          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-        </svg>
+        <ClipboardDocumentIcon className="w-4 h-4 text-[var(--icon-secondary)]" aria-hidden="true" />
       )}
     </button>
   );
@@ -1779,6 +1731,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           >
             <PushPinIcon
               slashed={currentSession.pinned}
+              strokeWidth={1.5}
               className={`h-4 w-4 ${currentSession.pinned ? 'opacity-60' : ''}`}
             />
             {currentSession.pinned ? i18nService.t('coworkUnpinSession') : i18nService.t('coworkPinSession')}
