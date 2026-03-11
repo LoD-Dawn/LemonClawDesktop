@@ -54,7 +54,13 @@
       "CFBundleIconName": "icon",
       "NSCalendarsUsageDescription": "DiClaw 需要访问您的日历来帮助您查看和管理日程安排，例如查找事件、创建会议等。",
       "NSRemindersUsageDescription": "DiClaw 需要访问您的提醒事项来帮助您管理待办事项。",
-      "NSAppleEventsUsageDescription": "DiClaw 需要使用 Apple Events 来控制 Calendar 应用执行自动化操作。"
+      "NSAppleEventsUsageDescription": "DiClaw 需要使用 Apple Events 来控制 Calendar 应用执行自动化操作。",
+      "CFBundleURLTypes": [
+        {
+          "CFBundleURLName": "com.diclaw.app",
+          "CFBundleURLSchemes": ["diclaw"]
+        }
+      ]
     }
   },
   "dmg": {
@@ -66,6 +72,12 @@
       "nsis"
     ],
     "icon": "build/icons/win/icon.ico",
+    "protocols": [
+      {
+        "name": "DiClaw Protocol",
+        "schemes": ["diclaw"]
+      }
+    ],
     "extraResources": [
       {
         "from": "resources/mingit",

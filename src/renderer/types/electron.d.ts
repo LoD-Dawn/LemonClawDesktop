@@ -1,3 +1,18 @@
+// 认证相关类型（在 IElectronAPI.auth 中使用）
+interface AuthUser {
+  id: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+  [key: string]: unknown;
+}
+
+interface AuthVerifyResult {
+  valid: boolean;
+  user?: AuthUser;
+  reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
+}
+
 interface ApiResponse {
   ok: boolean;
   status: number;
@@ -408,6 +423,25 @@ interface IElectronAPI {
   permissions: {
     checkCalendar: () => Promise<{ success: boolean; status?: string; error?: string; autoRequested?: boolean }>;
     requestCalendar: () => Promise<{ success: boolean; granted?: boolean; status?: string; error?: string }>;
+  };
+  auth: {
+    /**
+     * 打开管理端登录 URL（在外部浏览器），等待深链接回调。
+     */
+    openLoginUrl: () => Promise<void>;
+    /**
+     * 校验本地存储的 token 是否有效（联网）。
+     * 无网络时直接返回失败（不允许离线使用）。
+     */
+    verify: () => Promise<AuthVerifyResult>;
+    /**
+     * 登出：清除本地 token，通知管理端（可选）。
+     */
+    logout: () => Promise<void>;
+    /**
+     * 获取本地缓存的用户信息（不发网络请求）。
+     */
+    getCachedUser: () => Promise<AuthUser | null>;
   };
   networkStatus: {
     send: (status: 'online' | 'offline') => void;

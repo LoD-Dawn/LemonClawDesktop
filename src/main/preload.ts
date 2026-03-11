@@ -320,6 +320,12 @@ contextBridge.exposeInMainWorld('electron', {
       return () => ipcRenderer.removeListener('scheduledTask:runUpdate', handler);
     },
   },
+  auth: {
+    openLoginUrl: () => ipcRenderer.invoke('auth:openLoginUrl'),
+    verify: () => ipcRenderer.invoke('auth:verify'),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    getCachedUser: () => ipcRenderer.invoke('auth:getCachedUser'),
+  },
   networkStatus: {
     send: (status: 'online' | 'offline') => ipcRenderer.send('network:status-change', status),
   },

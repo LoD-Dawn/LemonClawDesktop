@@ -12,6 +12,8 @@ import { McpView } from './components/mcp';
 import CoworkPermissionModal from './components/cowork/CoworkPermissionModal';
 import CoworkSearchModal from './components/cowork/CoworkSearchModal';
 import CoworkQuestionWizard from './components/cowork/CoworkQuestionWizard';
+import LoginScreen from './components/auth/LoginScreen';
+import DisabledScreen from './components/auth/DisabledScreen';
 import { configService } from './services/config';
 import { apiService } from './services/api';
 import { themeService } from './services/theme';
@@ -22,8 +24,10 @@ import { defaultConfig } from './config';
 import { setAvailableModels, setSelectedModel } from './store/slices/modelSlice';
 import { clearSelection } from './store/slices/quickActionSlice';
 import { selectTask, setViewMode } from './store/slices/scheduledTaskSlice';
+import { setAuthLoggedIn, setAuthLoggedOut, setAuthDisabled } from './store/slices/authSlice';
 import type { ApiConfig } from './services/api';
 import type { CoworkPermissionResult } from './types/cowork';
+import type { AuthUser } from './types/auth';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { i18nService } from './services/i18n';
 import { matchesShortcut } from './services/shortcuts';
@@ -54,6 +58,8 @@ const App: React.FC = () => {
   const currentSessionId = useSelector((state: RootState) => state.cowork.currentSessionId);
   const pendingPermissions = useSelector((state: RootState) => state.cowork.pendingPermissions);
   const pendingPermission = pendingPermissions[0] ?? null;
+  const authStatus = useSelector((state: RootState) => state.auth.status);
+  const authUser = useSelector((state: RootState) => state.auth.user);
   const isWindows = window.electron.platform === 'win32';
 
   // 初始化应用
@@ -68,17 +74,34 @@ const App: React.FC = () => {
         // 标记平台，用于 CSS 条件样式（如 Windows 标题栏按钮区域留白）
         document.documentElement.classList.add(`platform-${window.electron.platform}`);
 
+        // ===== 1. 认证校验（最优先，失败则不继续初始化）=====
+        const verifyResult = await window.electron.auth.verify();
+        if (!verifyResult.valid) {
+          if (verifyResult.reason === 'disabled') {
+            dispatch(setAuthDisabled());
+            // 显示禁用页（setIsInitialized 让加载画面消失）
+            setIsInitialized(true);
+          } else {
+            // expired / no_token / network_error → 显示登录页
+            dispatch(setAuthLoggedOut());
+            setIsInitialized(true);
+          }
+          return; // 停止后续初始化
+        }
+        dispatch(setAuthLoggedIn(verifyResult.user!));
+        // ===== 认证通过，继续正常初始化 =====
+
         // 初始化配置
         await configService.init();
-        
+
         // 初始化主题
         themeService.initialize();
 
         // 初始化语言
         await i18nService.initialize();
-        
+
         const config = await configService.getConfig();
-        
+
         const apiConfig: ApiConfig = {
           apiKey: config.api.key,
           baseUrl: config.api.baseUrl,
@@ -117,7 +140,7 @@ const App: React.FC = () => {
           ) ?? resolvedModels[0];
           dispatch(setSelectedModel(preferredModel));
         }
-        
+
         // 初始化定时任务服务
         await scheduledTaskService.init();
 
@@ -251,9 +274,30 @@ const App: React.FC = () => {
     }, 2200);
   }, []);
 
-  const handleShowLogin = useCallback(() => {
-    showToast(i18nService.t('featureInDevelopment'));
-  }, [showToast]);
+  const handleShowLogin = useCallback(async () => {
+    // 登出：清除本地 token，回到登录页
+    await window.electron.auth.logout();
+    dispatch(setAuthLoggedOut());
+    setIsInitialized(false); // 重置初始化状态（重新登录后需重新 init）
+    hasInitialized.current = false;
+  }, [dispatch]);
+
+  // 处理登录成功（来自 LoginScreen 组件）
+  const handleLoginSuccess = useCallback((user: AuthUser) => {
+    dispatch(setAuthLoggedIn(user));
+    // 触发完整的应用初始化
+    hasInitialized.current = false;
+    setIsInitialized(false);
+  }, [dispatch]);
+
+  // 处理禁用页切换账号
+  const handleSwitchAccount = useCallback(async () => {
+    await window.electron.auth.logout();
+    dispatch(setAuthLoggedOut());
+    setIsInitialized(false);
+    hasInitialized.current = false;
+  }, [dispatch]);
+
 
   const runUpdateCheck = useCallback(async () => {
     try {
@@ -573,6 +617,15 @@ const App: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // 认证状态渲染分叉
+  if (authStatus === 'logged_out') {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  if (authStatus === 'disabled') {
+    return <DisabledScreen user={authUser} onSwitchAccount={handleSwitchAccount} />;
   }
 
   if (initError) {
