@@ -393,13 +393,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   const [providers, setProviders] = useState<ProvidersConfig>(() => getDefaultProviders());
 
   const isBaseUrlLocked = (activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled) || (activeProvider === 'qwen' && providers.qwen.codingPlanEnabled) || (activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled) || (activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled);
-  
+
   // 创建引用来确保内容区域的滚动
   const contentRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const emailCopiedTimerRef = useRef<number | null>(null);
   const updateCheckTimerRef = useRef<number | null>(null);
-  
+
   // 快捷键设置
   const [shortcuts, setShortcuts] = useState({
     newChat: 'Ctrl+N',
@@ -589,7 +589,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   useEffect(() => {
     try {
       const config = configService.getConfig();
-      
+
       // Set general settings
       initialThemeRef.current = config.theme;
       initialLanguageRef.current = config.language;
@@ -606,7 +606,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
       }).catch(err => {
         console.error('Failed to load auto-launch setting:', err);
       });
-      
+
       // Set up providers based on saved config
       if (config.api) {
         // For backward compatibility with older config
@@ -746,7 +746,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           }));
         }
       }
-      
+
       // Load provider-specific configurations if available
       // 合并已保存的配置和默认配置，确保新添加的 provider 能被显示
       if (config.providers) {
@@ -781,7 +781,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           ) as ProvidersConfig;
         });
       }
-      
+
       // 加载快捷键设置
       if (config.shortcuts) {
         setShortcuts(prev => ({
@@ -1274,11 +1274,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
   const handleDeleteModel = (modelId: string) => {
     if (!providers[activeProvider].models) return;
-    
+
     const updatedModels = providers[activeProvider].models.filter(
       model => model.id !== modelId
     );
-    
+
     setProviders(prev => ({
       ...prev,
       [activeProvider]: {
@@ -1405,7 +1405,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
       // Apply Coding Plan endpoint switch
       let effectiveBaseUrl = resolveBaseUrl(testingProvider, providerConfig.baseUrl, getEffectiveApiFormat(testingProvider, providerConfig.apiFormat));
       let effectiveApiFormat = getEffectiveApiFormat(testingProvider, providerConfig.apiFormat);
-      
+
       // Handle Zhipu GLM Coding Plan endpoint switch
       if (testingProvider === 'zhipu' && (providerConfig as { codingPlanEnabled?: boolean }).codingPlanEnabled) {
         if (effectiveApiFormat === 'anthropic') {
@@ -1442,7 +1442,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           effectiveApiFormat = 'openai';
         }
       }
-      
+
       const normalizedBaseUrl = effectiveBaseUrl.replace(/\/+$/, '');
       // 统一为两种协议格式：
       // - anthropic: /v1/messages
@@ -1481,14 +1481,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
         }
         const openAIRequestBody: Record<string, unknown> = useResponsesApi
           ? {
-              model: firstModel.id,
-              input: [{ role: 'user', content: [{ type: 'input_text', text: 'Hi' }] }],
-              max_output_tokens: CONNECTIVITY_TEST_TOKEN_BUDGET,
-            }
+            model: firstModel.id,
+            input: [{ role: 'user', content: [{ type: 'input_text', text: 'Hi' }] }],
+            max_output_tokens: CONNECTIVITY_TEST_TOKEN_BUDGET,
+          }
           : {
-              model: firstModel.id,
-              messages: [{ role: 'user', content: 'Hi' }],
-            };
+            model: firstModel.id,
+            messages: [{ role: 'user', content: 'Hi' }],
+          };
         if (!useResponsesApi && shouldUseMaxCompletionTokensForOpenAI(testingProvider, firstModel.id)) {
           openAIRequestBody.max_completion_tokens = CONNECTIVITY_TEST_TOKEN_BUDGET;
         } else {
@@ -1806,14 +1806,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
   // 渲染标签页
   const sidebarTabs: { key: TabType; label: string; icon: React.ReactNode }[] = useMemo(() => [
-    { key: 'general',        label: i18nService.t('general'),        icon: <Cog6ToothIcon className="h-5 w-5" /> },
-    { key: 'model',          label: i18nService.t('model'),          icon: <CubeIcon className="h-5 w-5" /> },
-    { key: 'im',             label: i18nService.t('imBot'),          icon: <ChatBubbleLeftIcon className="h-5 w-5" /> },
-    { key: 'email',          label: i18nService.t('emailTab'),       icon: <EnvelopeIcon className="h-5 w-5" /> },
-    { key: 'coworkMemory',   label: i18nService.t('coworkMemoryTitle'), icon: <BrainIcon className="h-5 w-5" /> },
-    { key: 'coworkSandbox',  label: i18nService.t('coworkSandbox'),  icon: <ShieldCheckIcon className="h-5 w-5" /> },
-    { key: 'shortcuts',      label: i18nService.t('shortcuts'),      icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5"><rect x="2" y="4" width="20" height="14" rx="2" /><line x1="6" y1="8" x2="8" y2="8" /><line x1="10" y1="8" x2="12" y2="8" /><line x1="14" y1="8" x2="16" y2="8" /><line x1="6" y1="12" x2="8" y2="12" /><line x1="10" y1="12" x2="14" y2="12" /><line x1="16" y1="12" x2="18" y2="12" /><line x1="8" y1="15.5" x2="16" y2="15.5" /></svg> },
-    { key: 'about',          label: i18nService.t('about'),          icon: <InformationCircleIcon className="h-5 w-5" /> },
+    { key: 'general', label: i18nService.t('general'), icon: <Cog6ToothIcon className="h-5 w-5" /> },
+    { key: 'model', label: i18nService.t('model'), icon: <CubeIcon className="h-5 w-5" /> },
+    { key: 'im', label: i18nService.t('imBot'), icon: <ChatBubbleLeftIcon className="h-5 w-5" /> },
+    { key: 'email', label: i18nService.t('emailTab'), icon: <EnvelopeIcon className="h-5 w-5" /> },
+    { key: 'coworkMemory', label: i18nService.t('coworkMemoryTitle'), icon: <BrainIcon className="h-5 w-5" /> },
+    { key: 'coworkSandbox', label: i18nService.t('coworkSandbox'), icon: <ShieldCheckIcon className="h-5 w-5" /> },
+    { key: 'shortcuts', label: i18nService.t('shortcuts'), icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5"><rect x="2" y="4" width="20" height="14" rx="2" /><line x1="6" y1="8" x2="8" y2="8" /><line x1="10" y1="8" x2="12" y2="8" /><line x1="14" y1="8" x2="16" y2="8" /><line x1="6" y1="12" x2="8" y2="12" /><line x1="10" y1="12" x2="14" y2="12" /><line x1="16" y1="12" x2="18" y2="12" /><line x1="8" y1="15.5" x2="16" y2="15.5" /></svg> },
+    { key: 'about', label: i18nService.t('about'), icon: <InformationCircleIcon className="h-5 w-5" /> },
   ], [language]);
 
   const activeTabLabel = useMemo(() => {
@@ -1821,7 +1821,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   }, [activeTab, sidebarTabs]);
 
   const renderTabContent = () => {
-    switch(activeTab) {
+    switch (activeTab) {
       case 'general':
         return (
           <div className="space-y-8">
@@ -1879,18 +1879,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                     }
                   }}
                   disabled={isUpdatingAutoLaunch}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-                    isUpdatingAutoLaunch ? 'opacity-50 cursor-not-allowed' : ''
-                  } ${
-                    autoLaunch
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${isUpdatingAutoLaunch ? 'opacity-50 cursor-not-allowed' : ''
+                    } ${autoLaunch
                       ? 'bg-primary'
                       : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      autoLaunch ? 'translate-x-6' : 'translate-x-1'
-                    }`}
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoLaunch ? 'translate-x-6' : 'translate-x-1'
+                      }`}
                   />
                 </button>
               </label>
@@ -1912,16 +1909,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                   onClick={() => {
                     setUseSystemProxy((prev) => !prev);
                   }}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-                    useSystemProxy
-                      ? 'bg-primary'
-                      : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${useSystemProxy
+                    ? 'bg-primary'
+                    : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      useSystemProxy ? 'translate-x-6' : 'translate-x-1'
-                    }`}
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useSystemProxy ? 'translate-x-6' : 'translate-x-1'
+                      }`}
                   />
                 </button>
               </label>
@@ -1947,11 +1942,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                         setTheme(option.value);
                         themeService.setTheme(option.value);
                       }}
-                      className={`flex flex-col items-center rounded-xl border-2 p-3 transition-colors cursor-pointer ${
-                        isSelected
-                          ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                          : 'dark:border-dark-border border-border hover:border-primary/50 dark:hover:border-primary/50'
-                      }`}
+                      className={`flex flex-col items-center rounded-xl border-2 p-3 transition-colors cursor-pointer ${isSelected
+                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                        : 'dark:border-dark-border border-border hover:border-primary/50 dark:hover:border-primary/50'
+                        }`}
                     >
                       <svg viewBox="0 0 120 80" className="w-full h-auto rounded-md mb-2 overflow-hidden" xmlns="http://www.w3.org/2000/svg">
                         {option.value === 'light' && (
@@ -2037,11 +2031,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                           </>
                         )}
                       </svg>
-                      <span className={`text-xs font-medium ${
-                        isSelected
-                          ? 'text-primary'
-                          : 'dark:text-dark-text text-text-primary'
-                      }`}>
+                      <span className={`text-xs font-medium ${isSelected
+                        ? 'text-primary'
+                        : 'dark:text-dark-text text-text-primary'
+                        }`}>
                         {option.label}
                       </span>
                     </button>
@@ -2084,11 +2077,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                   return (
                     <label
                       key={option.value}
-                      className={`flex items-start gap-3 rounded-xl border px-3 py-2 text-sm transition-colors ${
-                        isDisabled
-                          ? 'cursor-not-allowed opacity-60 dark:border-dark-border border-border'
-                          : 'cursor-pointer dark:border-dark-border border-border hover:border-primary'
-                      }`}
+                      className={`flex items-start gap-3 rounded-xl border px-3 py-2 text-sm transition-colors ${isDisabled
+                        ? 'cursor-not-allowed opacity-60 dark:border-dark-border border-border'
+                        : 'cursor-pointer dark:border-dark-border border-border hover:border-primary'
+                        }`}
                     >
                       <input
                         type="radio"
@@ -2335,11 +2327,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                   <div
                     key={provider}
                     onClick={() => handleProviderChange(providerKey)}
-                    className={`flex items-center p-2 rounded-xl cursor-pointer transition-colors ${
-                      activeProvider === provider
-                        ? 'bg-primary/10 dark:bg-primary/20 border border-primary/30 shadow-subtle'
-                        : 'dark:bg-dark-surface/50 bg-surface hover:bg-surface-hover dark:hover:bg-dark-surface-hover border border-transparent'
-                    }`}
+                    className={`flex items-center p-2 rounded-xl cursor-pointer transition-colors ${activeProvider === provider
+                      ? 'bg-primary/10 dark:bg-primary/20 border border-primary/30 shadow-subtle'
+                      : 'dark:bg-dark-surface/50 bg-surface hover:bg-surface-hover dark:hover:bg-dark-surface-hover border border-transparent'
+                      }`}
                   >
                     <div className="flex flex-1 items-center">
                       <div className="mr-2 flex h-7 w-7 items-center justify-center">
@@ -2347,22 +2338,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                           {providerInfo?.icon}
                         </span>
                       </div>
-                      <span className={`text-sm font-medium truncate ${
-                        activeProvider === provider
-                          ? 'text-primary'
-                          : 'dark:text-dark-text text-text-primary'
-                      }`}>
+                      <span className={`text-sm font-medium truncate ${activeProvider === provider
+                        ? 'text-primary'
+                        : 'dark:text-dark-text text-text-primary'
+                        }`}>
                         {providerInfo?.label ?? provider.charAt(0).toUpperCase() + provider.slice(1)}
                       </span>
                     </div>
                     <div className="flex items-center ml-2">
                       <div
                         title={!canToggleProvider ? i18nService.t('configureApiKey') : undefined}
-                        className={`w-7 h-4 rounded-full flex items-center transition-colors ${
-                          config.enabled ? 'bg-primary' : 'dark:bg-dark-border bg-border'
-                        } ${
-                          canToggleProvider ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                        }`}
+                        className={`w-7 h-4 rounded-full flex items-center transition-colors ${config.enabled ? 'bg-primary' : 'dark:bg-dark-border bg-border'
+                          } ${canToggleProvider ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                          }`}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!canToggleProvider) {
@@ -2372,9 +2360,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                         }}
                       >
                         <div
-                          className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${
-                            config.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
-                          }`}
+                          className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${config.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                            }`}
                         />
                       </div>
                     </div>
@@ -2390,11 +2377,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                   {(providerMeta[activeProvider]?.label ?? activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1))} {i18nService.t('providerSettings')}
                 </h3>
                 <div
-                  className={`px-2 py-0.5 rounded-lg text-xs font-medium ${
-                    providers[activeProvider].enabled
-                      ? 'bg-green-500/20 text-green-600 dark:text-green-400'
-                      : 'bg-red-500/20 text-red-600 dark:text-red-400'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-xs font-medium ${providers[activeProvider].enabled
+                    ? 'bg-green-500/20 text-green-600 dark:text-green-400'
+                    : 'bg-red-500/20 text-red-600 dark:text-red-400'
+                    }`}
                 >
                   {providers[activeProvider].enabled ? i18nService.t('providerStatusOn') : i18nService.t('providerStatusOff')}
                 </div>
@@ -2449,20 +2435,20 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                     value={
                       activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled
                         ? (getEffectiveApiFormat('zhipu', providers.zhipu.apiFormat) === 'anthropic'
-                            ? 'https://open.bigmodel.cn/api/anthropic'
-                            : 'https://open.bigmodel.cn/api/coding/paas/v4')
+                          ? 'https://open.bigmodel.cn/api/anthropic'
+                          : 'https://open.bigmodel.cn/api/coding/paas/v4')
                         : activeProvider === 'qwen' && providers.qwen.codingPlanEnabled
                           ? (getEffectiveApiFormat('qwen', providers.qwen.apiFormat) === 'anthropic'
-                              ? 'https://coding.dashscope.aliyuncs.com/apps/anthropic'
-                              : 'https://coding.dashscope.aliyuncs.com/v1')
+                            ? 'https://coding.dashscope.aliyuncs.com/apps/anthropic'
+                            : 'https://coding.dashscope.aliyuncs.com/v1')
                           : activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled
                             ? (getEffectiveApiFormat('volcengine', providers.volcengine.apiFormat) === 'anthropic'
-                                ? 'https://ark.cn-beijing.volces.com/api/coding'
-                                : 'https://ark.cn-beijing.volces.com/api/coding/v3')
+                              ? 'https://ark.cn-beijing.volces.com/api/coding'
+                              : 'https://ark.cn-beijing.volces.com/api/coding/v3')
                             : activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled
                               ? (getEffectiveApiFormat('moonshot', providers.moonshot.apiFormat) === 'anthropic'
-                                  ? 'https://api.kimi.com/coding'
-                                  : 'https://api.kimi.com/coding/v1')
+                                ? 'https://api.kimi.com/coding'
+                                : 'https://api.kimi.com/coding/v1')
                               : providers[activeProvider].baseUrl
                     }
                     onChange={(e) => handleProviderConfigChange(activeProvider, 'baseUrl', e.target.value)}
@@ -2484,18 +2470,18 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                   )}
                 </div>
                 {activeProvider === 'custom' && (
-                <div className="mt-1.5 space-y-0.5 text-[11px] text-claude-secondaryText dark:text-claude-darkSecondaryText">
-                  <p>
-                    <span className="text-sm text-primary/50 mr-1">•</span>
-                    {i18nService.t('baseUrlHint1')}
-                    <code className="ml-1 text-primary/80 dark:text-primary/70 break-all">{i18nService.t('baseUrlHintExample1')}</code>
-                  </p>
-                  <p>
-                    <span className="text-sm text-primary/50 mr-1">•</span>
-                    {i18nService.t('baseUrlHint2')}
-                    <code className="ml-1 text-primary/80 dark:text-primary/70 break-all">{i18nService.t('baseUrlHintExample2')}</code>
-                  </p>
-                </div>
+                  <div className="mt-1.5 space-y-0.5 text-[11px] text-claude-secondaryText dark:text-claude-darkSecondaryText">
+                    <p>
+                      <span className="text-sm text-primary/50 mr-1">•</span>
+                      {i18nService.t('baseUrlHint1')}
+                      <code className="ml-1 text-primary/80 dark:text-primary/70 break-all">{i18nService.t('baseUrlHintExample1')}</code>
+                    </p>
+                    <p>
+                      <span className="text-sm text-primary/50 mr-1">•</span>
+                      {i18nService.t('baseUrlHint2')}
+                      <code className="ml-1 text-primary/80 dark:text-primary/70 break-all">{i18nService.t('baseUrlHintExample2')}</code>
+                    </p>
+                  </div>
                 )}
                 {/* GLM Coding Plan 提示 */}
                 {activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled && (
@@ -2897,14 +2883,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                     role="switch"
                     aria-checked={testMode}
                     onClick={() => setTestMode((prev) => !prev)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-                      testMode ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${testMode ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        testMode ? 'translate-x-6' : 'translate-x-1'
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${testMode ? 'translate-x-6' : 'translate-x-1'
+                        }`}
                     />
                   </button>
                 </div>
@@ -2972,11 +2956,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
               <button
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-                  activeTab === tab.key
-                    ? 'bg-primary/10 text-primary'
-                    : 'dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
-                }`}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${activeTab === tab.key
+                  ? 'bg-primary/10 text-primary'
+                  : 'dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -3107,208 +3090,208 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
             className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
             onClick={handleCancelModelEdit}
           >
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-label={isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={handleModelDialogKeyDown}
-                className="w-full max-w-md rounded-2xl dark:bg-dark-surface bg-page dark:border-dark-border border-border border shadow-modal p-4"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold dark:text-dark-text text-text-primary">
-                    {isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={handleCancelModelEdit}
-                    className="p-1 dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary rounded-md dark:hover:bg-dark-surface-hover hover:bg-surface-hover"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {modelFormError && (
-                  <p className="mb-3 text-xs text-red-600 dark:text-red-400">
-                    {modelFormError}
-                  </p>
-                )}
-
-                <div className="space-y-3">
-                  {activeProvider === 'ollama' ? (
-                    <>
-                      <div>
-                        <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                          {i18nService.t('ollamaModelName')}
-                        </label>
-                        <input
-                          autoFocus
-                          type="text"
-                          value={newModelId}
-                          onChange={(e) => {
-                            setNewModelId(e.target.value);
-                            if (!newModelName || newModelName === newModelId) {
-                              setNewModelName(e.target.value);
-                            }
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                          placeholder={i18nService.t('ollamaModelNamePlaceholder')}
-                        />
-                        <p className="mt-1 text-[11px] dark:text-dark-text-secondary/70 text-text-secondary/70">
-                          {i18nService.t('ollamaModelNameHint')}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                          {i18nService.t('ollamaDisplayName')}
-                        </label>
-                        <input
-                          type="text"
-                          value={newModelName === newModelId ? '' : newModelName}
-                          onChange={(e) => {
-                            setNewModelName(e.target.value || newModelId);
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                          placeholder={i18nService.t('ollamaDisplayNamePlaceholder')}
-                        />
-                        <p className="mt-1 text-[11px] dark:text-dark-text-secondary/70 text-text-secondary/70">
-                          {i18nService.t('ollamaDisplayNameHint')}
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                          {i18nService.t('modelName')}
-                        </label>
-                        <input
-                          autoFocus
-                          type="text"
-                          value={newModelName}
-                          onChange={(e) => {
-                            setNewModelName(e.target.value);
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                          placeholder="GPT-4"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                          {i18nService.t('modelId')}
-                        </label>
-                        <input
-                          type="text"
-                          value={newModelId}
-                          onChange={(e) => {
-                            setNewModelId(e.target.value);
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                          placeholder="gpt-4"
-                        />
-                      </div>
-                    </>
-                  )}
-                  <div className="flex items-center space-x-2">
-                    <input
-                      id={`${activeProvider}-supportsImage`}
-                      type="checkbox"
-                      checked={newModelSupportsImage}
-                      onChange={(e) => setNewModelSupportsImage(e.target.checked)}
-                      className="h-3.5 w-3.5 text-primary focus:ring-primary dark:bg-dark-surface bg-surface border-border dark:border-dark-border rounded"
-                    />
-                    <label
-                      htmlFor={`${activeProvider}-supportsImage`}
-                      className="text-xs dark:text-dark-text-secondary text-text-secondary"
-                    >
-                      {i18nService.t('supportsImageInput')}
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={handleCancelModelEdit}
-                    className="px-3 py-1.5 text-xs dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-xl border dark:border-dark-border border-border"
-                  >
-                    {i18nService.t('cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveNewModel}
-                    className="px-3 py-1.5 text-xs text-white bg-primary hover:bg-primary-light rounded-xl active:scale-[0.98]"
-                  >
-                    {i18nService.t('save')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Memory Modal */}
-          {showMemoryModal && (
             <div
-              className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
-              onClick={resetCoworkMemoryEditor}
+              role="dialog"
+              aria-modal="true"
+              aria-label={isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={handleModelDialogKeyDown}
+              className="w-full max-w-md rounded-2xl dark:bg-dark-surface bg-page dark:border-dark-border border-border border shadow-modal p-4"
             >
-              <div
-                className="dark:bg-dark-surface bg-surface dark:border-dark-border border-border border rounded-2xl shadow-xl w-full max-w-md"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="px-5 pt-5 pb-4 border-b dark:border-dark-border border-border">
-                  <h3 className="text-base font-semibold dark:text-dark-text text-text-primary">
-                    {coworkMemoryEditingId ? i18nService.t('coworkMemoryCrudUpdate') : i18nService.t('coworkMemoryCrudCreate')}
-                  </h3>
-                </div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold dark:text-dark-text text-text-primary">
+                  {isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
+                </h4>
+                <button
+                  type="button"
+                  onClick={handleCancelModelEdit}
+                  className="p-1 dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary rounded-md dark:hover:bg-dark-surface-hover hover:bg-surface-hover"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </div>
 
-                <div className="px-5 py-4 space-y-4">
-                  {coworkMemoryEditingId && (
-                    <div className="rounded-lg border px-2 py-1 text-xs dark:border-dark-border border-border dark:text-dark-text-secondary text-text-secondary">
-                      {i18nService.t('coworkMemoryEditingTag')}
+              {modelFormError && (
+                <p className="mb-3 text-xs text-red-600 dark:text-red-400">
+                  {modelFormError}
+                </p>
+              )}
+
+              <div className="space-y-3">
+                {activeProvider === 'ollama' ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
+                        {i18nService.t('ollamaModelName')}
+                      </label>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newModelId}
+                        onChange={(e) => {
+                          setNewModelId(e.target.value);
+                          if (!newModelName || newModelName === newModelId) {
+                            setNewModelName(e.target.value);
+                          }
+                          if (modelFormError) {
+                            setModelFormError(null);
+                          }
+                        }}
+                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
+                        placeholder={i18nService.t('ollamaModelNamePlaceholder')}
+                      />
+                      <p className="mt-1 text-[11px] dark:text-dark-text-secondary/70 text-text-secondary/70">
+                        {i18nService.t('ollamaModelNameHint')}
+                      </p>
                     </div>
-                  )}
-                  <textarea
-                    value={coworkMemoryDraftText}
-                    onChange={(event) => setCoworkMemoryDraftText(event.target.value)}
-                    placeholder={i18nService.t('coworkMemoryCrudTextPlaceholder')}
-                    autoFocus
-                    className="min-h-[200px] w-full rounded-lg border px-3 py-2 text-sm dark:border-dark-border border-border dark:bg-dark-surface bg-surface dark:text-dark-text text-text-primary focus:border-primary focus:ring-1 focus:ring-primary/30"
+                    <div>
+                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
+                        {i18nService.t('ollamaDisplayName')}
+                      </label>
+                      <input
+                        type="text"
+                        value={newModelName === newModelId ? '' : newModelName}
+                        onChange={(e) => {
+                          setNewModelName(e.target.value || newModelId);
+                          if (modelFormError) {
+                            setModelFormError(null);
+                          }
+                        }}
+                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
+                        placeholder={i18nService.t('ollamaDisplayNamePlaceholder')}
+                      />
+                      <p className="mt-1 text-[11px] dark:text-dark-text-secondary/70 text-text-secondary/70">
+                        {i18nService.t('ollamaDisplayNameHint')}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
+                        {i18nService.t('modelName')}
+                      </label>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newModelName}
+                        onChange={(e) => {
+                          setNewModelName(e.target.value);
+                          if (modelFormError) {
+                            setModelFormError(null);
+                          }
+                        }}
+                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
+                        placeholder="GPT-4"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
+                        {i18nService.t('modelId')}
+                      </label>
+                      <input
+                        type="text"
+                        value={newModelId}
+                        onChange={(e) => {
+                          setNewModelId(e.target.value);
+                          if (modelFormError) {
+                            setModelFormError(null);
+                          }
+                        }}
+                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
+                        placeholder="gpt-4"
+                      />
+                    </div>
+                  </>
+                )}
+                <div className="flex items-center space-x-2">
+                  <input
+                    id={`${activeProvider}-supportsImage`}
+                    type="checkbox"
+                    checked={newModelSupportsImage}
+                    onChange={(e) => setNewModelSupportsImage(e.target.checked)}
+                    className="h-3.5 w-3.5 text-primary focus:ring-primary dark:bg-dark-surface bg-surface border-border dark:border-dark-border rounded"
                   />
-                </div>
-
-                <div className="flex justify-end space-x-2 px-5 pb-5">
-                  <button
-                    type="button"
-                    onClick={resetCoworkMemoryEditor}
-                    className="px-3 py-1.5 text-sm dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-xl border dark:border-dark-border border-border transition-colors"
+                  <label
+                    htmlFor={`${activeProvider}-supportsImage`}
+                    className="text-xs dark:text-dark-text-secondary text-text-secondary"
                   >
-                    {i18nService.t('cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { void handleSaveCoworkMemoryEntry(); }}
-                    disabled={!coworkMemoryDraftText.trim() || coworkMemoryListLoading}
-                    className="px-3 py-1.5 text-sm text-white bg-primary hover:bg-primary-light rounded-xl disabled:opacity-60 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-                  >
-                    {coworkMemoryEditingId ? i18nService.t('save') : i18nService.t('coworkMemoryCrudCreate')}
-                  </button>
+                    {i18nService.t('supportsImageInput')}
+                  </label>
                 </div>
               </div>
+
+              <div className="flex justify-end space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={handleCancelModelEdit}
+                  className="px-3 py-1.5 text-xs dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-xl border dark:border-dark-border border-border"
+                >
+                  {i18nService.t('cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNewModel}
+                  className="px-3 py-1.5 text-xs text-white bg-primary hover:bg-primary-light rounded-xl active:scale-[0.98]"
+                >
+                  {i18nService.t('save')}
+                </button>
+              </div>
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Memory Modal */}
+        {showMemoryModal && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
+            onClick={resetCoworkMemoryEditor}
+          >
+            <div
+              className="dark:bg-dark-surface bg-surface dark:border-dark-border border-border border rounded-2xl shadow-xl w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 pt-5 pb-4 border-b dark:border-dark-border border-border">
+                <h3 className="text-base font-semibold dark:text-dark-text text-text-primary">
+                  {coworkMemoryEditingId ? i18nService.t('coworkMemoryCrudUpdate') : i18nService.t('coworkMemoryCrudCreate')}
+                </h3>
+              </div>
+
+              <div className="px-5 py-4 space-y-4">
+                {coworkMemoryEditingId && (
+                  <div className="rounded-lg border px-2 py-1 text-xs dark:border-dark-border border-border dark:text-dark-text-secondary text-text-secondary">
+                    {i18nService.t('coworkMemoryEditingTag')}
+                  </div>
+                )}
+                <textarea
+                  value={coworkMemoryDraftText}
+                  onChange={(event) => setCoworkMemoryDraftText(event.target.value)}
+                  placeholder={i18nService.t('coworkMemoryCrudTextPlaceholder')}
+                  autoFocus
+                  className="min-h-[200px] w-full rounded-lg border px-3 py-2 text-sm dark:border-dark-border border-border dark:bg-dark-surface bg-surface dark:text-dark-text text-text-primary focus:border-primary focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 px-5 pb-5">
+                <button
+                  type="button"
+                  onClick={resetCoworkMemoryEditor}
+                  className="px-3 py-1.5 text-sm dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-xl border dark:border-dark-border border-border transition-colors"
+                >
+                  {i18nService.t('cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { void handleSaveCoworkMemoryEntry(); }}
+                  disabled={!coworkMemoryDraftText.trim() || coworkMemoryListLoading}
+                  className="px-3 py-1.5 text-sm text-white bg-primary hover:bg-primary-light rounded-xl disabled:opacity-60 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
+                >
+                  {coworkMemoryEditingId ? i18nService.t('save') : i18nService.t('coworkMemoryCrudCreate')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
