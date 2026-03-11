@@ -13,6 +13,7 @@ const translations: Record<LanguageType, Record<string, string>> = {
     create: '创建',
     user: '用户',
     login: '登录',
+    logout: '退出登入',
     inDevelopment: '正在开发中',
     
     // 设置
@@ -799,6 +800,7 @@ const translations: Record<LanguageType, Record<string, string>> = {
     create: 'Create',
     user: 'User',
     login: 'Login',
+    logout: 'Logout',
     inDevelopment: 'In development',
     
     // Settings
