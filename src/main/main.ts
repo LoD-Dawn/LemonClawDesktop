@@ -37,7 +37,7 @@ import { AuthStore } from './authStore';
 // 主进程本地类型定义（不依赖渲染层类型文件）
 interface AuthVerifyResult {
   valid: boolean;
-  user?: { id: string; name: string; email?: string; avatar?: string; [key: string]: unknown };
+  user?: { id: string; name: string; email?: string; avatar?: string;[key: string]: unknown };
   reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }
 
@@ -495,8 +495,8 @@ const checkCalendarPermission = async (): Promise<string> => {
     } catch (error: any) {
       // Check if it's a permission error
       if (error.stderr?.includes('不能获取对象') ||
-          error.stderr?.includes('not authorized') ||
-          error.stderr?.includes('Permission denied')) {
+        error.stderr?.includes('not authorized') ||
+        error.stderr?.includes('Permission denied')) {
         console.log('[Permissions] macOS Calendar access: not-determined (needs permission)');
         return 'not-determined';
       }
@@ -888,7 +888,7 @@ const getScheduler = () => {
 };
 
 // 获取正确的预加载脚本路径
-const PRELOAD_PATH = app.isPackaged 
+const PRELOAD_PATH = app.isPackaged
   ? path.join(__dirname, 'preload.js')
   : path.join(__dirname, '../dist-electron/preload.js');
 
@@ -1080,8 +1080,15 @@ if (!gotTheLock) {
     const appConfig = getStore().get<any>('app_config');
     const isTestMode = appConfig?.app?.testMode === true;
     const loginUrl = isTestMode
-      ? 'https://admin-test.yourcompany.com/login?from=desktop'   // TODO: 替换
-      : 'https://admin.yourcompany.com/login?from=desktop';        // TODO: 替换
+      ? 'https://admin-test.yourcompany.com/login?from=desktop'   // TODO: 替换为真实测试环境登录地址
+      : 'https://admin.yourcompany.com/login?from=desktop';        // TODO: 替换为真实生产环境登录地址
+
+    // ⚠️ 地址未配置提示（开发临时模式下不会触发登录页，此处兜底）
+    if (loginUrl.includes('yourcompany.com')) {
+      console.warn('[Auth] 管理端登录地址未配置，当前处于跳过认证的临时模式，无需登录');
+      return;
+    }
+
     await shell.openExternal(loginUrl);
   });
 
@@ -1089,18 +1096,30 @@ if (!gotTheLock) {
    * 校验本地 token 是否有效（联网，不允许离线）
    */
   ipcMain.handle('auth:verify', async (): Promise<AuthVerifyResult> => {
+    const appConfig = getStore().get<any>('app_config');
+    const isTestMode = appConfig?.app?.testMode === true;
+    const verifyUrl = isTestMode
+      ? 'https://admin-test.yourcompany.com/api/desktop/auth/verify'   // TODO: 替换为真实测试环境地址
+      : 'https://admin.yourcompany.com/api/desktop/auth/verify';        // TODO: 替换为真实生产环境地址
+
+    // ⚠️ 开发临时模式：接口地址尚未配置时跳过认证，直接放行
+    // 等后端提供真实地址后，替换上方 TODO 地址即可自动开启认证
+    const isAuthConfigured = !verifyUrl.includes('yourcompany.com');
+    if (!isAuthConfigured) {
+      console.warn('[Auth] 管理端接口地址未配置，已跳过认证（开发临时模式）');
+      const cachedUser = getAuthStore().getCachedUser();
+      return {
+        valid: true,
+        user: cachedUser ?? { id: 'dev', name: '开发者', email: 'dev@local' },
+      };
+    }
+
     const token = getAuthStore().getToken();
     if (!token) {
       return { valid: false, reason: 'no_token' };
     }
 
     try {
-      const appConfig = getStore().get<any>('app_config');
-      const isTestMode = appConfig?.app?.testMode === true;
-      const verifyUrl = isTestMode
-        ? 'https://admin-test.yourcompany.com/api/desktop/auth/verify'   // TODO: 替换
-        : 'https://admin.yourcompany.com/api/desktop/auth/verify';        // TODO: 替换
-
       const resp = await fetch(verifyUrl, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -1922,7 +1941,7 @@ if (!gotTheLock) {
             MIN_MEMORY_USER_MEMORIES_MAX_ITEMS,
             Math.min(MAX_MEMORY_USER_MEMORIES_MAX_ITEMS, Math.floor(config.memoryUserMemoriesMaxItems))
           )
-        : undefined;
+          : undefined;
       const normalizedConfig = {
         ...config,
         executionMode: normalizedExecutionMode,
@@ -2079,7 +2098,7 @@ if (!gotTheLock) {
   ipcMain.handle('permissions:checkCalendar', async () => {
     try {
       const status = await checkCalendarPermission();
-      
+
       // Development mode: Auto-request permission if not determined
       // This provides a better dev experience without affecting production
       if (isDev && status === 'not-determined' && process.platform === 'darwin') {
@@ -2093,7 +2112,7 @@ if (!gotTheLock) {
           console.warn('[Permissions] Development mode: Auto-request failed:', requestError);
         }
       }
-      
+
       return { success: true, status };
     } catch (error) {
       console.error('[Main] Error checking calendar permission:', error);
@@ -2606,14 +2625,14 @@ if (!gotTheLock) {
       icon: getAppIconPath(),
       ...(isMac
         ? {
-            titleBarStyle: 'hiddenInset' as const,
-            trafficLightPosition: { x: 12, y: 20 },
-          }
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: { x: 12, y: 20 },
+        }
         : isWindows
           ? {
-              frame: false,
-              titleBarStyle: 'hidden' as const,
-            }
+            frame: false,
+            titleBarStyle: 'hidden' as const,
+          }
           : {
             titleBarStyle: 'hidden' as const,
             titleBarOverlay: getTitleBarOverlayOptions(),
@@ -2693,7 +2712,7 @@ if (!gotTheLock) {
         mainWindow?.loadURL(DEV_SERVER_URL).catch((err) => {
           console.error('Failed to load URL:', err);
           retryCount++;
-          
+
           if (retryCount < maxRetries) {
             console.log(`Retrying to load URL (${retryCount}/${maxRetries})...`);
             setTimeout(tryLoadURL, 3000);
@@ -2707,7 +2726,7 @@ if (!gotTheLock) {
       };
 
       tryLoadURL();
-      
+
       // 打开开发者工具
       mainWindow.webContents.openDevTools();
     } else {
@@ -2976,5 +2995,5 @@ if (!gotTheLock) {
       app.quit();
     }
   });
-} 
+}
 
