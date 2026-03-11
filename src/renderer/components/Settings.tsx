@@ -18,7 +18,6 @@ import BrainIcon from './icons/BrainIcon';
 import { useDispatch, useSelector } from 'react-redux';
 import { setAvailableModels } from '../store/slices/modelSlice';
 import { RootState } from '../store';
-import ThemedSelect from './ui/ThemedSelect';
 import type {
   CoworkExecutionMode,
   CoworkUserMemoryEntry,
@@ -1825,28 +1824,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
       case 'general':
         return (
           <div className="space-y-8">
-            {/* Language Section */}
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium dark:text-dark-text text-text-primary">
-                {i18nService.t('language')}
-              </h4>
-              <div className="w-[140px] shrink-0">
-                <ThemedSelect
-                  id="language"
-                  value={language}
-                  onChange={(value) => {
-                    const nextLanguage = value as LanguageType;
-                    setLanguage(nextLanguage);
-                    i18nService.setLanguage(nextLanguage, { persist: false });
-                  }}
-                  options={[
-                    { value: 'zh', label: i18nService.t('chinese') },
-                    { value: 'en', label: i18nService.t('english') }
-                  ]}
-                />
-              </div>
-            </div>
-
             {/* Auto-launch Section */}
             <div>
               <h4 className="text-sm font-medium dark:text-dark-text text-text-primary mb-3">

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { coworkService } from '../services/cowork';
-import { i18nService } from '../services/i18n';
+import { i18nService, type LanguageType } from '../services/i18n';
 import CoworkSessionList from './cowork/CoworkSessionList';
 import ComposeIcon from './icons/ComposeIcon';
 import ConnectorIcon from './icons/ConnectorIcon';
@@ -11,6 +11,8 @@ import ClockIcon from './icons/ClockIcon';
 import PuzzleIcon from './icons/PuzzleIcon';
 import SidebarToggleIcon from './icons/SidebarToggleIcon';
 import TrashIcon from './icons/TrashIcon';
+import GlobeAltIcon from './icons/GlobeAltIcon';
+import ChevronRightIcon from './icons/ChevronRightIcon';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
@@ -50,6 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState<LanguageType>(i18nService.getLanguage());
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const isMac = window.electron.platform === 'darwin';
 
@@ -59,7 +63,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     setSelectedIds(new Set());
     setShowBatchDeleteConfirm(false);
     setShowSettingsMenu(false);
+    setShowLanguageMenu(false);
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (!showSettingsMenu) {
+      setShowLanguageMenu(false);
+    }
+  }, [showSettingsMenu]);
+
+  useEffect(() => {
+    return i18nService.subscribe(() => {
+      setCurrentLanguage(i18nService.getLanguage());
+    });
+  }, []);
 
   useEffect(() => {
     if (!showSettingsMenu) return;
@@ -153,6 +170,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   const sidebarFrameClass = isEmbedded
     ? `${isCollapsed ? 'border-r-0' : 'border-r dark:border-dark-border/70 border-border/70'}`
     : 'border dark:border-dark-border/80 border-border/80 rounded-2xl shadow-card';
+  const languageOptions: Array<{ value: LanguageType; label: string }> = [
+    { value: 'zh', label: i18nService.t('chinese') },
+    { value: 'en', label: i18nService.t('english') },
+  ];
+
+  const handleLanguageChange = useCallback((nextLanguage: LanguageType) => {
+    setCurrentLanguage(nextLanguage);
+    i18nService.setLanguage(nextLanguage, { persist: true });
+  }, []);
 
   return (
     <aside
@@ -325,6 +351,67 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-current"><path d="M14 17H5" /><path d="M19 7h-9" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></svg>
                     {i18nService.t('settings')}
                   </button>
+                  <div className="my-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowLanguageMenu(prev => !prev)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                        showLanguageMenu
+                          ? 'dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text text-text-primary'
+                          : 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                      }`}
+                      aria-expanded={showLanguageMenu}
+                      aria-haspopup="true"
+                      role="menuitem"
+                    >
+                      <GlobeAltIcon className="h-4 w-4" />
+                      <span className="flex-1 text-left">{i18nService.t('language')}</span>
+                      <span className="text-xs dark:text-dark-text-secondary text-text-secondary">
+                        {languageOptions.find((option) => option.value === currentLanguage)?.label}
+                      </span>
+                      <ChevronRightIcon className={`h-4 w-4 transition-transform ${showLanguageMenu ? 'rotate-90' : ''}`} />
+                    </button>
+                    {showLanguageMenu && (
+                      <div className="mt-1 space-y-1 px-1 pb-1">
+                        {languageOptions.map((option) => {
+                          const selected = option.value === currentLanguage;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => handleLanguageChange(option.value)}
+                              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                                selected
+                                  ? 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                                  : 'dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                              }`}
+                              role="menuitemradio"
+                              aria-checked={selected}
+                            >
+                              <span className="flex-1 text-left">{option.label}</span>
+                              <span className={`text-primary transition-opacity ${selected ? 'opacity-100' : 'opacity-0'}`}>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="h-4 w-4"
+                                >
+                                  <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mx-3 my-1 h-px dark:bg-dark-border/80 bg-border/80" />
                   {onShowLogin && (
                     <button
                       id="btn-logout"
