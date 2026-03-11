@@ -1,6 +1,7 @@
 import React from 'react';
-import { i18nService } from '../../services/i18n';
+import { createPortal } from 'react-dom';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { i18nService } from '../../services/i18n';
 
 interface DeleteConfirmModalProps {
   taskName: string;
@@ -13,27 +14,30 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  return (
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center modal-backdrop"
       onClick={onCancel}
     >
-      {/* Modal */}
       <div
         className="app-modal-surface relative w-80 p-5 modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center text-center">
-          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3">
-            <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+            <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
           </div>
-          <h3 className="text-sm font-semibold dark:text-dark-text text-text-primary mb-2">
+          <h3 className="mb-2 text-sm font-semibold text-text-primary dark:text-dark-text">
             {i18nService.t('scheduledTasksDelete')}
           </h3>
-          <p className="text-sm dark:text-dark-text-secondary text-text-secondary mb-5">
+          <p className="mb-5 text-sm text-text-secondary dark:text-dark-text-secondary">
             {i18nService.t('scheduledTasksDeleteConfirm').replace('{name}', taskName)}
           </p>
-          <div className="flex items-center gap-3 w-full">
+          <div className="flex w-full items-center gap-3">
             <button
               type="button"
               onClick={onCancel}
@@ -44,14 +48,15 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             <button
               type="button"
               onClick={onConfirm}
-              className="flex-1 px-4 py-2 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+              className="flex-1 rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600"
             >
               {i18nService.t('scheduledTasksDelete')}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
