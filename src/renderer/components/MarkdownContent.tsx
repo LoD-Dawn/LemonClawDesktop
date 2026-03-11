@@ -533,15 +533,15 @@ const createMarkdownComponents = (
         <a
           href={toFileHref(filePath)}
           onClick={handleClick}
-          className="text-primary hover:text-primary-light underline decoration-primary/50 hover:decoration-primary transition-colors cursor-pointer inline-flex items-center gap-1"
+          className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-1 rounded-sm px-0.5 py-0.5 font-medium hover:bg-blue-500/6"
           title={filePath}
           {...props}
         >
           {children}
           {looksLikeDirectory(filePath) ? (
-            <FolderIcon className="h-3.5 w-3.5 inline" />
+            <FolderIcon className="h-3.5 w-3.5 inline shrink-0" />
           ) : (
-            <DocumentIcon className="h-3.5 w-3.5 inline" />
+            <DocumentIcon className="h-3.5 w-3.5 inline shrink-0" />
           )}
         </a>
       );
