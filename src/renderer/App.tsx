@@ -50,7 +50,7 @@ const App: React.FC = () => {
   const [downloadProgress, setDownloadProgress] = useState<AppUpdateDownloadProgress | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
-  const hasInitialized = useRef(false);
+  const [initNonce, setInitNonce] = useState(0);
   const dispatch = useDispatch();
   const selectedModel = useSelector((state: RootState) => state.model.selectedModel);
   const sessions = useSelector((state: RootState) => state.cowork.sessions);
@@ -64,11 +64,6 @@ const App: React.FC = () => {
 
   // 初始化应用
   useEffect(() => {
-    if (hasInitialized.current) {
-      return;
-    }
-    hasInitialized.current = true;
-
     const initializeApp = async () => {
       try {
         // 标记平台，用于 CSS 条件样式（如 Windows 标题栏按钮区域留白）
@@ -153,7 +148,7 @@ const App: React.FC = () => {
     };
 
     initializeApp();
-  }, []);
+  }, [dispatch, initNonce]);
 
   useEffect(() => {
     const unsubscribe = i18nService.subscribe(() => {
@@ -275,27 +270,27 @@ const App: React.FC = () => {
   }, []);
 
   const handleShowLogin = useCallback(async () => {
-    // 登出：清除本地 token，回到登录页
+    // 登出后直接显示登录页，无需重新跑完整初始化
     await window.electron.auth.logout();
     dispatch(setAuthLoggedOut());
-    setIsInitialized(false); // 重置初始化状态（重新登录后需重新 init）
-    hasInitialized.current = false;
+    setInitError(null);
+    setIsInitialized(true);
   }, [dispatch]);
 
   // 处理登录成功（来自 LoginScreen 组件）
   const handleLoginSuccess = useCallback((user: AuthUser) => {
     dispatch(setAuthLoggedIn(user));
-    // 触发完整的应用初始化
-    hasInitialized.current = false;
+    setInitError(null);
     setIsInitialized(false);
+    setInitNonce((value) => value + 1);
   }, [dispatch]);
 
   // 处理禁用页切换账号
   const handleSwitchAccount = useCallback(async () => {
     await window.electron.auth.logout();
     dispatch(setAuthLoggedOut());
-    setIsInitialized(false);
-    hasInitialized.current = false;
+    setInitError(null);
+    setIsInitialized(true);
   }, [dispatch]);
 
 
@@ -758,3 +753,4 @@ const App: React.FC = () => {
 };
 
 export default App; 
+

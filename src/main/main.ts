@@ -33,15 +33,18 @@ import {
   setSystemProxyEnabled,
 } from './libs/systemProxy';
 import { AuthStore } from './authStore';
+import crypto from 'crypto';
 
 // 主进程本地类型定义（不依赖渲染层类型文件）
 interface AuthVerifyResult {
   valid: boolean;
-  user?: { id: string; name: string; email?: string; avatar?: string;[key: string]: unknown };
+  user?: { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; [key: string]: unknown };
   reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }
 
 // ==================== Auth ====================
+const ADMIN_BASE_URL = 'http://172.16.10.34:3006';
+
 let authStore: AuthStore | null = null;
 const getAuthStore = (): AuthStore => {
   if (!authStore) {
@@ -50,29 +53,65 @@ const getAuthStore = (): AuthStore => {
   return authStore;
 };
 
+const normalizeAuthUser = (payload: any): { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; [key: string]: unknown } => {
+  const user = payload?.data?.user ?? payload?.user ?? payload?.data ?? { id: 'unknown', name: '用户' };
+  const orgSlug = payload?.data?.orgSlug ?? payload?.orgSlug ?? (typeof user?.orgSlug === 'string' ? user.orgSlug : '未知组织');
+
+  return {
+    ...user,
+    ...(typeof orgSlug === 'string' && orgSlug.trim() ? { orgSlug } : {}),
+  };
+};
+
+/** 防 CSRF：记录本次登录发起时生成的 state，回调时校验 */
+let pendingAuthState: string | null = null;
+
 /**
- * 从深链接 URL 中解析 token
- * 支持格式：diclaw://auth?token=xxx 或 diclaw://auth/callback?token=xxx
+ * 从深链接 URL 中解析 OAuth 回调参数
+ * 格式：diclaw://auth/callback?access_token=xxx&refresh_token=xxx&expires_in=900&state=xxx
  */
-const parseTokenFromDeepLink = (url: string): string | null => {
+const parseAuthCallback = (url: string): {
+  accessToken: string | null;
+  refreshToken: string | null;
+  expiresIn: number;
+  state: string | null;
+} => {
   try {
-    // Electron 自定义协议 URL 格式
     const parsed = new URL(url);
-    const token = parsed.searchParams.get('token');
-    return token || null;
+    return {
+      accessToken: parsed.searchParams.get('access_token'),
+      refreshToken: parsed.searchParams.get('refresh_token'),
+      expiresIn: Number(parsed.searchParams.get('expires_in') || 0),
+      state: parsed.searchParams.get('state'),
+    };
   } catch {
-    return null;
+    return { accessToken: null, refreshToken: null, expiresIn: 0, state: null };
   }
 };
 
 /**
- * 处理深链接回调：解析 token，校验，保存，通知渲染进程
+ * 处理深链接回调：解析 OAuth 参数，校验 state，获取用户信息，保存 token，通知渲染进程
+ * 格式：diclaw://auth/callback?access_token=xxx&refresh_token=xxx&expires_in=900&state=xxx
  */
 const handleAuthDeepLink = async (url: string): Promise<void> => {
   console.log('[Auth] Deep link received:', url);
-  const token = parseTokenFromDeepLink(url);
-  if (!token) {
-    console.warn('[Auth] Deep link has no token:', url);
+
+  const { accessToken, refreshToken, expiresIn, state } = parseAuthCallback(url);
+
+  // ① state 校验（防 CSRF 攻击）
+  if (!state || state !== pendingAuthState) {
+    console.warn('[Auth] State mismatch, rejecting deep link. expected:', pendingAuthState, 'got:', state);
+    BrowserWindow.getAllWindows().forEach(win => {
+      if (!win.isDestroyed()) {
+        win.webContents.send('auth:loginError', '登录链接已失效，请重新发起登录');
+      }
+    });
+    return;
+  }
+  pendingAuthState = null; // 一次性，用后即清
+
+  if (!accessToken) {
+    console.warn('[Auth] Deep link has no access_token:', url);
     BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
         win.webContents.send('auth:loginError', '登录链接无效，请重试');
@@ -82,16 +121,11 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
   }
 
   try {
-    // 校验 token 是否有效
-    const appConfig = getStore().get<any>('app_config');
-    const isTestMode = appConfig?.app?.testMode === true;
-    const verifyUrl = isTestMode
-      ? 'https://admin-test.yourcompany.com/api/desktop/auth/verify'   // TODO: 替换
-      : 'https://admin.yourcompany.com/api/desktop/auth/verify';        // TODO: 替换
-
-    const resp = await fetch(verifyUrl, {
+    // ② 用 access_token 从管理端获取用户会话信息
+    const sessionUrl = `${ADMIN_BASE_URL}/api/v1/auth/session`;
+    const resp = await fetch(sessionUrl, {
       method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(10000),
     });
 
@@ -114,20 +148,23 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
     }
 
     const json = await resp.json();
-    const user = json.data?.user ?? json.user ?? { id: 'unknown', name: '用户' };
+    const user = normalizeAuthUser(json);
 
-    // 保存 token
-    getAuthStore().save(token, user);
-    console.log('[Auth] Login successful, user:', user.name);
+    // ③ 计算过期时间（expires_in 单位为秒）
+    const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 1000 : undefined;
 
-    // 通知渲染进程登录成功
+    // ④ 保存 access_token + refresh_token + 用户信息
+    getAuthStore().save(accessToken, user, refreshToken ?? undefined, expiresAt);
+    console.log('[Auth] Login successful, user:', user.name ?? user.id);
+
+    // ⑤ 通知渲染进程登录成功
     BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
         win.webContents.send('auth:loginSuccess', user);
       }
     });
   } catch (error) {
-    console.error('[Auth] Failed to verify token from deep link:', error);
+    console.error('[Auth] Failed to get user session:', error);
     BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
         win.webContents.send('auth:loginError', '网络连接失败，请检查网络后重试');
@@ -136,22 +173,88 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
   }
 };
 
+/**
+ * 用 refresh_token 换取新的 access_token
+ * POST /api/v1/auth/refresh
+ * 成功返回新 token 信息，失败返回 null
+ */
+const refreshAccessToken = async (): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  expiresAt?: number;
+} | null> => {
+  const refreshToken = getAuthStore().getRefreshToken();
+  if (!refreshToken) {
+    console.warn('[Auth] No refresh_token available, cannot refresh.');
+    return null;
+  }
+
+  try {
+    const resp = await fetch(`${ADMIN_BASE_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!resp.ok) {
+      console.warn('[Auth] refresh_token rejected by server, status:', resp.status);
+      return null;
+    }
+
+    const json = await resp.json();
+    const data = json.data ?? json;
+    const newAccessToken: string = data.access_token;
+    const newRefreshToken: string = data.refresh_token ?? refreshToken;
+    const expiresIn: number = Number(data.expires_in || 0);
+    const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 1000 : undefined;
+
+    if (!newAccessToken) {
+      console.warn('[Auth] refresh response missing access_token');
+      return null;
+    }
+
+    return { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt };
+  } catch (error) {
+    console.error('[Auth] refreshAccessToken network error:', error);
+    return null;
+  }
+};
+
+const DICLAW_PROTOCOL = 'diclaw';
+
+const registerDiclawProtocolClient = (): void => {
+  // In development, Electron is launched as lectron <app-entry>.
+  // We must register the app entry too, or Windows treats the deep link as
+  // the app path and shows "Unable to find Electron app at ...callback?...".
+  if (process.defaultApp && process.argv[1]) {
+    app.setAsDefaultProtocolClient(DICLAW_PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
+    return;
+  }
+
+  app.setAsDefaultProtocolClient(DICLAW_PROTOCOL);
+};
+
+const findAuthDeepLinkArg = (argv: string[]): string | undefined => (
+  argv.find(arg => arg.startsWith(DICLAW_PROTOCOL + '://auth'))
+);
+
 // 在 app.ready 之前注册自定义协议（Windows/Linux 需要在 ready 之前调用）
 // macOS 使用 'open-url' 事件，无需此调用
 if (process.platform !== 'darwin') {
-  app.setAsDefaultProtocolClient('diclaw');
+  registerDiclawProtocolClient();
 }
 // macOS 在 ready 之后注册
 app.on('ready', () => {
   if (process.platform === 'darwin') {
-    app.setAsDefaultProtocolClient('diclaw');
+    registerDiclawProtocolClient();
   }
 });
 
 // macOS: 应用已打开时通过 open-url 接收深链接
 app.on('open-url', (event, url) => {
   event.preventDefault();
-  if (url.startsWith('diclaw://auth')) {
+  if (url.startsWith(DICLAW_PROTOCOL + '://auth')) {
     void handleAuthDeepLink(url);
   }
 });
@@ -1045,8 +1148,8 @@ if (!gotTheLock) {
     console.log('[Main] second-instance event', { commandLine, workingDirectory });
 
     // Windows 深链接：第二个实例的命令行参数包含协议 URL
-    const deepLinkUrl = commandLine.find(arg => arg.startsWith('diclaw://'));
-    if (deepLinkUrl && deepLinkUrl.startsWith('diclaw://auth')) {
+    const deepLinkUrl = findAuthDeepLinkArg(commandLine);
+    if (deepLinkUrl) {
       void handleAuthDeepLink(deepLinkUrl);
     }
 
@@ -1075,76 +1178,86 @@ if (!gotTheLock) {
 
   /**
    * 打开管理端登录 URL（在外部浏览器），等待深链接回调
+   * 登录 URL 格式：{ADMIN_BASE_URL}/login?redirect_uri=diclaw://auth/callback&state=随机字符串
    */
   ipcMain.handle('auth:openLoginUrl', async () => {
-    const appConfig = getStore().get<any>('app_config');
-    const isTestMode = appConfig?.app?.testMode === true;
-    const loginUrl = isTestMode
-      ? 'https://admin-test.yourcompany.com/login?from=desktop'   // TODO: 替换为真实测试环境登录地址
-      : 'https://admin.yourcompany.com/login?from=desktop';        // TODO: 替换为真实生产环境登录地址
+    // 生成随机 state，用于 CSRF 防护
+    const state = crypto.randomBytes(16).toString('hex');
+    pendingAuthState = state;
 
-    // ⚠️ 地址未配置提示（开发临时模式下不会触发登录页，此处兜底）
-    if (loginUrl.includes('yourcompany.com')) {
-      console.warn('[Auth] 管理端登录地址未配置，当前处于跳过认证的临时模式，无需登录');
-      return;
-    }
+    const loginUrl = new URL(`${ADMIN_BASE_URL}/login`);
+    loginUrl.searchParams.set('redirect_uri', 'diclaw://auth/callback');
+    loginUrl.searchParams.set('state', state);
 
-    await shell.openExternal(loginUrl);
+    console.log('[Auth] Opening login URL:', loginUrl.toString());
+    await shell.openExternal(loginUrl.toString());
   });
 
   /**
-   * 校验本地 token 是否有效（联网，不允许离线）
+   * 校验本地 token 是否有效（调用管理端 session 接口）
+   *
+   * 状态机：
+   *   200  → 有效，更新缓存用户信息
+   *   401  → access_token 过期 → 尝试用 refresh_token 刷新
+   *            刷新成功 → 保存新 token → 返回 valid
+   *            刷新失败 → 清除 token → 返回 expired（要求重新登录）
+   *   其他 → 账号被禁用或服务端异常 → 清除 token → 返回 disabled
    */
   ipcMain.handle('auth:verify', async (): Promise<AuthVerifyResult> => {
-    const appConfig = getStore().get<any>('app_config');
-    const isTestMode = appConfig?.app?.testMode === true;
-    const verifyUrl = isTestMode
-      ? 'https://admin-test.yourcompany.com/api/desktop/auth/verify'   // TODO: 替换为真实测试环境地址
-      : 'https://admin.yourcompany.com/api/desktop/auth/verify';        // TODO: 替换为真实生产环境地址
-
-    // ⚠️ 开发临时模式：接口地址尚未配置时跳过认证，直接放行
-    // 等后端提供真实地址后，替换上方 TODO 地址即可自动开启认证
-    const isAuthConfigured = !verifyUrl.includes('yourcompany.com');
-    if (!isAuthConfigured) {
-      console.warn('[Auth] 管理端接口地址未配置，已跳过认证（开发临时模式）');
-      const cachedUser = getAuthStore().getCachedUser();
-      return {
-        valid: true,
-        user: cachedUser ?? { id: 'dev', name: '开发者', email: 'dev@local' },
-      };
-    }
-
     const token = getAuthStore().getToken();
     if (!token) {
       return { valid: false, reason: 'no_token' };
     }
 
-    try {
-      const resp = await fetch(verifyUrl, {
+    const callSession = async (accessToken: string) => {
+      return fetch(`${ADMIN_BASE_URL}/api/v1/auth/session`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${accessToken}` },
         signal: AbortSignal.timeout(10000),
       });
+    };
 
-      if (resp.status === 403) {
+    try {
+      let resp = await callSession(token);
+
+      // ===== 401：access_token 过期，尝试刷新 =====
+      if (resp.status === 401) {
+        console.log('[Auth] access_token expired (401), attempting refresh...');
+        const refreshed = await refreshAccessToken();
+
+        if (!refreshed) {
+          // refresh_token 也失效，需重新登录
+          console.warn('[Auth] Token refresh failed, clearing tokens.');
+          getAuthStore().clear();
+          return { valid: false, reason: 'expired' };
+        }
+
+        // 保存新 token，再次请求 session
+        const cachedUser = getAuthStore().getCachedUser() ?? { id: 'unknown', name: '用户' };
+        getAuthStore().save(refreshed.accessToken, cachedUser, refreshed.refreshToken, refreshed.expiresAt);
+        console.log('[Auth] Token refreshed successfully, re-verifying session...');
+
+        resp = await callSession(refreshed.accessToken);
+
+        // 刷新后仍然不对 → 清除并要求重登
+        if (!resp.ok) {
+          console.warn('[Auth] Session invalid after token refresh, status:', resp.status);
+          getAuthStore().clear();
+          return { valid: false, reason: 'expired' };
+        }
+      } else if (!resp.ok) {
+        // ===== 非 401 的错误（403 禁用、500 等）→ 视为账号禁用/异常 =====
+        console.warn('[Auth] Session check failed, status:', resp.status, '→ treating as disabled');
         getAuthStore().clear();
         return { valid: false, reason: 'disabled' };
       }
 
-      if (resp.status === 401) {
-        getAuthStore().clear();
-        return { valid: false, reason: 'expired' };
-      }
-
-      if (!resp.ok) {
-        getAuthStore().clear();
-        return { valid: false, reason: 'expired' };
-      }
-
+      // ===== 200：获取用户信息 =====
       const json = await resp.json();
-      const user = json.data?.user ?? json.user ?? getAuthStore().getCachedUser() ?? { id: 'unknown', name: '用户' };
+      const user = normalizeAuthUser(json);
       getAuthStore().updateUser(user);
       return { valid: true, user };
+
     } catch (error) {
       // 网络错误 → 不允许离线，直接返回失败
       console.warn('[Auth] verify network error (offline not permitted):', error);
@@ -1153,29 +1266,13 @@ if (!gotTheLock) {
   });
 
   /**
-   * 登出：清除本地 token
+   * 登出：清除本地 token，并重置 pendingAuthState
    */
   ipcMain.handle('auth:logout', async () => {
     const token = getAuthStore().getToken();
     getAuthStore().clear();
-
-    // 可选：通知管理端（fire and forget）
-    if (token) {
-      try {
-        const appConfig = getStore().get<any>('app_config');
-        const isTestMode = appConfig?.app?.testMode === true;
-        const logoutUrl = isTestMode
-          ? 'https://admin-test.yourcompany.com/api/desktop/auth/logout'   // TODO: 替换
-          : 'https://admin.yourcompany.com/api/desktop/auth/logout';        // TODO: 替换
-        await fetch(logoutUrl, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          signal: AbortSignal.timeout(5000),
-        });
-      } catch {
-        // 忽略，本地已清除
-      }
-    }
+    pendingAuthState = null; // 清除任何挂起的登录流程
+    console.log('[Auth] Logged out, token cleared.');
   });
 
   /**
@@ -2940,6 +3037,10 @@ if (!gotTheLock) {
     createWindow();
     console.log('[Main] initApp: window created');
 
+    const initialDeepLinkUrl = findAuthDeepLinkArg(process.argv);
+    if (initialDeepLinkUrl) {
+      void handleAuthDeepLink(initialDeepLinkUrl);
+    }
     // Auto-reconnect IM bots that were enabled before restart
     getIMGatewayManager().startAllEnabled().catch((error) => {
       console.error('[IM] Failed to auto-start enabled gateways:', error);
@@ -2996,4 +3097,7 @@ if (!gotTheLock) {
     }
   });
 }
+
+
+
 

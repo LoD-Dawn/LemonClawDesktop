@@ -9,11 +9,14 @@ export interface AuthUser {
   name: string;
   email?: string;
   avatar?: string;
+  orgSlug?: string;
   [key: string]: unknown;
 }
 
 export interface AuthState {
   token: string;
+  refreshToken?: string;
+  expiresAt?: number; // unix ms
   user: AuthUser;
   savedAt: number;
 }
@@ -56,39 +59,55 @@ export class AuthStore {
   }
 
   /**
-   * 保存 token 和用户信息
+   * 保存 token、refreshToken、过期时间和用户信息
    */
-  save(token: string, user: AuthUser): void {
-    const state: AuthState = { token, user, savedAt: Date.now() };
+  save(token: string, user: AuthUser, refreshToken?: string, expiresAt?: number): void {
+    const state: AuthState = {
+      token,
+      user,
+      savedAt: Date.now(),
+      ...(refreshToken ? { refreshToken } : {}),
+      ...(expiresAt ? { expiresAt } : {}),
+    };
     this.store.set(`${AUTH_KEY_PREFIX}state`, this.encrypt(JSON.stringify(state)));
   }
 
-  /**
-   * 读取 token（解密）
-   */
-  getToken(): string | null {
+  private getState(): AuthState | null {
     const encrypted = this.store.get<string>(`${AUTH_KEY_PREFIX}state`);
     if (!encrypted) return null;
     try {
-      const state: AuthState = JSON.parse(this.decrypt(encrypted));
-      return state.token ?? null;
+      return JSON.parse(this.decrypt(encrypted)) as AuthState;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * 读取 access token（解密）
+   */
+  getToken(): string | null {
+    return this.getState()?.token ?? null;
+  }
+
+  /**
+   * 读取 refresh token（解密）
+   */
+  getRefreshToken(): string | null {
+    return this.getState()?.refreshToken ?? null;
+  }
+
+  /**
+   * 读取过期时间（unix ms）
+   */
+  getExpiresAt(): number | null {
+    return this.getState()?.expiresAt ?? null;
   }
 
   /**
    * 读取缓存的用户信息（不发网络请求）
    */
   getCachedUser(): AuthUser | null {
-    const encrypted = this.store.get<string>(`${AUTH_KEY_PREFIX}state`);
-    if (!encrypted) return null;
-    try {
-      const state: AuthState = JSON.parse(this.decrypt(encrypted));
-      return state.user ?? null;
-    } catch {
-      return null;
-    }
+    return this.getState()?.user ?? null;
   }
 
   /**
@@ -109,9 +128,10 @@ export class AuthStore {
    * 更新缓存的用户信息（不改动 token）
    */
   updateUser(user: AuthUser): void {
-    const token = this.getToken();
-    if (token) {
-      this.save(token, user);
+    const state = this.getState();
+    if (state) {
+      this.save(state.token, user, state.refreshToken, state.expiresAt);
     }
   }
 }
+

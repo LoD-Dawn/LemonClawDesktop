@@ -56,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const sessions = useSelector((state: RootState) => state.cowork.sessions);
   const currentSessionId = useSelector((state: RootState) => state.cowork.currentSessionId);
+  const authUser = useSelector((state: RootState) => state.auth.user);
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
@@ -182,6 +183,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     { value: 'zh', label: i18nService.t('chinese') },
     { value: 'en', label: i18nService.t('english') },
   ];
+  const displayUserName = authUser
+    ? [authUser.orgSlug, authUser.name].filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join('-')
+    : '';
 
   const handleLanguageChange = useCallback((nextLanguage: LanguageType) => {
     setCurrentLanguage(nextLanguage);
@@ -338,7 +342,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <UserCircleIcon className="h-4 w-4" />
                     </div>
                     <div className="text-sm font-medium">
-                      <span className="dark:text-dark-text-secondary text-text-secondary">中科闻歌</span>
+                      <span className="dark:text-dark-text-secondary text-text-secondary">{displayUserName || authUser?.name || "-"}</span>
                     </div>
                   </div>
                 </div>
@@ -472,5 +476,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 };
 
 export default Sidebar;
+
 
 

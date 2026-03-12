@@ -4,6 +4,7 @@ interface AuthUser {
   name: string;
   email?: string;
   avatar?: string;
+  orgSlug?: string;
   [key: string]: unknown;
 }
 
@@ -670,3 +671,4 @@ declare global {
 }
 
 export {}; 
+

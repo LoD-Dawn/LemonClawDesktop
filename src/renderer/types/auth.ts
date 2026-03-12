@@ -5,6 +5,7 @@ export interface AuthUser {
   name: string;
   email?: string;
   avatar?: string;
+  orgSlug?: string;
   [key: string]: unknown;
 }
 
@@ -32,3 +33,4 @@ export interface AuthVerifyResult {
 export interface AuthLogoutResult {
   success: boolean;
 }
+
