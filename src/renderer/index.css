@@ -15,12 +15,12 @@
 }
 
 .dark .katex {
-  color: #E4E5E9;
+  color: #F3F6FB;
 }
 
 /* Improve code block styles */
 pre {
-  @apply dark:bg-dark-surface bg-surface-hover;
+  @apply dark:bg-dark-surface-inset bg-surface-hover;
   border-radius: 0.75rem !important;
   padding: 1em !important;
   margin: 1em 0 !important;
@@ -113,7 +113,7 @@ blockquote {
 /* Ink Blue dark mode */
 .dark {
   color-scheme: dark;
-  color: #E4E5E9;
+  color: #F3F6FB;
   background-color: #0F1117;
 }
 
@@ -129,7 +129,7 @@ blockquote {
 .dark .App,
 .dark main {
   background-color: #0F1117;
-  color: #E4E5E9;
+  color: #F3F6FB;
 }
 
 .light #root,
@@ -268,7 +268,7 @@ body {
 /* Style for select options to match theme */
 .dark option {
   background-color: #1A1D27;
-  color: #E4E5E9;
+  color: #F3F6FB;
 }
 
 .light option {

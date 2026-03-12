@@ -791,7 +791,7 @@ const UserMessageItem: React.FC<{ message: CoworkMessage; skills: Skill[] }> = R
         <div className="pl-6 sm:pl-10 md:pl-14">
           <div className="flex items-start gap-3 flex-row-reverse">
             <div className="w-full min-w-0 flex flex-col items-end">
-              <div className="w-fit max-w-[42rem] rounded-2xl border dark:border-dark-border/75 border-border/80 px-4 py-3 bg-white dark:bg-dark-surface dark:text-dark-text text-text-primary shadow-subtle">
+              <div className="w-fit max-w-[42rem] rounded-2xl border border-border/80 bg-surface/95 px-4 py-3 text-text-primary shadow-subtle dark:border-dark-border/90 dark:bg-[#161b24] dark:text-dark-text">
                 {message.content?.trim() && (
                   <MarkdownContent
                     content={message.content}
@@ -909,7 +909,7 @@ const ExecutionStatusIndicator: React.FC<{
   label: string;
   showTypingDots?: boolean;
 }> = ({ label, showTypingDots = false }) => (
-  <div className="rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary-lighter/10 px-3 py-2.5">
+  <div className="rounded-xl border border-primary/20 bg-primary/5 dark:border-primary-lighter/25 dark:bg-primary-lighter/12 px-3 py-2.5">
     <div className="flex items-center gap-3">
       <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary-lighter/15">
         <span className="absolute h-full w-full rounded-full border border-primary/20 animate-ping" />
@@ -945,10 +945,10 @@ const ThinkingBlock: React.FC<{
   }, [isCurrentlyStreaming]);
 
   return (
-    <div className="rounded-lg border dark:border-dark-border/75 border-border/80 dark:bg-dark-surface-muted/65 bg-surface-muted/70 overflow-hidden">
+    <div className="rounded-lg overflow-hidden border border-border/80 bg-surface-inset/80 dark:border-dark-border/85 dark:bg-[#111722]">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left dark:hover:bg-dark-surface-hover/65 hover:bg-surface-hover/60 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface-hover/70 dark:hover:bg-[#1a2230]"
       >
         <ChevronRightIcon
           className={`h-3.5 w-3.5 dark:text-dark-text-secondary text-text-secondary flex-shrink-0 transition-transform duration-200 ${
@@ -963,8 +963,8 @@ const ThinkingBlock: React.FC<{
         )}
       </button>
       {isExpanded && (
-        <div className="px-3 pt-2.5 pb-3.5 max-h-64 overflow-y-auto border-t dark:border-dark-border/75 border-border/80">
-          <div className="text-xs leading-6 dark:text-dark-text-secondary/80 text-text-secondary/80 whitespace-pre-wrap break-words">
+        <div className="max-h-64 overflow-y-auto border-t border-border/80 px-3 pt-2.5 pb-3.5 dark:border-dark-border/80 dark:bg-[#0d131d]">
+          <div className="text-xs leading-6 whitespace-pre-wrap break-words text-text-secondary/80 dark:text-[#c8d1de]">
             {displayContent}
           </div>
         </div>
@@ -1048,7 +1048,7 @@ const AssistantTurnBlock: React.FC<{
     <div className="px-4 md:px-5 py-2">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0 px-4 py-3.5 rounded-2xl border dark:border-dark-border/75 border-border/80 dark:bg-dark-surface/78 bg-surface/95 shadow-subtle">
+          <div className="flex-1 min-w-0 px-4 py-3.5 rounded-2xl border dark:border-dark-border/90 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-subtle">
             <div className="space-y-3">
               {visibleAssistantItems.map((item, index) => {
                 if (item.type === 'assistant') {

@@ -20,7 +20,7 @@ const CODE_BLOCK_CHAR_LIMIT = 20000;
 const SYNTAX_HIGHLIGHTER_STYLE = {
   margin: 0,
   borderRadius: 0,
-  background: '#282c34',
+  background: '#121722',
 };
 const SAFE_URL_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel', 'file']);
 
@@ -218,11 +218,11 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
     if (!match) {
       return (
         <div className="my-2 relative group">
-          <div className="overflow-x-auto rounded-lg bg-[#282c34] text-[13px] leading-6">
+          <div className="overflow-x-auto rounded-lg border border-dark-border/80 bg-[#121722] text-[13px] leading-6">
             <button
               type="button"
               onClick={handleCopy}
-              className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-gray-700/80 text-gray-300 hover:bg-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-dark-surface/90 text-dark-text-secondary hover:bg-dark-surface-hover transition-colors opacity-0 group-hover:opacity-100"
               title={i18nService.t('copyToClipboard')}
               aria-label={i18nService.t('copyToClipboard')}
             >
@@ -269,7 +269,7 @@ const CodeBlock: React.FC<any> = ({ node, className, children, ...props }) => {
             {trimmedCodeText}
           </SyntaxHighlighter>
         ) : (
-          <div className="m-0 overflow-x-auto bg-[#282c34] text-[13px] leading-6">
+          <div className="m-0 overflow-x-auto border-t border-dark-border/80 bg-[#121722] text-[13px] leading-6">
             <code className="block px-4 py-3 font-mono text-dark-text whitespace-pre">
               {trimmedCodeText}
             </code>
@@ -440,7 +440,7 @@ const createMarkdownComponents = (
     </li>
   ),
   blockquote: ({ node, className, children, ...props }: any) => (
-    <blockquote className="border-l-4 border-primary pl-4 py-1 my-2 dark:bg-dark-surface/30 bg-surface-hover/30 rounded-r-lg dark:text-dark-text text-text-primary" {...props}>
+    <blockquote className="border-l-4 border-primary pl-4 py-1.5 my-2 dark:bg-dark-surface-inset/80 bg-surface-hover/30 rounded-r-lg dark:text-dark-text-secondary text-text-primary" {...props}>
       {children}
     </blockquote>
   ),
@@ -533,7 +533,7 @@ const createMarkdownComponents = (
         <a
           href={toFileHref(filePath)}
           onClick={handleClick}
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline decoration-blue-400/50 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-1 rounded-sm px-0.5 py-0.5 font-medium hover:bg-blue-500/6"
+          className="text-blue-600 dark:text-[#7CC2FF] hover:text-blue-500 dark:hover:text-[#A6D8FF] underline decoration-blue-400/50 dark:decoration-[#7CC2FF]/50 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer inline-flex items-center gap-1 rounded-sm px-0.5 py-0.5 font-medium hover:bg-blue-500/6 dark:hover:bg-[#7CC2FF]/10"
           title={filePath}
           {...props}
         >
@@ -567,7 +567,7 @@ const createMarkdownComponents = (
           target="_blank"
           rel="noopener noreferrer"
           onClick={handleExternalClick}
-          className="text-primary hover:text-primary-light underline decoration-primary/50 hover:decoration-primary transition-colors"
+          className="text-primary hover:text-primary-light dark:text-[#7CC2FF] dark:hover:text-[#A6D8FF] underline decoration-primary/50 dark:decoration-[#7CC2FF]/50 hover:decoration-primary transition-colors"
           {...props}
         >
           {children}
@@ -580,7 +580,7 @@ const createMarkdownComponents = (
         href={hrefValue}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-primary hover:text-primary-light underline decoration-primary/50 hover:decoration-primary transition-colors"
+        className="text-primary hover:text-primary-light dark:text-[#7CC2FF] dark:hover:text-[#A6D8FF] underline decoration-primary/50 dark:decoration-[#7CC2FF]/50 hover:decoration-primary transition-colors"
         {...props}
       >
         {children}

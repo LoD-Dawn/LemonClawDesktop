@@ -22,15 +22,15 @@ export default {
 
         // Dark mode colors
         'dark-bg': '#0F1117',           // Dark background
-        'dark-surface': '#1A1D27',      // Dark cards
-        'dark-surface-hover': '#242830', // Dark hover
-        'dark-surface-muted': '#151820', // Subtle dark area
-        'dark-surface-inset': '#0C0E14', // Dark inset areas
-        'dark-border': '#2A2E38',       // Dark borders
-        'dark-border-light': '#1F232B',  // Subtle dark dividers
-        'dark-text': '#E4E5E9',         // Dark primary text
-        'dark-text-secondary': '#9CA3AF', // Dark secondary text
-        'dark-text-muted': '#8B8FA3',   // Dark muted text
+        'dark-surface': '#181D27',      // Dark cards
+        'dark-surface-hover': '#212735', // Dark hover
+        'dark-surface-muted': '#131823', // Subtle dark area
+        'dark-surface-inset': '#0B1018', // Dark inset areas
+        'dark-border': '#313949',       // Dark borders
+        'dark-border-light': '#232B38',  // Subtle dark dividers
+        'dark-text': '#F3F6FB',         // Dark primary text
+        'dark-text-secondary': '#C2CAD6', // Dark secondary text
+        'dark-text-muted': '#9AA6B8',   // Dark muted text
 
         // Primary (Ink Blue)
         primary: {
@@ -140,45 +140,45 @@ export default {
         },
         dark: {
           css: {
-            color: '#E4E5E9',
+            color: '#F3F6FB',
             a: {
-              color: '#60A5FA',
+              color: '#7CC2FF',
               '&:hover': {
-                color: '#93BBFD',
+                color: '#A6D8FF',
               },
             },
             code: {
-              color: '#E4E5E9',
-              backgroundColor: 'rgba(42, 46, 56, 0.5)',
+              color: '#F3F6FB',
+              backgroundColor: 'rgba(49, 57, 73, 0.6)',
               padding: '0.2em 0.4em',
               borderRadius: '0.25rem',
               fontWeight: '400',
             },
             pre: {
-              backgroundColor: '#1A1D27',
-              color: '#E4E5E9',
+              backgroundColor: '#121722',
+              color: '#F3F6FB',
               padding: '1em',
               borderRadius: '0.75rem',
               overflowX: 'auto',
             },
             blockquote: {
               borderLeftColor: '#3B82F6',
-              color: '#8B8FA3',
+              color: '#C2CAD6',
             },
             h1: {
-              color: '#E4E5E9',
+              color: '#F3F6FB',
             },
             h2: {
-              color: '#E4E5E9',
+              color: '#F3F6FB',
             },
             h3: {
-              color: '#E4E5E9',
+              color: '#F3F6FB',
             },
             h4: {
-              color: '#E4E5E9',
+              color: '#F3F6FB',
             },
             strong: {
-              color: '#E4E5E9',
+              color: '#F3F6FB',
             },
           },
         },
