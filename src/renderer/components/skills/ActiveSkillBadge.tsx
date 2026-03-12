@@ -32,19 +32,19 @@ const ActiveSkillBadge: React.FC = () => {
       {activeSkills.map(skill => (
         <div
           key={skill.id}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-primary/20 bg-primary/10 dark:border-primary-lighter/35 dark:bg-primary-lighter/15"
         >
-          <PuzzleIcon className="h-3 w-3 text-primary" />
-          <span className="text-xs font-medium text-primary max-w-[80px] truncate">
+          <PuzzleIcon className="h-3 w-3 text-primary dark:text-[#8EC5FF]" />
+          <span className="text-xs font-medium text-primary dark:text-dark-text max-w-[80px] truncate">
             {skill.name}
           </span>
           <button
             type="button"
             onClick={(e) => handleRemoveSkill(e, skill.id)}
-            className="p-0.5 rounded hover:bg-primary/20 transition-colors"
+            className="p-0.5 rounded hover:bg-primary/20 dark:hover:bg-primary-lighter/25 transition-colors"
             title={i18nService.t('clearSkill')}
           >
-            <XMarkIcon className="h-2.5 w-2.5 text-primary" />
+            <XMarkIcon className="h-2.5 w-2.5 text-primary dark:text-[#8EC5FF]" />
           </button>
         </div>
       ))}
@@ -52,7 +52,7 @@ const ActiveSkillBadge: React.FC = () => {
         <button
           type="button"
           onClick={handleClearAll}
-          className="text-xs text-primary/70 hover:text-primary transition-colors"
+          className="text-xs text-primary/70 hover:text-primary dark:text-dark-text-secondary dark:hover:text-[#A6D8FF] transition-colors"
           title={i18nService.t('clearAllSkills')}
         >
           {i18nService.t('clearAll')}

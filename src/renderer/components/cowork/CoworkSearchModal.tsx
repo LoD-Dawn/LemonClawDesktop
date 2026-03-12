@@ -336,7 +336,7 @@ const CoworkSearchModal: React.FC<CoworkSearchModalProps> = ({
                               }`}
                             >
                               <div className="flex items-center gap-2.5">
-                                <span className={`shrink-0 ${item.kind === 'session' ? 'text-primary' : 'text-cyan-500'}`}>
+                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${item.kind === 'session' ? (isActive ? 'border-primary/30 bg-primary/15 text-primary dark:border-primary-lighter/35 dark:bg-primary-lighter/20 dark:text-[#A6D8FF]' : 'border-primary/15 bg-primary/10 text-primary dark:border-primary-lighter/25 dark:bg-primary-lighter/12 dark:text-[#8EC5FF]') : (isActive ? 'border-cyan-500/35 bg-cyan-500/15 text-cyan-600 dark:border-cyan-400/35 dark:bg-cyan-400/18 dark:text-cyan-200' : 'border-cyan-500/20 bg-cyan-500/10 text-cyan-600 dark:border-cyan-400/25 dark:bg-cyan-400/12 dark:text-cyan-300')}`}>
                                   {item.kind === 'session' ? (
                                     <ChatBubbleLeftRightIcon className="h-4 w-4" />
                                   ) : (
@@ -382,7 +382,7 @@ const CoworkSearchModal: React.FC<CoworkSearchModalProps> = ({
               <div className="space-y-5">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text-secondary text-text-secondary">
-                    <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
+                    <ChatBubbleLeftRightIcon className="h-4 w-4" />
                     {i18nService.t('searchScopeSessions')}
                   </div>
                   <h4 className="mt-3 text-xl font-semibold dark:text-dark-text text-text-primary">{activeSession.title}</h4>
@@ -402,7 +402,7 @@ const CoworkSearchModal: React.FC<CoworkSearchModalProps> = ({
               <div className="space-y-5">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text-secondary text-text-secondary">
-                    <ClockIcon className="h-3.5 w-3.5" />
+                    <ClockIcon className="h-4 w-4" />
                     {i18nService.t('searchScopeScheduledTasks')}
                   </div>
                   <h4 className="mt-3 text-xl font-semibold dark:text-dark-text text-text-primary">{activeTask.name}</h4>

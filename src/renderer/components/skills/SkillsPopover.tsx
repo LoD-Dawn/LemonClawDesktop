@@ -138,7 +138,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
                 onClick={() => handleSelectSkill(skill)}
                 className={`w-full flex items-start gap-3 px-3 py-2.5 text-left transition-colors ${
                   isActive
-                    ? 'dark:bg-primary/10 bg-primary/10'
+                    ? 'bg-primary/10 dark:bg-primary-lighter/15'
                     : 'dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
                 }`}
               >
@@ -157,13 +157,13 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-medium truncate ${
                       isActive
-                        ? 'text-primary'
+                        ? 'text-primary dark:text-dark-text'
                         : 'dark:text-dark-text text-text-primary'
                     }`}>
                       {skill.name}
                     </span>
                     {skill.isOfficial && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary flex-shrink-0">
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary dark:bg-primary-lighter/20 dark:text-[#8EC5FF] flex-shrink-0">
                         {i18nService.t('official')}
                       </span>
                     )}

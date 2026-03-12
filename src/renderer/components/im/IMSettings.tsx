@@ -446,7 +446,7 @@ const IMSettings: React.FC = () => {
               key={platform}
               onClick={() => setActivePlatform(platform)}
               className={`flex items-center p-2 rounded-xl cursor-pointer transition-colors ${activePlatform === platform
-                ? 'bg-primary/10 dark:bg-primary/20 border border-primary/30 shadow-subtle'
+                ? 'bg-primary/10 dark:bg-primary-lighter/15 border border-primary/30 dark:border-primary-lighter/35 shadow-subtle'
                 : 'dark:bg-dark-surface/50 bg-surface hover:bg-surface-hover dark:hover:bg-dark-surface-hover border border-transparent'
                 }`}
             >
@@ -459,7 +459,7 @@ const IMSettings: React.FC = () => {
                   />
                 </div>
                 <span className={`text-sm font-medium truncate ${activePlatform === platform
-                  ? 'text-primary'
+                  ? 'text-primary dark:text-dark-text'
                   : 'dark:text-dark-text text-text-primary'
                   }`}>
                   {i18nService.t(platform)}

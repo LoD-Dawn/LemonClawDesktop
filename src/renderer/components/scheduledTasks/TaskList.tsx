@@ -131,7 +131,7 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
 
       {/* Status: toggle + running indicator */}
       <div className="flex items-center justify-between gap-2">
-        <span className={`text-xs font-medium ${task.enabled ? 'text-primary' : 'dark:text-dark-text-secondary text-text-secondary'}`}>
+        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${task.enabled ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300' : 'border-border bg-surface text-text-secondary dark:border-dark-border dark:bg-dark-surface-hover dark:text-dark-text-secondary'}`}>
           {statusLabel}
         </span>
 

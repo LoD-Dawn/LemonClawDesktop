@@ -49,14 +49,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
                 border text-left transition-all duration-200
                 ${
                   isPromptSelected
-                    ? 'dark:bg-primary-muted bg-primary-muted border-primary/50'
+                    ? 'bg-primary-muted border-primary/50 dark:bg-primary-lighter/15 dark:border-primary-lighter/40'
                     : 'dark:bg-dark-surface bg-surface dark:border-dark-border border-border dark:hover:border-dark-border hover:border-border dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
                 }
               `}
             >
               {/* 标题 */}
               <div className="flex items-center justify-between w-full">
-                <span className={`text-sm font-medium ${isPromptSelected ? 'text-primary' : 'dark:text-dark-text text-text-primary'}`}>
+                <span className={`text-sm font-medium ${isPromptSelected ? 'text-primary dark:text-dark-text' : 'dark:text-dark-text text-text-primary'}`}>
                   {prompt.label}
                 </span>
                 <ArrowRightIcon
@@ -64,7 +64,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
                     w-3.5 h-3.5 transition-all duration-200
                     ${
                       isPromptSelected
-                        ? 'text-primary translate-x-0 opacity-100'
+                        ? 'text-primary dark:text-[#8EC5FF] translate-x-0 opacity-100'
                         : 'dark:text-dark-text-secondary text-text-secondary -translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
                     }
                   `}

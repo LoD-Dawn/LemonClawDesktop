@@ -1920,7 +1920,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                         themeService.setTheme(option.value);
                       }}
                       className={`flex flex-col items-center rounded-xl border-2 p-3 transition-colors cursor-pointer ${isSelected
-                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                        ? 'border-primary/60 bg-primary/5 dark:border-primary-lighter/40 dark:bg-primary-lighter/15'
                         : 'dark:border-dark-border border-border hover:border-primary/50 dark:hover:border-primary/50'
                         }`}
                     >
@@ -2009,7 +2009,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                         )}
                       </svg>
                       <span className={`text-xs font-medium ${isSelected
-                        ? 'text-primary'
+                        ? 'text-primary dark:text-dark-text'
                         : 'dark:text-dark-text text-text-primary'
                         }`}>
                         {option.label}
@@ -2305,7 +2305,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                     key={provider}
                     onClick={() => handleProviderChange(providerKey)}
                     className={`flex items-center p-2 rounded-xl cursor-pointer transition-colors ${activeProvider === provider
-                      ? 'bg-primary/10 dark:bg-primary/20 border border-primary/30 shadow-subtle'
+                      ? 'bg-primary/10 dark:bg-primary-lighter/15 border border-primary/30 dark:border-primary-lighter/35 shadow-subtle'
                       : 'dark:bg-dark-surface/50 bg-surface hover:bg-surface-hover dark:hover:bg-dark-surface-hover border border-transparent'
                       }`}
                   >
@@ -2316,7 +2316,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                         </span>
                       </div>
                       <span className={`text-sm font-medium truncate ${activeProvider === provider
-                        ? 'text-primary'
+                        ? 'text-primary dark:text-dark-text'
                         : 'dark:text-dark-text text-text-primary'
                         }`}>
                         {providerInfo?.label ?? provider.charAt(0).toUpperCase() + provider.slice(1)}
@@ -2354,8 +2354,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                   {(providerMeta[activeProvider]?.label ?? activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1))} {i18nService.t('providerSettings')}
                 </h3>
                 <div
-                  className={`px-2 py-0.5 rounded-lg text-xs font-medium ${providers[activeProvider].enabled
-                    ? 'bg-green-500/20 text-green-600 dark:text-green-400'
+                  className={`px-2 py-0.5 rounded-lg border text-xs font-medium ${providers[activeProvider].enabled
+                    ? 'border-green-500/25 bg-green-500/12 text-green-700 dark:border-green-500/30 dark:bg-green-500/15 dark:text-green-300'
                     : 'bg-red-500/20 text-red-600 dark:text-red-400'
                     }`}
                 >
@@ -2933,9 +2933,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
               <button
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${activeTab === tab.key
-                  ? 'bg-primary/10 text-primary'
-                  : 'dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm font-medium transition-colors text-left ${activeTab === tab.key
+                  ? 'border-primary/25 bg-primary/10 text-primary dark:border-primary-lighter/35 dark:bg-primary-lighter/15 dark:text-dark-text'
+                  : 'border-transparent dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
                   }`}
               >
                 {tab.icon}
