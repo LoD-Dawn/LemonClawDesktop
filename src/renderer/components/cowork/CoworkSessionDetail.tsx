@@ -822,13 +822,17 @@ const UserMessageItem: React.FC<{ message: CoworkMessage; skills: Skill[] }> = R
                 {messageSkills.map(skill => (
                   <div
                     key={skill.id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-primary/25 dark:border-primary-lighter/30 bg-primary/10 dark:bg-primary/15"
+                    className="group inline-flex max-w-[180px] items-center gap-2 rounded-xl border border-border/70 bg-surface/78 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-sm transition-colors hover:border-border hover:bg-surface/92 dark:border-dark-border/75 dark:bg-dark-surface-inset/88 dark:shadow-[0_1px_2px_rgba(2,8,22,0.28)] dark:hover:border-dark-border dark:hover:bg-dark-surface/88"
                     title={skill.description}
                   >
-                    <PuzzleIcon className="h-2.5 w-2.5 text-primary/80 dark:text-primary-lighter/80" />
-                    <span className="text-[10px] font-medium text-primary/85 dark:text-primary-lighter/80 max-w-[84px] truncate">
-                      {skill.name}
-                    </span>
+                    <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary dark:bg-primary/16 dark:text-[#8ec5ff]">
+                      <PuzzleIcon className="h-3 w-3" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[11px] font-medium tracking-[0.01em] text-text-primary dark:text-dark-text-secondary">
+                        {skill.name}
+                      </div>
+                    </div>
                   </div>
                 ))}
                 <CopyButton
