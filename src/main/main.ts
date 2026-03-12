@@ -44,6 +44,14 @@ interface AuthVerifyResult {
 
 // ==================== Auth ====================
 const ADMIN_BASE_URL = 'http://172.16.10.34:3006';
+const DEV_AUTH_BYPASS_TOKEN = 'diclaw-dev-auth-token';
+const DEV_AUTH_BYPASS_USER = {
+  id: 'dev-local-user',
+  name: 'Local Dev',
+  email: 'dev@local.test',
+  orgSlug: 'local-dev',
+};
+const DEV_AUTH_BYPASS_EXPIRES_AT = Date.UTC(2099, 0, 1);
 
 let authStore: AuthStore | null = null;
 const getAuthStore = (): AuthStore => {
@@ -61,6 +69,20 @@ const normalizeAuthUser = (payload: any): { id: string; name: string; email?: st
     ...user,
     ...(typeof orgSlug === 'string' && orgSlug.trim() ? { orgSlug } : {}),
   };
+};
+
+const isDevAuthBypassEnabled = (): boolean => (
+  process.env.NODE_ENV === 'development' && process.env.DICLAW_DEV_FAKE_LOGIN !== '0'
+);
+
+const saveDevAuthSession = (): typeof DEV_AUTH_BYPASS_USER => {
+  getAuthStore().save(
+    DEV_AUTH_BYPASS_TOKEN,
+    DEV_AUTH_BYPASS_USER,
+    undefined,
+    DEV_AUTH_BYPASS_EXPIRES_AT
+  );
+  return DEV_AUTH_BYPASS_USER;
 };
 
 /** 防 CSRF：记录本次登录发起时生成的 state，回调时校验 */
@@ -1181,6 +1203,17 @@ if (!gotTheLock) {
    * 登录 URL 格式：{ADMIN_BASE_URL}/login?redirect_uri=diclaw://auth/callback&state=随机字符串
    */
   ipcMain.handle('auth:openLoginUrl', async () => {
+    if (isDevAuthBypassEnabled()) {
+      const user = saveDevAuthSession();
+      console.log('[Auth] Development fake login enabled, skipping external login.');
+      BrowserWindow.getAllWindows().forEach(win => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('auth:loginSuccess', user);
+        }
+      });
+      return;
+    }
+
     // 生成随机 state，用于 CSRF 防护
     const state = crypto.randomBytes(16).toString('hex');
     pendingAuthState = state;
@@ -1207,6 +1240,11 @@ if (!gotTheLock) {
     const token = getAuthStore().getToken();
     if (!token) {
       return { valid: false, reason: 'no_token' };
+    }
+
+    if (isDevAuthBypassEnabled() && token === DEV_AUTH_BYPASS_TOKEN) {
+      const user = getAuthStore().getCachedUser() ?? saveDevAuthSession();
+      return { valid: true, user };
     }
 
     const callSession = async (accessToken: string) => {
