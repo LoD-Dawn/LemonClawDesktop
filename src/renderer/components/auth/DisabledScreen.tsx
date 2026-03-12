@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AuthUser } from '../../types/auth';
+import WindowTitleBar from '../window/WindowTitleBar';
 
 interface DisabledScreenProps {
   user: AuthUser | null;
@@ -19,7 +20,9 @@ const DisabledScreen: React.FC<DisabledScreenProps> = ({ user, onSwitchAccount }
   return (
     <div className="app-shell h-screen overflow-hidden flex flex-col">
       {isWindows && (
-        <div className="draggable h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted" />
+        <div className="draggable relative h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
+          <WindowTitleBar className="top-1.5 right-1.5" />
+        </div>
       )}
 
       <div className="flex-1 flex items-center justify-center dark:bg-dark-bg bg-page">
@@ -76,3 +79,6 @@ const DisabledScreen: React.FC<DisabledScreenProps> = ({ user, onSwitchAccount }
 };
 
 export default DisabledScreen;
+
+
+

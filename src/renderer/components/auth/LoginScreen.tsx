@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { ArrowTopRightOnSquareIcon, KeyIcon } from '@heroicons/react/24/outline';
 import type { AuthUser } from '../../types/auth';
 import SpinnerIcon from '../icons/SpinnerIcon';
+import WindowTitleBar from '../window/WindowTitleBar';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: AuthUser) => void;
@@ -57,7 +58,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <div className="app-shell h-screen overflow-hidden flex flex-col">
       {/* Windows 标题栏占位（匹配主界面风格） */}
       {isWindows && (
-        <div className="draggable h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted" />
+        <div className="draggable relative h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
+          <WindowTitleBar className="top-1.5 right-1.5" />
+        </div>
       )}
 
       <div className="flex-1 flex items-center justify-center dark:bg-dark-bg bg-page">
@@ -140,3 +143,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 };
 
 export default LoginScreen;
+
+
+
