@@ -222,8 +222,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
   const scheduleModes: ScheduleMode[] = ['once', 'daily', 'weekly', 'monthly'];
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/40 bg-surface-hover/35 px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/40 bg-surface-hover/35 px-4 py-3">
         <h2 className="text-lg font-semibold dark:text-dark-text text-text-primary">
           {mode === 'create' ? i18nService.t('scheduledTasksFormCreate') : i18nService.t('scheduledTasksFormUpdate')}
         </h2>
@@ -232,232 +232,233 @@ const TaskForm: React.FC<TaskFormProps> = ({ mode, task, onCancel, onSaved }) =>
         </p>
       </div>
 
-      {/* Name */}
-      <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
-        <label className={labelClass}>{i18nService.t('scheduledTasksFormName')}</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={inputClass}
-          placeholder={i18nService.t('scheduledTasksFormNamePlaceholder')}
-        />
-        {errors.name && <p className={errorClass}>{errors.name}</p>}
-      </div>
-
-      {/* Prompt */}
-      <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
-        <label className={labelClass}>{i18nService.t('scheduledTasksPrompt')}</label>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          className={inputClass + ' h-32 resize-y min-h-28'}
-          placeholder={i18nService.t('scheduledTasksFormPromptPlaceholder')}
-        />
-        {errors.prompt && <p className={errorClass}>{errors.prompt}</p>}
-      </div>
-
-      {/* Schedule */}
-      <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
-        <label className={labelClass}>{i18nService.t('scheduledTasksFormScheduleType')}</label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {/* Schedule Mode Dropdown */}
-          <select
-            value={scheduleMode}
-            onChange={(e) => setScheduleMode(e.target.value as ScheduleMode)}
-            className={inputClass}
-          >
-            {scheduleModes.map((m) => (
-              <option key={m} value={m}>
-                {i18nService.t(`scheduledTasksFormScheduleMode${m.charAt(0).toUpperCase() + m.slice(1)}`)}
-              </option>
-            ))}
-          </select>
-
-          {/* Second column: date/weekday/monthday or time (for daily) */}
-          {scheduleMode === 'once' ? (
+      <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-1">
+        <div className="space-y-5 pb-4">
+          {/* Name */}
+          <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
+            <label className={labelClass}>{i18nService.t('scheduledTasksFormName')}</label>
             <input
-              type="date"
-              value={scheduleDate}
-              onChange={(e) => setScheduleDate(e.target.value)}
-              onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className={inputClass}
-              min={new Date().toISOString().slice(0, 10)}
+              placeholder={i18nService.t('scheduledTasksFormNamePlaceholder')}
             />
-          ) : scheduleMode === 'weekly' ? (
-            <select
-              value={weekday}
-              onChange={(e) => setWeekday(parseInt(e.target.value))}
-              className={inputClass}
-            >
-              {WEEKDAYS.map((d) => (
-                <option key={d} value={d}>
-                  {i18nService.t(weekdayKeys[d])}
-                </option>
-              ))}
-            </select>
-          ) : scheduleMode === 'monthly' ? (
-            <select
-              value={monthDay}
-              onChange={(e) => setMonthDay(parseInt(e.target.value))}
-              className={inputClass}
-            >
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                <option key={d} value={d}>
-                  {d}{i18nService.t('scheduledTasksFormMonthDaySuffix')}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              type="time"
-              value={scheduleTime}
-              onChange={(e) => setScheduleTime(e.target.value)}
-              onClick={(e) => (e.target as HTMLInputElement).showPicker()}
-              className={inputClass}
+            {errors.name && <p className={errorClass}>{errors.name}</p>}
+          </div>
+
+          {/* Prompt */}
+          <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
+            <label className={labelClass}>{i18nService.t('scheduledTasksPrompt')}</label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className={inputClass + ' h-32 resize-y min-h-28'}
+              placeholder={i18nService.t('scheduledTasksFormPromptPlaceholder')}
             />
-          )}
+            {errors.prompt && <p className={errorClass}>{errors.prompt}</p>}
+          </div>
 
-          {/* Third column: time picker (or empty for daily) */}
-          {scheduleMode === 'daily' ? (
-            <div />
-          ) : (
-            <input
-              type="time"
-              value={scheduleTime}
-              onChange={(e) => setScheduleTime(e.target.value)}
-              onClick={(e) => (e.target as HTMLInputElement).showPicker()}
-              className={inputClass}
-            />
-          )}
-        </div>
-        {errors.schedule && <p className={errorClass}>{errors.schedule}</p>}
-      </div>
+          {/* Schedule */}
+          <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
+            <label className={labelClass}>{i18nService.t('scheduledTasksFormScheduleType')}</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <select
+                value={scheduleMode}
+                onChange={(e) => setScheduleMode(e.target.value as ScheduleMode)}
+                className={inputClass}
+              >
+                {scheduleModes.map((m) => (
+                  <option key={m} value={m}>
+                    {i18nService.t(`scheduledTasksFormScheduleMode${m.charAt(0).toUpperCase() + m.slice(1)}`)}
+                  </option>
+                ))}
+              </select>
 
-      {/* Working Directory */}
-      <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
-        <label className={labelClass}>{i18nService.t('scheduledTasksFormWorkingDirectory')}</label>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={workingDirectory}
-            onChange={(e) => setWorkingDirectory(e.target.value)}
-            className={inputClass + ' flex-1'}
-            placeholder={defaultWorkingDirectory || i18nService.t('scheduledTasksFormWorkingDirectoryPlaceholder')}
-          />
-          <button
-            type="button"
-            onClick={handleBrowseDirectory}
-            className="px-3 py-2 text-sm rounded-lg border dark:border-dark-border border-border dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
-          >
-            {i18nService.t('browse')}
-          </button>
-        </div>
-      </div>
-      {errors.workingDirectory && <p className={errorClass}>{errors.workingDirectory}</p>}
+              {scheduleMode === 'once' ? (
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                  className={inputClass}
+                  min={new Date().toISOString().slice(0, 10)}
+                />
+              ) : scheduleMode === 'weekly' ? (
+                <select
+                  value={weekday}
+                  onChange={(e) => setWeekday(parseInt(e.target.value))}
+                  className={inputClass}
+                >
+                  {WEEKDAYS.map((d) => (
+                    <option key={d} value={d}>
+                      {i18nService.t(weekdayKeys[d])}
+                    </option>
+                  ))}
+                </select>
+              ) : scheduleMode === 'monthly' ? (
+                <select
+                  value={monthDay}
+                  onChange={(e) => setMonthDay(parseInt(e.target.value))}
+                  className={inputClass}
+                >
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      {d}{i18nService.t('scheduledTasksFormMonthDaySuffix')}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                  className={inputClass}
+                />
+              )}
 
-      {/* Expires At */}
-      <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
-        <label className={labelClass}>
-          {i18nService.t('scheduledTasksFormExpiresAt')}
-          <span className="text-xs font-normal dark:text-dark-text-secondary text-text-secondary ml-1">
-            {i18nService.t('scheduledTasksFormOptional')}
-          </span>
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
-            onClick={(e) => (e.target as HTMLInputElement).showPicker()}
-            className={inputClass + ' flex-1'}
-            min={new Date().toISOString().slice(0, 10)}
-          />
-          {expiresAt && (
-            <button
-              type="button"
-              onClick={() => setExpiresAt('')}
-              className="px-3 py-2 text-sm rounded-lg border dark:border-dark-border border-border dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
-            >
-              {i18nService.t('scheduledTasksFormExpiresAtClear')}
-            </button>
-            )}
-        </div>
-        <p className="mt-1.5 text-xs dark:text-dark-text-secondary text-text-secondary">
-          {i18nService.t('scheduledTasksFormExpiresAtHint')}
-        </p>
-      </div>
-
-      {/* Notification */}
-      <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
-        <label className={labelClass}>
-          {i18nService.t('scheduledTasksFormNotify')}
-          <span className="text-xs font-normal dark:text-dark-text-secondary text-text-secondary ml-1">
-            {i18nService.t('scheduledTasksFormOptional')}
-          </span>
-        </label>
-        <div className="relative" ref={notifyDropdownRef}>
-          <button
-            type="button"
-            onClick={() => setNotifyDropdownOpen(!notifyDropdownOpen)}
-            className={inputClass + ' flex items-center justify-between cursor-pointer text-left'}
-          >
-            <span className={notifyPlatforms.length === 0 ? 'dark:text-dark-text-secondary text-text-secondary' : ''}>
-              {notifyPlatforms.length === 0
-                ? i18nService.t('scheduledTasksFormNotifyNone')
-                : notifyPlatforms.map((p) =>
-                    i18nService.t(`scheduledTasksFormNotify${p.charAt(0).toUpperCase() + p.slice(1)}`)
-                  ).join(', ')}
-            </span>
-            <ChevronDownIcon className={`w-4 h-4 ml-2 transition-transform ${notifyDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {notifyDropdownOpen && (
-            <div className="absolute z-10 bottom-full mb-1 w-full rounded-lg border dark:border-claude-darkBorder border-claude-border dark:bg-claude-darkSurface bg-white shadow-lg py-1">
-              {visiblePlatforms.map((platform) => {
-                const checked = notifyPlatforms.includes(platform);
-                const configured = isPlatformConfigured(platform);
-                return (
-                  <label
-                    key={platform}
-                    className={`flex items-center gap-2 px-3 py-2 transition-colors ${
-                      configured ? 'cursor-pointer hover:bg-claude-surfaceHover dark:hover:bg-claude-darkSurfaceHover' : 'opacity-60 cursor-not-allowed'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={!configured}
-                      onChange={() => {
-                        if (!configured) return;
-                        setNotifyPlatforms(
-                          checked
-                            ? notifyPlatforms.filter((p) => p !== platform)
-                            : [...notifyPlatforms, platform]
-                        );
-                      }}
-                      className="text-claude-accent focus:ring-claude-accent rounded disabled:cursor-not-allowed"
-                    />
-                    <span className="text-sm dark:text-dark-text text-text-primary">
-                      {i18nService.t(`scheduledTasksFormNotify${platform.charAt(0).toUpperCase() + platform.slice(1)}`)}
-                    </span>
-                    {!configured && (
-                      <span className="text-xs text-yellow-600 dark:text-yellow-400 ml-auto">
-                        {i18nService.t('scheduledTasksFormNotifyNotConfigured')}
-                      </span>
-                    )}
-                  </label>
-                );
-              })}
+              {scheduleMode === 'daily' ? (
+                <div />
+              ) : (
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                  className={inputClass}
+                />
+              )}
             </div>
-          )}
+            {errors.schedule && <p className={errorClass}>{errors.schedule}</p>}
+          </div>
+
+          {/* Working Directory */}
+          <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
+            <label className={labelClass}>{i18nService.t('scheduledTasksFormWorkingDirectory')}</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={workingDirectory}
+                onChange={(e) => setWorkingDirectory(e.target.value)}
+                className={inputClass + ' flex-1'}
+                placeholder={defaultWorkingDirectory || i18nService.t('scheduledTasksFormWorkingDirectoryPlaceholder')}
+              />
+              <button
+                type="button"
+                onClick={handleBrowseDirectory}
+                className="px-3 py-2 text-sm rounded-lg border dark:border-dark-border border-border dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
+              >
+                {i18nService.t('browse')}
+              </button>
+            </div>
+          </div>
+          {errors.workingDirectory && <p className={errorClass}>{errors.workingDirectory}</p>}
+
+          {/* Expires At */}
+          <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
+            <label className={labelClass}>
+              {i18nService.t('scheduledTasksFormExpiresAt')}
+              <span className="text-xs font-normal dark:text-dark-text-secondary text-text-secondary ml-1">
+                {i18nService.t('scheduledTasksFormOptional')}
+              </span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                className={inputClass + ' flex-1'}
+                min={new Date().toISOString().slice(0, 10)}
+              />
+              {expiresAt && (
+                <button
+                  type="button"
+                  onClick={() => setExpiresAt('')}
+                  className="px-3 py-2 text-sm rounded-lg border dark:border-dark-border border-border dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
+                >
+                  {i18nService.t('scheduledTasksFormExpiresAtClear')}
+                </button>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs dark:text-dark-text-secondary text-text-secondary">
+              {i18nService.t('scheduledTasksFormExpiresAtHint')}
+            </p>
+          </div>
+
+          {/* Notification */}
+          <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/60 p-4">
+            <label className={labelClass}>
+              {i18nService.t('scheduledTasksFormNotify')}
+              <span className="text-xs font-normal dark:text-dark-text-secondary text-text-secondary ml-1">
+                {i18nService.t('scheduledTasksFormOptional')}
+              </span>
+            </label>
+            <div className="relative" ref={notifyDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setNotifyDropdownOpen(!notifyDropdownOpen)}
+                className={inputClass + ' flex items-center justify-between cursor-pointer text-left'}
+              >
+                <span className={notifyPlatforms.length === 0 ? 'dark:text-dark-text-secondary text-text-secondary' : ''}>
+                  {notifyPlatforms.length === 0
+                    ? i18nService.t('scheduledTasksFormNotifyNone')
+                    : notifyPlatforms.map((p) =>
+                        i18nService.t(`scheduledTasksFormNotify${p.charAt(0).toUpperCase() + p.slice(1)}`)
+                      ).join(', ')}
+                </span>
+                <ChevronDownIcon className={`w-4 h-4 ml-2 transition-transform ${notifyDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {notifyDropdownOpen && (
+                <div className="absolute z-10 bottom-full mb-1 w-full rounded-lg border dark:border-claude-darkBorder border-claude-border dark:bg-claude-darkSurface bg-white shadow-lg py-1">
+                  {visiblePlatforms.map((platform) => {
+                    const checked = notifyPlatforms.includes(platform);
+                    const configured = isPlatformConfigured(platform);
+                    return (
+                      <label
+                        key={platform}
+                        className={`flex items-center gap-2 px-3 py-2 transition-colors ${
+                          configured ? 'cursor-pointer hover:bg-claude-surfaceHover dark:hover:bg-claude-darkSurfaceHover' : 'opacity-60 cursor-not-allowed'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!configured}
+                          onChange={() => {
+                            if (!configured) return;
+                            setNotifyPlatforms(
+                              checked
+                                ? notifyPlatforms.filter((p) => p !== platform)
+                                : [...notifyPlatforms, platform]
+                            );
+                          }}
+                          className="text-claude-accent focus:ring-claude-accent rounded disabled:cursor-not-allowed"
+                        />
+                        <span className="text-sm dark:text-dark-text text-text-primary">
+                          {i18nService.t(`scheduledTasksFormNotify${platform.charAt(0).toUpperCase() + platform.slice(1)}`)}
+                        </span>
+                        {!configured && (
+                          <span className="text-xs text-yellow-600 dark:text-yellow-400 ml-auto">
+                            {i18nService.t('scheduledTasksFormNotifyNotConfigured')}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs dark:text-dark-text-secondary text-text-secondary">
+              {i18nService.t('scheduledTasksFormNotifyHint')}
+            </p>
+          </div>
         </div>
-        <p className="mt-1.5 text-xs dark:text-dark-text-secondary text-text-secondary">
-          {i18nService.t('scheduledTasksFormNotifyHint')}
-        </p>
       </div>
 
       {/* Actions */}
-      <div className="sticky bottom-0 z-10 border-t dark:border-dark-border/70 border-border/70 dark:bg-dark-bg/95 bg-page/95 backdrop-blur-sm py-3 flex items-center justify-end gap-3">
+      <div className="shrink-0 border-t dark:border-dark-border/70 border-border/70 dark:bg-dark-bg/95 bg-page/95 backdrop-blur-sm pt-3 flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={onCancel}

@@ -83,6 +83,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
 
   // Show tabs only in list view (not in create/edit/detail sub-views)
   const showTabs = viewMode === 'list' && !selectedTaskId;
+  const useInnerScrollLayout = viewMode === 'create' || viewMode === 'edit';
 
   return (
     <div className="flex flex-col h-full">
@@ -168,9 +169,8 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
         </div>
       )}
 
-      {/* Content */}
-      <div className="app-view-scroll">
-        <div className="mx-auto w-full max-w-5xl px-2 md:px-3 py-5 md:py-6">
+      <div className={useInnerScrollLayout ? 'flex-1 min-h-0 overflow-hidden' : 'app-view-scroll'}>
+        <div className={`mx-auto w-full max-w-5xl px-2 md:px-3 py-5 md:py-6 ${useInnerScrollLayout ? 'h-full min-h-0 flex flex-col overflow-hidden' : ''}`}> 
           {showTabs && activeTab === 'history' ? (
             <AllRunsHistory />
           ) : (
