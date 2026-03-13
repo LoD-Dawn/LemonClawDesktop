@@ -1,3 +1,8 @@
+import type {
+  ResolvedModelConfig,
+  UserPreferences,
+} from '../../shared/modelConfig';
+
 // 认证相关类型（在 IElectronAPI.auth 中使用）
 interface AuthUser {
   id: string;
@@ -13,6 +18,11 @@ interface AuthVerifyResult {
   valid: boolean;
   user?: AuthUser;
   reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
+}
+
+interface AuthSyncModelConfigResult {
+  success: boolean;
+  error?: string;
 }
 
 interface ApiResponse {
@@ -444,6 +454,15 @@ interface IElectronAPI {
      * 获取本地缓存的用户信息（不发网络请求）。
      */
     getCachedUser: () => Promise<AuthUser | null>;
+    /**
+     * 使用当前登录态从服务端同步租户模型配置到本地 tenant_config。
+     */
+    syncTenantConfig: () => Promise<AuthSyncModelConfigResult>;
+  };
+  config: {
+    getUserPreferences: () => Promise<UserPreferences>;
+    updateUserPreferences: (patch: Partial<UserPreferences>) => Promise<UserPreferences>;
+    getResolvedModelConfig: () => Promise<ResolvedModelConfig>;
   };
   networkStatus: {
     send: (status: 'online' | 'offline') => void;

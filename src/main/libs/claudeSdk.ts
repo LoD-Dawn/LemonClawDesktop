@@ -3,6 +3,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { pathToFileURL } from 'url';
 import { coworkLog } from './coworkLogger';
+import { getDevProjectRoot } from './devPaths';
 
 export type ClaudeSdkModule = typeof import('@anthropic-ai/claude-agent-sdk');
 
@@ -24,11 +25,7 @@ function getClaudeSdkPath(): string {
   // In development, try to find the SDK in the project root node_modules
   // app.getAppPath() might point to dist-electron or other build output directories
   // We need to look in the project root
-  const appPath = app.getAppPath();
-  // If appPath ends with dist-electron, go up one level
-  const rootDir = appPath.endsWith('dist-electron')
-    ? join(appPath, '..')
-    : appPath;
+  const rootDir = getDevProjectRoot();
 
   const sdkPath = join(
     rootDir,

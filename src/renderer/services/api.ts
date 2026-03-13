@@ -378,6 +378,9 @@ class ApiService {
     }
 
     const selectedModel = store.getState().model.selectedModel;
+    if (!selectedModel) {
+      throw new ApiError('No model is currently available. Please configure a model in the settings menu.');
+    }
     const provider = this.detectProvider(
       selectedModel.id,
       selectedModel.providerKey ?? selectedModel.provider

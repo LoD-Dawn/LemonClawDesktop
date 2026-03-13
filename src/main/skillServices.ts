@@ -8,6 +8,7 @@ import fs from 'fs';
 import { app } from 'electron';
 import { cpRecursiveSync } from './fsCompat';
 import { getElectronNodeRuntimePath } from './libs/coworkUtil';
+import { getDevProjectRoot } from './libs/devPaths';
 import { appendPythonRuntimeToEnv } from './libs/pythonRuntime';
 
 /**
@@ -454,9 +455,7 @@ export class SkillServiceManager {
       candidates.push(path.join(process.resourcesPath, 'SKILLs', 'web-search'));
       candidates.push(path.join(app.getAppPath(), 'SKILLs', 'web-search'));
     } else {
-      // In development, __dirname is dist-electron/, so we need to go up one level to get to project root
-      const projectRoot = path.resolve(__dirname, '..');
-      candidates.push(path.join(projectRoot, 'SKILLs', 'web-search'));
+      candidates.push(path.join(getDevProjectRoot(), 'SKILLs', 'web-search'));
       candidates.push(path.join(app.getAppPath(), 'SKILLs', 'web-search'));
     }
 

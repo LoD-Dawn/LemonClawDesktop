@@ -7,7 +7,7 @@
   },
   "license": "MIT",
   "version": "0.2.2",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/main/main.js",
   "engines": {
     "node": ">=24 <25"
   },
@@ -22,7 +22,7 @@
     "build:skill:tech-news": "node scripts/build-skill-tech-news.js",
     "build:skill:email": "cd SKILLs/imap-smtp-email && npm install --production",
     "build:skills": "npm run build:skill:web-search && npm run build:skill:tech-news && npm run build:skill:email",
-    "start:electron": "cross-env NODE_ENV=development ELECTRON_START_URL=http://localhost:5175 electron .",
+    "start:electron": "cross-env NODE_ENV=development ELECTRON_START_URL=http://localhost:5175 electron dist-electron/main/main.js",
     "electron:dev": "rimraf dist-electron && npm run compile:electron && concurrently \"vite --port 5175\" \"wait-on -v -t 120000 -d 10000 http://localhost:5175 && npm run start:electron\"",
     "postinstall": "patch-package && electron-builder install-app-deps",
     "pack": "npm run setup:mingit && npm run setup:python-runtime && npm run build && npm run compile:electron && npm run build:skills && electron-builder --dir",

@@ -7,6 +7,7 @@ import extractZip from 'extract-zip';
 import { SqliteStore } from './sqliteStore';
 import { cpRecursiveSync } from './fsCompat';
 import { getElectronNodeRuntimePath } from './libs/coworkUtil';
+import { getDevProjectRoot } from './libs/devPaths';
 import { appendPythonRuntimeToEnv } from './libs/pythonRuntime';
 
 /**
@@ -1176,6 +1177,38 @@ export class SkillManager {
     ].join('\n');
   }
 
+  buildInlineSkillsPrompt(): string | null {
+    const skills = this.listSkills();
+    const enabled = skills.filter(s => s.enabled && s.prompt);
+    if (enabled.length === 0) return null;
+
+    const skillSections = enabled
+      .map((skill) => [
+        `<skill>`,
+        `<id>${skill.id}</id>`,
+        `<name>${skill.name}</name>`,
+        `<description>${skill.description}</description>`,
+        '<instructions>',
+        skill.prompt.trim(),
+        '</instructions>',
+        '</skill>',
+      ].join('\n'))
+      .join('\n\n');
+
+    return [
+      '## Skills (ordinary chat)',
+      'You do not have agent tools such as Read in this chat flow.',
+      'Choose the single most relevant skill from <available_skills> based on its description and instructions, then follow its instructions directly.',
+      'If none clearly apply, ignore the skills section.',
+      'If multiple skills could apply, prefer the most specific one.',
+      'Do not claim you opened or read external files; all usable skill instructions are already embedded below.',
+      '',
+      '<available_skills>',
+      skillSections,
+      '</available_skills>',
+    ].join('\n');
+  }
+
   setSkillEnabled(id: string, enabled: boolean): SkillRecord[] {
     const state = this.loadSkillStateMap();
     state[id] = { enabled };
@@ -1504,10 +1537,7 @@ export class SkillManager {
       return path.resolve(app.getAppPath(), SKILLS_DIR_NAME);
     }
 
-    // In development, use the project root (parent of dist-electron).
-    // __dirname is dist-electron/, so we need to go up one level to get to project root
-    const projectRoot = path.resolve(__dirname, '..');
-    return path.resolve(projectRoot, SKILLS_DIR_NAME);
+    return path.resolve(getDevProjectRoot(), SKILLS_DIR_NAME);
   }
 
   getSkillConfig(skillId: string): { success: boolean; config?: Record<string, string>; error?: string } {

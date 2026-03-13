@@ -11,6 +11,7 @@ import {
   type CoworkMemoryGuardLevel,
 } from './libs/coworkMemoryExtractor';
 import { judgeMemoryCandidate } from './libs/coworkMemoryJudge';
+import { getDevProjectRoot } from './libs/devPaths';
 
 // Default working directory for new users
 const getDefaultWorkingDirectory = (): string => {
@@ -18,7 +19,6 @@ const getDefaultWorkingDirectory = (): string => {
 };
 
 const TASK_WORKSPACE_CONTAINER_DIR = '.diclaw-tasks';
-const LEGACY_TASK_WORKSPACE_CONTAINER_DIR = '.diosclaw-tasks';
 
 const normalizeRecentWorkspacePath = (cwd: string): string => {
   const resolved = path.resolve(cwd);
@@ -441,7 +441,9 @@ const getDefaultSystemPrompt = (): string => {
   }
 
   try {
-    const promptPath = path.join(app.getAppPath(), 'sandbox', 'agent-runner', 'AGENT_SYSTEM_PROMPT.md');
+    const promptPath = app.isPackaged
+      ? path.join(app.getAppPath(), 'sandbox', 'agent-runner', 'AGENT_SYSTEM_PROMPT.md')
+      : path.join(getDevProjectRoot(), 'sandbox', 'agent-runner', 'AGENT_SYSTEM_PROMPT.md');
     cachedDefaultSystemPrompt = fs.readFileSync(promptPath, 'utf-8');
   } catch (error) {
     console.warn('Failed to load default system prompt:', error);
@@ -924,14 +926,14 @@ export class CoworkStore {
       value: string;
     }
 
-    const row = this.getOne<KvRow>('SELECT value FROM kv WHERE key = ?', ['app_config']);
+    const row = this.getOne<KvRow>('SELECT value FROM kv WHERE key = ?', ['user_preferences']);
     if (!row?.value) {
       return 'zh';
     }
 
     try {
-      const config = JSON.parse(row.value) as { language?: string };
-      return config.language === 'en' ? 'en' : 'zh';
+      const preferences = JSON.parse(row.value) as { language?: string };
+      return preferences.language === 'en' ? 'en' : 'zh';
     } catch {
       return 'zh';
     }

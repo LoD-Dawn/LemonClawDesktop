@@ -60,6 +60,13 @@ const translations: Record<LanguageType, Record<string, string>> = {
     providerStatusOn: '已开启',
     providerStatusOff: '未开启',
     providerSettings: '提供商设置',
+    managedProviderTag: '组织管理',
+    managedProviderStatus: '由组织管理员配置',
+    managedProviderTitle: '此提供商由组织管理员管理',
+    managedProviderHint: '你可以查看当前配置，但 API Key、地址、模型列表和启用状态需要由管理员统一调整。',
+    managedApiKeyPlaceholder: 'API Key 已由组织配置',
+    managedProviderTestHint: '仍可用来验证当前组织配置是否可连接',
+    managedProviderModelsHint: '模型列表由组织统一下发，此处仅供查看。',
     modelProviders: '模型提供商',
     addModel: '添加模型',
     editModel: '编辑模型',
@@ -847,6 +854,13 @@ const translations: Record<LanguageType, Record<string, string>> = {
     providerStatusOn: 'on',
     providerStatusOff: 'off',
     providerSettings: 'Provider Settings',
+    managedProviderTag: 'Managed',
+    managedProviderStatus: 'Managed by organization',
+    managedProviderTitle: 'This provider is managed by your organization',
+    managedProviderHint: 'You can view the current configuration, but changes to the API key, base URL, model list, and enabled state must be made by your administrator.',
+    managedApiKeyPlaceholder: 'API key is managed by your organization',
+    managedProviderTestHint: 'You can still use this to verify the current organization-managed connection',
+    managedProviderModelsHint: 'This model list is distributed by your organization and is view-only here.',
     modelProviders: 'Model Providers',
     addModel: 'Add Model',
     editModel: 'Edit Model',
@@ -1594,6 +1608,8 @@ class I18nService {
   async initialize(): Promise<void> {
     try {
       const config = configService.getConfig();
+      const preferences = await window.electron.config.getUserPreferences().catch(() => null);
+      const persistedLanguage = preferences?.language;
 
       // 检查是否已经初始化过语言设置
       const languageInitialized = config.language_initialized;
@@ -1601,15 +1617,25 @@ class I18nService {
       if (languageInitialized !== true) {
         // 可能是首次启动或旧版本用户升级
         // 为了保护旧用户的语言设置,检查是否有非默认的语言配置
-        const hasCustomLanguage = config.language && config.language !== 'zh';
+        const initialLanguage = persistedLanguage ?? config.language;
+        const hasCustomLanguage = initialLanguage && initialLanguage !== 'zh';
 
         if (hasCustomLanguage) {
           // 旧用户已手动设置过语言(非默认值),保留他们的设置
-          console.log(`[i18n] Legacy user detected with custom language: ${config.language}`);
-          this.currentLanguage = config.language;
-          configService.updateConfig({
+          console.log(`[i18n] Legacy user detected with custom language: ${initialLanguage}`);
+          this.currentLanguage = initialLanguage;
+          await configService.updateConfig({
             ...config,
             language_initialized: true
+          });
+          configService.applyUserPreferences({
+            theme: config.theme,
+            language: this.currentLanguage,
+            useSystemProxy: config.useSystemProxy,
+            shortcuts: config.shortcuts,
+          });
+          await window.electron.config.updateUserPreferences({
+            language: this.currentLanguage,
           });
         } else {
           // 新用户或使用默认中文的旧用户:检测系统语言
@@ -1622,31 +1648,54 @@ class I18nService {
             this.currentLanguage = defaultLanguage;
 
             // 保存语言配置和初始化标记
-            configService.updateConfig({
+            await configService.updateConfig({
               ...config,
               language: defaultLanguage,
               language_initialized: true
+            });
+            configService.applyUserPreferences({
+              theme: config.theme,
+              language: defaultLanguage,
+              useSystemProxy: config.useSystemProxy,
+              shortcuts: config.shortcuts,
+            });
+            await window.electron.config.updateUserPreferences({
+              language: defaultLanguage,
             });
           } catch (error) {
             console.error('Failed to get system locale:', error);
             // 如果获取系统语言失败,默认使用英文
             this.currentLanguage = 'en';
-            configService.updateConfig({
+            await configService.updateConfig({
               ...config,
               language: 'en',
               language_initialized: true
+            });
+            configService.applyUserPreferences({
+              theme: config.theme,
+              language: 'en',
+              useSystemProxy: config.useSystemProxy,
+              shortcuts: config.shortcuts,
+            });
+            await window.electron.config.updateUserPreferences({
+              language: 'en',
             });
           }
         }
       } else {
         // 非首次启动:使用已保存的语言配置
-        if (config.language && (config.language === 'zh' || config.language === 'en')) {
+        if (persistedLanguage && (persistedLanguage === 'zh' || persistedLanguage === 'en')) {
+          this.currentLanguage = persistedLanguage;
+        } else if (config.language && (config.language === 'zh' || config.language === 'en')) {
           this.currentLanguage = config.language;
         } else {
           // 如果配置无效,fallback 到英文
           this.currentLanguage = 'en';
-          configService.updateConfig({
+          await configService.updateConfig({
             ...config,
+            language: 'en'
+          });
+          await window.electron.config.updateUserPreferences({
             language: 'en'
           });
         }
@@ -1684,7 +1733,14 @@ class I18nService {
     // 更新配置
     try {
       const config = configService.getConfig();
-      configService.updateConfig({
+      configService.applyUserPreferences({
+        theme: config.theme,
+        language,
+        useSystemProxy: config.useSystemProxy,
+        shortcuts: config.shortcuts,
+      });
+      void window.electron.config.updateUserPreferences({ language });
+      void configService.updateConfig({
         ...config,
         language
       });

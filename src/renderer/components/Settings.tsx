@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { configService } from '../services/config';
-import { apiService } from '../services/api';
 import { checkForAppUpdate } from '../services/appUpdate';
 import type { AppUpdateInfo } from '../services/appUpdate';
 import { themeService } from '../services/theme';
@@ -9,14 +8,12 @@ import { decryptSecret, encryptWithPassword, decryptWithPassword, EncryptedPaylo
 import { coworkService } from '../services/cowork';
 import { APP_ID, EXPORT_FORMAT_TYPE, EXPORT_PASSWORD } from '../constants/app';
 import ErrorMessage from './ErrorMessage';
-import { XMarkIcon, Cog6ToothIcon, SignalIcon, CheckCircleIcon, XCircleIcon, CubeIcon, ChatBubbleLeftIcon, ShieldCheckIcon, EnvelopeIcon, InformationCircleIcon, CommandLineIcon } from '@heroicons/react/24/outline';
-import { EyeIcon, EyeSlashIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/20/solid';
-import PlusCircleIcon from './icons/PlusCircleIcon';
-import TrashIcon from './icons/TrashIcon';
-import PencilIcon from './icons/PencilIcon';
+import { XMarkIcon, Cog6ToothIcon, CheckCircleIcon, XCircleIcon, CubeIcon, ChatBubbleLeftIcon, ShieldCheckIcon, EnvelopeIcon, InformationCircleIcon, CommandLineIcon } from '@heroicons/react/24/outline';
 import BrainIcon from './icons/BrainIcon';
-import { useDispatch, useSelector } from 'react-redux';
-import { setAvailableModels } from '../store/slices/modelSlice';
+import PlusCircleIcon from './icons/PlusCircleIcon';
+import { ProviderSettingsPanel } from './settings/ProviderSettingsPanel';
+import { ProviderModelDialog } from './settings/ProviderModelDialog';
+import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import type {
   CoworkExecutionMode,
@@ -75,11 +72,20 @@ const providerKeys = [
   'ollama',
   'custom',
 ] as const;
+const localEditableProviderKeys = ['ollama', 'custom'] as const;
 
 type ProviderType = (typeof providerKeys)[number];
 type ProvidersConfig = NonNullable<AppConfig['providers']>;
 type ProviderConfig = ProvidersConfig[string];
 type Model = NonNullable<ProviderConfig['models']>[number];
+type EditableProviderStoreConfig = {
+  enabled: boolean;
+  apiKey: string;
+  baseUrl: string;
+  apiFormat?: 'anthropic' | 'openai';
+  codingPlanEnabled?: boolean;
+  models: Model[];
+};
 type ProviderConnectionTestResult = {
   success: boolean;
   message: string;
@@ -146,6 +152,36 @@ const providerMeta: Record<ProviderType, { label: string; icon: React.ReactNode 
   ollama: { label: 'Ollama', icon: <OllamaIcon /> },
   custom: { label: 'Custom', icon: <CustomProviderIcon /> },
 };
+
+const isEditableProvider = (provider: ProviderType): boolean => (
+  (localEditableProviderKeys as readonly string[]).includes(provider)
+);
+
+const normalizeProviderModels = (models?: Model[]): Model[] => (
+  (models ?? []).map((model) => ({
+    ...model,
+    supportsImage: model.supportsImage ?? false,
+  }))
+);
+
+const maskSecret = (value: string): string => {
+  if (!value) {
+    return '';
+  }
+  if (value.length <= 8) {
+    return '*'.repeat(value.length);
+  }
+  return `${value.slice(0, 3)}${'*'.repeat(Math.max(4, value.length - 6))}${value.slice(-3)}`;
+};
+
+const toEditableProviderStoreConfig = (providerKey: ProviderType, providerConfig: ProviderConfig): EditableProviderStoreConfig => ({
+  enabled: providerConfig.enabled,
+  apiKey: providerConfig.apiKey,
+  baseUrl: resolveBaseUrl(providerKey, providerConfig.baseUrl, getEffectiveApiFormat(providerKey, providerConfig.apiFormat)),
+  apiFormat: getEffectiveApiFormat(providerKey, providerConfig.apiFormat),
+  codingPlanEnabled: providerConfig.codingPlanEnabled ?? false,
+  models: normalizeProviderModels(providerConfig.models),
+});
 
 const providerSwitchableDefaultBaseUrls: Partial<Record<ProviderType, { anthropic: string; openai: string }>> = {
   deepseek: {
@@ -364,7 +400,6 @@ const getDefaultActiveProvider = (): ProviderType => {
 };
 
 const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpdateFound }) => {
-  const dispatch = useDispatch();
   // 状态
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'general');
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
@@ -390,8 +425,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
   // Add state for providers configuration
   const [providers, setProviders] = useState<ProvidersConfig>(() => getDefaultProviders());
+  const activeProviderEditable = isEditableProvider(activeProvider);
 
-  const isBaseUrlLocked = (activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled) || (activeProvider === 'qwen' && providers.qwen.codingPlanEnabled) || (activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled) || (activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled);
+  const isBaseUrlLocked = !!(
+    (activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled)
+    || (activeProvider === 'qwen' && providers.qwen.codingPlanEnabled)
+    || (activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled)
+    || (activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled)
+  );
 
   // 创建引用来确保内容区域的滚动
   const contentRef = useRef<HTMLDivElement>(null);
@@ -586,211 +627,67 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   }, [loadCoworkSandboxStatus]);
 
   useEffect(() => {
-    try {
-      const config = configService.getConfig();
+    void (async () => {
+      try {
+        const config = configService.getConfig();
+        const [preferences, resolvedConfig] = await Promise.all([
+          window.electron.config.getUserPreferences(),
+          window.electron.config.getResolvedModelConfig(),
+        ]);
 
-      // Set general settings
-      initialThemeRef.current = config.theme;
-      initialLanguageRef.current = config.language;
-      setTheme(config.theme);
-      setLanguage(config.language);
-      setUseSystemProxy(config.useSystemProxy ?? false);
-      const savedTestMode = config.app?.testMode ?? false;
-      setTestMode(savedTestMode);
-      if (savedTestMode) setTestModeUnlocked(true);
+        initialThemeRef.current = preferences.theme ?? config.theme;
+        initialLanguageRef.current = preferences.language ?? config.language;
+        setTheme(preferences.theme ?? config.theme);
+        setLanguage(preferences.language ?? config.language);
+        setUseSystemProxy(preferences.useSystemProxy ?? config.useSystemProxy ?? false);
+        const savedTestMode = config.app?.testMode ?? false;
+        setTestMode(savedTestMode);
+        if (savedTestMode) setTestModeUnlocked(true);
 
-      // Load auto-launch setting
-      window.electron.autoLaunch.get().then(({ enabled }) => {
-        setAutoLaunchState(enabled);
-      }).catch(err => {
-        console.error('Failed to load auto-launch setting:', err);
-      });
+        window.electron.autoLaunch.get().then(({ enabled }) => {
+          setAutoLaunchState(enabled);
+        }).catch(err => {
+          console.error('Failed to load auto-launch setting:', err);
+        });
 
-      // Set up providers based on saved config
-      if (config.api) {
-        // For backward compatibility with older config
-        // Initialize active provider based on baseUrl
-        const normalizedApiBaseUrl = config.api.baseUrl.toLowerCase();
-        if (normalizedApiBaseUrl.includes('openai')) {
-          setActiveProvider('openai');
-          setProviders(prev => ({
+        const nextProviders = getDefaultProviders();
+        providerKeys.forEach((providerKey) => {
+          const resolvedProvider = resolvedConfig.providers[providerKey];
+          if (!resolvedProvider) {
+            return;
+          }
+          nextProviders[providerKey] = {
+            ...nextProviders[providerKey],
+            ...resolvedProvider,
+            apiFormat: getEffectiveApiFormat(providerKey, resolvedProvider.apiFormat),
+            models: normalizeProviderModels(resolvedProvider.models as Model[] | undefined),
+          };
+        });
+
+        setProviders(nextProviders);
+
+        const initialProvider = (
+          (preferences.preferredProvider && providerKeys.includes(preferences.preferredProvider as ProviderType)
+            ? preferences.preferredProvider as ProviderType
+            : undefined)
+          ?? (resolvedConfig.selectedProvider && providerKeys.includes(resolvedConfig.selectedProvider as ProviderType)
+            ? resolvedConfig.selectedProvider as ProviderType
+            : undefined)
+          ?? providerKeys.find((providerKey) => nextProviders[providerKey]?.enabled)
+          ?? getDefaultActiveProvider()
+        );
+        setActiveProvider(initialProvider);
+
+        if (preferences.shortcuts || config.shortcuts) {
+          setShortcuts(prev => ({
             ...prev,
-            openai: {
-              ...prev.openai,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('deepseek')) {
-          setActiveProvider('deepseek');
-          setProviders(prev => ({
-            ...prev,
-            deepseek: {
-              ...prev.deepseek,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('moonshot.ai') || normalizedApiBaseUrl.includes('moonshot.cn')) {
-          setActiveProvider('moonshot');
-          setProviders(prev => ({
-            ...prev,
-            moonshot: {
-              ...prev.moonshot,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('bigmodel.cn')) {
-          setActiveProvider('zhipu');
-          setProviders(prev => ({
-            ...prev,
-            zhipu: {
-              ...prev.zhipu,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('minimax')) {
-          setActiveProvider('minimax');
-          setProviders(prev => ({
-            ...prev,
-            minimax: {
-              ...prev.minimax,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('openapi.youdao.com')) {
-          setActiveProvider('youdaozhiyun');
-          setProviders(prev => ({
-            ...prev,
-            youdaozhiyun: {
-              ...prev.youdaozhiyun,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('dashscope')) {
-          setActiveProvider('qwen');
-          setProviders(prev => ({
-            ...prev,
-            qwen: {
-              ...prev.qwen,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('stepfun')) {
-          setActiveProvider('stepfun');
-          setProviders(prev => ({
-            ...prev,
-            stepfun: {
-              ...prev.stepfun,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('openrouter.ai')) {
-          setActiveProvider('openrouter');
-          setProviders(prev => ({
-            ...prev,
-            openrouter: {
-              ...prev.openrouter,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('googleapis')) {
-          setActiveProvider('gemini');
-          setProviders(prev => ({
-            ...prev,
-            gemini: {
-              ...prev.gemini,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('anthropic')) {
-          setActiveProvider('anthropic');
-          setProviders(prev => ({
-            ...prev,
-            anthropic: {
-              ...prev.anthropic,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
-          }));
-        } else if (normalizedApiBaseUrl.includes('ollama') || normalizedApiBaseUrl.includes('11434')) {
-          setActiveProvider('ollama');
-          setProviders(prev => ({
-            ...prev,
-            ollama: {
-              ...prev.ollama,
-              enabled: true,
-              apiKey: config.api.key,
-              baseUrl: config.api.baseUrl
-            }
+            ...(preferences.shortcuts ?? config.shortcuts),
           }));
         }
+      } catch (error) {
+        setError('Failed to load settings');
       }
-
-      // Load provider-specific configurations if available
-      // 合并已保存的配置和默认配置，确保新添加的 provider 能被显示
-      if (config.providers) {
-        setProviders(prev => {
-          const merged = {
-            ...prev,  // 保留默认的 providers（包括新添加的 anthropic）
-            ...config.providers,  // 覆盖已保存的配置
-          };
-
-          // After merging, find the first enabled provider to set as activeProvider
-          // This ensures we don't use stale activeProvider from old config.api.baseUrl
-          const firstEnabledProvider = providerKeys.find(providerKey => merged[providerKey]?.enabled);
-          if (firstEnabledProvider) {
-            setActiveProvider(firstEnabledProvider);
-          }
-
-          return Object.fromEntries(
-            Object.entries(merged).map(([providerKey, providerConfig]) => {
-              const models = providerConfig.models?.map(model => ({
-                ...model,
-                supportsImage: model.supportsImage ?? false,
-              }));
-              return [
-                providerKey,
-                {
-                  ...providerConfig,
-                  apiFormat: getEffectiveApiFormat(providerKey, (providerConfig as ProviderConfig).apiFormat),
-                  models,
-                },
-              ];
-            })
-          ) as ProvidersConfig;
-        });
-      }
-
-      // 加载快捷键设置
-      if (config.shortcuts) {
-        setShortcuts(prev => ({
-          ...prev,
-          ...config.shortcuts,
-        }));
-      }
-    } catch (error) {
-      setError('Failed to load settings');
-    }
+    })();
   }, []);
 
   useEffect(() => {
@@ -851,7 +748,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   }, [visibleProviders, activeProvider]);
 
   // Handle provider change
-  const handleProviderChange = (provider: ProviderType) => {
+  const resetProviderModelEditor = useCallback(() => {
     setIsAddingModel(false);
     setIsEditingModel(false);
     setEditingModelId(null);
@@ -859,6 +756,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
     setNewModelId('');
     setNewModelSupportsImage(false);
     setModelFormError(null);
+  }, []);
+
+  const handleProviderChange = (provider: ProviderType) => {
+    resetProviderModelEditor();
     setActiveProvider(provider);
     // 切换 provider 时清除测试结果
     setIsTestResultModalOpen(false);
@@ -867,6 +768,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
   // Handle provider configuration change
   const handleProviderConfigChange = (provider: ProviderType, field: string, value: string) => {
+    if (!isEditableProvider(provider)) {
+      return;
+    }
     setProviders(prev => {
       if (field === 'apiFormat') {
         const nextApiFormat = getEffectiveApiFormat(provider, value);
@@ -1098,6 +1002,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
   // Toggle provider enabled status
   const toggleProviderEnabled = (provider: ProviderType) => {
+    if (!isEditableProvider(provider)) {
+      return;
+    }
     const providerConfig = providers[provider];
     const isEnabling = !providerConfig.enabled;
     const missingApiKey = providerRequiresApiKey(provider) && !providerConfig.apiKey.trim();
@@ -1117,6 +1024,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   };
 
   const enableProvider = (provider: ProviderType) => {
+    if (!isEditableProvider(provider)) {
+      return;
+    }
     setProviders(prev => {
       if (prev[provider].enabled) {
         return prev;
@@ -1138,43 +1048,36 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
     setError(null);
 
     try {
-      const normalizedProviders = Object.fromEntries(
-        Object.entries(providers).map(([providerKey, providerConfig]) => {
-          const apiFormat = getEffectiveApiFormat(providerKey, providerConfig.apiFormat);
-          return [
-            providerKey,
-            {
-              ...providerConfig,
-              apiFormat,
-              baseUrl: resolveBaseUrl(providerKey as ProviderType, providerConfig.baseUrl, apiFormat),
-            },
-          ];
-        })
-      ) as ProvidersConfig;
-
-      // Find the first enabled provider to use as the primary API
-      const firstEnabledProvider = Object.entries(normalizedProviders).find(
-        ([_, config]) => config.enabled
-      );
-
-      const primaryProvider = firstEnabledProvider
-        ? firstEnabledProvider[1]
-        : normalizedProviders[activeProvider];
+      const normalizedLocalProviders = Object.fromEntries(
+        Object.entries(providers)
+          .filter(([providerKey]) => isEditableProvider(providerKey as ProviderType))
+          .map(([providerKey, providerConfig]) => {
+            return [
+              providerKey,
+              toEditableProviderStoreConfig(providerKey as ProviderType, providerConfig),
+            ];
+          })
+      ) as Record<string, EditableProviderStoreConfig>;
 
       await configService.updateConfig({
-        api: {
-          key: primaryProvider.apiKey,
-          baseUrl: primaryProvider.baseUrl,
-        },
-        providers: normalizedProviders, // Save all providers configuration
-        theme,
-        language,
-        useSystemProxy,
-        shortcuts,
         app: {
           ...configService.getConfig().app,
           testMode,
         },
+      });
+
+      await window.electron.config.updateUserPreferences({
+        theme,
+        language,
+        useSystemProxy,
+        shortcuts,
+        localProviders: normalizedLocalProviders,
+      });
+      configService.applyUserPreferences({
+        theme,
+        language,
+        useSystemProxy,
+        shortcuts,
       });
 
       // 应用主题
@@ -1182,29 +1085,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
       // 应用语言
       i18nService.setLanguage(language, { persist: false });
-
-      // Set API with the primary provider
-      apiService.setConfig({
-        apiKey: primaryProvider.apiKey,
-        baseUrl: primaryProvider.baseUrl,
-      });
-
-      // 更新 Redux store 中的可用模型列表
-      const allModels: { id: string; name: string; provider?: string; providerKey?: string; supportsImage?: boolean }[] = [];
-      Object.entries(normalizedProviders).forEach(([providerName, config]) => {
-        if (config.enabled && config.models) {
-          config.models.forEach(model => {
-            allModels.push({
-              id: model.id,
-              name: model.name,
-              provider: providerName.charAt(0).toUpperCase() + providerName.slice(1),
-              providerKey: providerName,
-              supportsImage: model.supportsImage ?? false,
-            });
-          });
-        }
-      });
-      dispatch(setAvailableModels(allModels));
 
       if (hasCoworkConfigChanges) {
         await coworkService.updateConfig({
@@ -1226,23 +1106,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   // 标签页切换处理
   const handleTabChange = (tab: TabType) => {
     if (tab !== 'model') {
-      setIsAddingModel(false);
-      setIsEditingModel(false);
-      setEditingModelId(null);
-      setNewModelName('');
-      setNewModelId('');
-      setNewModelSupportsImage(false);
-      setModelFormError(null);
+      resetProviderModelEditor();
     }
     setActiveTab(tab);
-  };
-
-  // 快捷键更新处理
-  const handleShortcutChange = (key: keyof typeof shortcuts, value: string) => {
-    setShortcuts(prev => ({
-      ...prev,
-      [key]: value
-    }));
   };
 
   // 阻止点击设置窗口时事件传播到背景
@@ -1250,29 +1116,36 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
     e.stopPropagation();
   };
 
+  const handleShortcutChange = (key: keyof typeof shortcuts, value: string) => {
+    setShortcuts((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
   // Handlers for model operations
   const handleAddModel = () => {
+    if (!activeProviderEditable) {
+      return;
+    }
+    resetProviderModelEditor();
     setIsAddingModel(true);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
   };
 
   const handleEditModel = (modelId: string, modelName: string, supportsImage?: boolean) => {
-    setIsAddingModel(false);
+    if (!activeProviderEditable) {
+      return;
+    }
+    resetProviderModelEditor();
     setIsEditingModel(true);
     setEditingModelId(modelId);
     setNewModelName(modelName);
     setNewModelId(modelId);
     setNewModelSupportsImage(!!supportsImage);
-    setModelFormError(null);
   };
 
   const handleDeleteModel = (modelId: string) => {
-    if (!providers[activeProvider].models) return;
+    if (!activeProviderEditable || !providers[activeProvider].models) return;
 
     const updatedModels = providers[activeProvider].models.filter(
       model => model.id !== modelId
@@ -1288,6 +1161,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   };
 
   const handleSaveNewModel = () => {
+    if (!activeProviderEditable) {
+      return;
+    }
     const modelId = newModelId.trim();
 
     if (activeProvider === 'ollama') {
@@ -1335,35 +1211,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
       }
     }));
 
-    setIsAddingModel(false);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
+    resetProviderModelEditor();
   };
 
   const handleCancelModelEdit = () => {
-    setIsAddingModel(false);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
-  };
-
-  const handleModelDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCancelModelEdit();
-      return;
-    }
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSaveNewModel();
-    }
+    resetProviderModelEditor();
   };
 
   const showTestResultModal = (
@@ -1504,14 +1356,18 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
       }
 
       if (response.ok) {
-        enableProvider(testingProvider);
+        if (isEditableProvider(testingProvider)) {
+          enableProvider(testingProvider);
+        }
         showTestResultModal({ success: true, message: i18nService.t('connectionSuccess') }, testingProvider);
       } else {
         const data = response.data || {};
         // 提取错误信息
         const errorMessage = data.error?.message || data.message || `${i18nService.t('connectionFailed')}: ${response.status}`;
         if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('model output limit was reached')) {
-          enableProvider(testingProvider);
+          if (isEditableProvider(testingProvider)) {
+            enableProvider(testingProvider);
+          }
           showTestResultModal({ success: true, message: i18nService.t('connectionSuccess') }, testingProvider);
           return;
         }
@@ -1529,7 +1385,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
   const buildProvidersExport = async (password: string): Promise<ProvidersExportPayload> => {
     const entries = await Promise.all(
-      Object.entries(providers).map(async ([providerKey, providerConfig]) => {
+      Object.entries(providers)
+        .filter(([providerKey]) => isEditableProvider(providerKey as ProviderType))
+        .map(async ([providerKey, providerConfig]) => {
         const apiKey = await encryptWithPassword(providerConfig.apiKey, password);
         const apiFormat = getEffectiveApiFormat(providerKey, providerConfig.apiFormat);
         return [
@@ -1543,7 +1401,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
             models: providerConfig.models,
           },
         ] as const;
-      })
+        })
     );
 
     return {
@@ -1558,12 +1416,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
       providers: Object.fromEntries(entries),
     };
   };
-
-  const normalizeModels = (models?: Model[]) =>
-    models?.map(model => ({
-      ...model,
-      supportsImage: model.supportsImage ?? false,
-    }));
 
   const DEFAULT_EXPORT_PASSWORD = EXPORT_PASSWORD;
 
@@ -1642,9 +1494,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   const processImportPayloadWithLocalKey = async (payload: ProvidersImportPayload) => {
     setIsImportingProviders(true);
     try {
-      const providerUpdates: Partial<ProvidersConfig> = {};
+      const providerUpdates: Partial<Record<ProviderType, EditableProviderStoreConfig>> = {};
       let hadDecryptFailure = false;
-      for (const providerKey of providerKeys) {
+      for (const providerKey of localEditableProviderKeys) {
         const providerData = payload.providers?.[providerKey];
         if (!providerData) {
           continue;
@@ -1669,7 +1521,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           }
         }
 
-        const models = normalizeModels(providerData.models);
+        const models = normalizeProviderModels(providerData.models);
 
         providerUpdates[providerKey] = {
           enabled: typeof providerData.enabled === 'boolean' ? providerData.enabled : providers[providerKey].enabled,
@@ -1677,7 +1529,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           baseUrl: typeof providerData.baseUrl === 'string' ? providerData.baseUrl : providers[providerKey].baseUrl,
           apiFormat: getEffectiveApiFormat(providerKey, providerData.apiFormat ?? providers[providerKey].apiFormat),
           codingPlanEnabled: typeof providerData.codingPlanEnabled === 'boolean' ? providerData.codingPlanEnabled : (providers[providerKey] as ProviderConfig).codingPlanEnabled,
-          models: models ?? providers[providerKey].models,
+          models: models ?? normalizeProviderModels(providers[providerKey].models),
         };
       }
 
@@ -1722,10 +1574,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
     setIsImportingProviders(true);
 
     try {
-      const providerUpdates: Partial<ProvidersConfig> = {};
+      const providerUpdates: Partial<Record<ProviderType, EditableProviderStoreConfig>> = {};
       let hadDecryptFailure = false;
 
-      for (const providerKey of providerKeys) {
+      for (const providerKey of localEditableProviderKeys) {
         const providerData = payload.providers[providerKey];
         if (!providerData) {
           continue;
@@ -1747,7 +1599,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           }
         }
 
-        const models = normalizeModels(providerData.models);
+        const models = normalizeProviderModels(providerData.models);
 
         providerUpdates[providerKey] = {
           enabled: typeof providerData.enabled === 'boolean' ? providerData.enabled : providers[providerKey].enabled,
@@ -1755,7 +1607,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           baseUrl: typeof providerData.baseUrl === 'string' ? providerData.baseUrl : providers[providerKey].baseUrl,
           apiFormat: getEffectiveApiFormat(providerKey, providerData.apiFormat ?? providers[providerKey].apiFormat),
           codingPlanEnabled: typeof providerData.codingPlanEnabled === 'boolean' ? providerData.codingPlanEnabled : (providers[providerKey] as ProviderConfig).codingPlanEnabled,
-          models: models ?? providers[providerKey].models,
+          models: models ?? normalizeProviderModels(providers[providerKey].models),
         };
       }
 
@@ -2260,520 +2112,107 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           </div>
         );
 
-      case 'model':
-        return (
-          <div className="flex h-full">
-            {/* Provider List - Left Side */}
-            <div className="w-2/5 border-r dark:border-dark-border border-border pr-3 space-y-1.5 overflow-y-auto">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-sm font-medium dark:text-dark-text text-text-primary">
-                  {i18nService.t('modelProviders')}
-                </h3>
-                <div className="flex items-center space-x-1">
-                  <button
-                    type="button"
-                    onClick={handleImportProvidersClick}
-                    disabled={isImportingProviders || isExportingProviders}
-                    className="inline-flex items-center px-2 py-1 text-[11px] font-medium rounded-lg border dark:border-dark-border border-border dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-                  >
-                    {i18nService.t('import')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExportProviders}
-                    disabled={isImportingProviders || isExportingProviders}
-                    className="inline-flex items-center px-2 py-1 text-[11px] font-medium rounded-lg border dark:border-dark-border border-border dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-                  >
-                    {i18nService.t('export')}
-                  </button>
-                </div>
-              </div>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept="application/json"
-                className="hidden"
-                onChange={handleImportProviders}
-              />
-              {Object.entries(visibleProviders).map(([provider, config]) => {
-                const providerKey = provider as ProviderType;
-                const providerInfo = providerMeta[providerKey];
-                const missingApiKey = providerRequiresApiKey(providerKey) && !config.apiKey.trim();
-                const canToggleProvider = config.enabled || !missingApiKey;
-                return (
-                  <div
-                    key={provider}
-                    onClick={() => handleProviderChange(providerKey)}
-                    className={`flex items-center p-2 rounded-xl cursor-pointer transition-colors ${activeProvider === provider
-                      ? 'bg-primary/10 dark:bg-primary-lighter/15 border border-primary/30 dark:border-primary-lighter/35 shadow-subtle'
-                      : 'dark:bg-dark-surface/50 bg-surface hover:bg-surface-hover dark:hover:bg-dark-surface-hover border border-transparent'
-                      }`}
-                  >
-                    <div className="flex flex-1 items-center">
-                      <div className="mr-2 flex h-7 w-7 items-center justify-center">
-                        <span className="dark:text-dark-text text-text-primary">
-                          {providerInfo?.icon}
-                        </span>
-                      </div>
-                      <span className={`text-sm font-medium truncate ${activeProvider === provider
-                        ? 'text-primary dark:text-dark-text'
-                        : 'dark:text-dark-text text-text-primary'
-                        }`}>
-                        {providerInfo?.label ?? provider.charAt(0).toUpperCase() + provider.slice(1)}
-                      </span>
-                    </div>
-                    <div className="flex items-center ml-2">
-                      <div
-                        title={!canToggleProvider ? i18nService.t('configureApiKey') : undefined}
-                        className={`w-7 h-4 rounded-full flex items-center transition-colors ${config.enabled ? 'bg-primary' : 'dark:bg-dark-border bg-border'
-                          } ${canToggleProvider ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                          }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!canToggleProvider) {
-                            return;
-                          }
-                          toggleProviderEnabled(providerKey);
-                        }}
-                      >
-                        <div
-                          className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${config.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
-                            }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Provider Settings - Right Side */}
-            <div className="w-3/5 pl-4 pr-2 space-y-4 overflow-y-auto [scrollbar-gutter:stable]">
-              <div className="flex items-center justify-between pb-2 border-b dark:border-dark-border border-border">
-                <h3 className="text-base font-medium dark:text-dark-text text-text-primary">
-                  {(providerMeta[activeProvider]?.label ?? activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1))} {i18nService.t('providerSettings')}
-                </h3>
-                <div
-                  className={`px-2 py-0.5 rounded-lg border text-xs font-medium ${providers[activeProvider].enabled
-                    ? 'border-green-500/25 bg-green-500/12 text-green-700 dark:border-green-500/30 dark:bg-green-500/15 dark:text-green-300'
-                    : 'bg-red-500/20 text-red-600 dark:text-red-400'
-                    }`}
-                >
-                  {providers[activeProvider].enabled ? i18nService.t('providerStatusOn') : i18nService.t('providerStatusOff')}
-                </div>
-              </div>
-
-              {providerRequiresApiKey(activeProvider) && (
-                <div>
-                  <label htmlFor={`${activeProvider}-apiKey`} className="block text-xs font-medium dark:text-dark-text text-text-primary mb-1">
-                    {i18nService.t('apiKey')}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showApiKey ? 'text' : 'password'}
-                      id={`${activeProvider}-apiKey`}
-                      value={providers[activeProvider].apiKey}
-                      onChange={(e) => handleProviderConfigChange(activeProvider, 'apiKey', e.target.value)}
-                      className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 pr-16 text-xs"
-                      placeholder={i18nService.t('apiKeyPlaceholder')}
-                    />
-                    <div className="absolute right-2 inset-y-0 flex items-center gap-1">
-                      {providers[activeProvider].apiKey && (
-                        <button
-                          type="button"
-                          onClick={() => handleProviderConfigChange(activeProvider, 'apiKey', '')}
-                          className="p-0.5 rounded text-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors"
-                          title={i18nService.t('clear') || 'Clear'}
-                        >
-                          <XCircleIconSolid className="h-4 w-4" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="p-0.5 rounded text-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors"
-                        title={showApiKey ? (i18nService.t('hide') || 'Hide') : (i18nService.t('show') || 'Show')}
-                      >
-                        {showApiKey ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor={`${activeProvider}-baseUrl`} className="block text-xs font-medium dark:text-dark-text text-text-primary mb-1">
-                  {i18nService.t('baseUrl')}
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    id={`${activeProvider}-baseUrl`}
-                    value={
-                      activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled
-                        ? (getEffectiveApiFormat('zhipu', providers.zhipu.apiFormat) === 'anthropic'
-                          ? 'https://open.bigmodel.cn/api/anthropic'
-                          : 'https://open.bigmodel.cn/api/coding/paas/v4')
-                        : activeProvider === 'qwen' && providers.qwen.codingPlanEnabled
-                          ? (getEffectiveApiFormat('qwen', providers.qwen.apiFormat) === 'anthropic'
-                            ? 'https://coding.dashscope.aliyuncs.com/apps/anthropic'
-                            : 'https://coding.dashscope.aliyuncs.com/v1')
-                          : activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled
-                            ? (getEffectiveApiFormat('volcengine', providers.volcengine.apiFormat) === 'anthropic'
-                              ? 'https://ark.cn-beijing.volces.com/api/coding'
-                              : 'https://ark.cn-beijing.volces.com/api/coding/v3')
-                            : activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled
-                              ? (getEffectiveApiFormat('moonshot', providers.moonshot.apiFormat) === 'anthropic'
-                                ? 'https://api.kimi.com/coding'
-                                : 'https://api.kimi.com/coding/v1')
-                              : providers[activeProvider].baseUrl
-                    }
-                    onChange={(e) => handleProviderConfigChange(activeProvider, 'baseUrl', e.target.value)}
-                    disabled={isBaseUrlLocked}
-                    className={`block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 pr-8 text-xs ${isBaseUrlLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    placeholder={getProviderDefaultBaseUrl(activeProvider, getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat)) || defaultConfig.providers?.[activeProvider]?.baseUrl || i18nService.t('baseUrlPlaceholder')}
-                  />
-                  {providers[activeProvider].baseUrl && !isBaseUrlLocked && (
-                    <div className="absolute right-2 inset-y-0 flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => handleProviderConfigChange(activeProvider, 'baseUrl', '')}
-                        className="p-0.5 rounded text-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors"
-                        title={i18nService.t('clear') || 'Clear'}
-                      >
-                        <XCircleIconSolid className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {activeProvider === 'custom' && (
-                  <div className="mt-1.5 space-y-0.5 text-[11px] text-claude-secondaryText dark:text-claude-darkSecondaryText">
-                    <p>
-                      <span className="text-sm text-primary/50 mr-1">•</span>
-                      {i18nService.t('baseUrlHint1')}
-                      <code className="ml-1 text-primary/80 dark:text-primary/70 break-all">{i18nService.t('baseUrlHintExample1')}</code>
-                    </p>
-                    <p>
-                      <span className="text-sm text-primary/50 mr-1">•</span>
-                      {i18nService.t('baseUrlHint2')}
-                      <code className="ml-1 text-primary/80 dark:text-primary/70 break-all">{i18nService.t('baseUrlHintExample2')}</code>
-                    </p>
-                  </div>
-                )}
-                {/* GLM Coding Plan 提示 */}
-                {activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">GLM Coding Plan:</span> {i18nService.t('zhipuCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-                {/* Qwen Coding Plan 提示 */}
-                {activeProvider === 'qwen' && providers.qwen.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">Coding Plan:</span> {i18nService.t('qwenCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-                {/* Volcengine Coding Plan 提示 */}
-                {activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">Coding Plan:</span> {i18nService.t('volcengineCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-                {/* Moonshot Coding Plan 提示 */}
-                {activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">Coding Plan:</span> {i18nService.t('moonshotCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* API 格式选择器 */}
-              {shouldShowApiFormatSelector(activeProvider) && (
-                <div>
-                  <label htmlFor={`${activeProvider}-apiFormat`} className="block text-xs font-medium dark:text-dark-text text-text-primary mb-1">
-                    {i18nService.t('apiFormat')}
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name={`${activeProvider}-apiFormat`}
-                        value="anthropic"
-                        checked={getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat) !== 'openai'}
-                        onChange={() => handleProviderConfigChange(activeProvider, 'apiFormat', 'anthropic')}
-                        className="h-3.5 w-3.5 text-primary focus:ring-primary dark:bg-dark-surface bg-surface"
-                      />
-                      <span className="ml-2 text-xs dark:text-dark-text text-text-primary">
-                        {i18nService.t('apiFormatNative')}
-                      </span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name={`${activeProvider}-apiFormat`}
-                        value="openai"
-                        checked={getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat) === 'openai'}
-                        onChange={() => handleProviderConfigChange(activeProvider, 'apiFormat', 'openai')}
-                        className="h-3.5 w-3.5 text-primary focus:ring-primary dark:bg-dark-surface bg-surface"
-                      />
-                      <span className="ml-2 text-xs dark:text-dark-text text-text-primary">
-                        {i18nService.t('apiFormatOpenAI')}
-                      </span>
-                    </label>
-                  </div>
-                  <p className="mt-1 text-xs dark:text-dark-text-secondary text-text-secondary">
-                    {i18nService.t('apiFormatHint')}
-                  </p>
-                </div>
-              )}
-
-              {/* GLM Coding Plan 开关 (仅 Zhipu) */}
-              {activeProvider === 'zhipu' && (
-                <div className="flex items-center justify-between p-3 rounded-xl dark:bg-dark-surface/50 bg-surface/50 border dark:border-dark-border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium dark:text-dark-text text-text-primary">
-                        GLM Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
-                        Beta
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] dark:text-dark-text-secondary text-text-secondary">
-                      {i18nService.t('zhipuCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.zhipu.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('zhipu', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* Qwen Coding Plan 开关 (仅 Qwen) */}
-              {activeProvider === 'qwen' && (
-                <div className="flex items-center justify-between p-3 rounded-xl dark:bg-dark-surface/50 bg-surface/50 border dark:border-dark-border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium dark:text-dark-text text-text-primary">
-                        Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
-                        订阅套餐
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] dark:text-dark-text-secondary text-text-secondary">
-                      {i18nService.t('qwenCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.qwen.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('qwen', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* Volcengine Coding Plan 开关 (仅 Volcengine) */}
-              {activeProvider === 'volcengine' && (
-                <div className="flex items-center justify-between p-3 rounded-xl dark:bg-dark-surface/50 bg-surface/50 border dark:border-dark-border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium dark:text-dark-text text-text-primary">
-                        Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
-                        Beta
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] dark:text-dark-text-secondary text-text-secondary">
-                      {i18nService.t('volcengineCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.volcengine.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('volcengine', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* Moonshot Coding Plan 开关 (仅 Moonshot) */}
-              {activeProvider === 'moonshot' && (
-                <div className="flex items-center justify-between p-3 rounded-xl dark:bg-dark-surface/50 bg-surface/50 border dark:border-dark-border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium dark:text-dark-text text-text-primary">
-                        Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
-                        Beta
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] dark:text-dark-text-secondary text-text-secondary">
-                      {i18nService.t('moonshotCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.moonshot.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('moonshot', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* 测试连接按钮 */}
-              <div className="flex items-center space-x-3">
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={isTesting || (providerRequiresApiKey(activeProvider) && !providers[activeProvider].apiKey)}
-                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-xl border dark:border-dark-border border-border dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-                >
-                  <SignalIcon className="h-3.5 w-3.5 mr-1.5" />
-                  {isTesting ? i18nService.t('testing') : i18nService.t('testConnection')}
-                </button>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <h3 className="text-xs font-medium dark:text-dark-text text-text-primary">
-                    {i18nService.t('availableModels')}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={handleAddModel}
-                    className="inline-flex items-center text-xs text-primary hover:text-primary-light"
-                  >
-                    <PlusCircleIcon className="h-3.5 w-3.5 mr-1" />
-                    {i18nService.t('addModel')}
-                  </button>
-                </div>
-
-                {/* Models List */}
-                <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                  {providers[activeProvider].models?.map(model => (
-                    <div
-                      key={model.id}
-                      className="dark:bg-dark-surface/50 bg-surface/50 p-2 rounded-xl dark:border-dark-border border-border border transition-colors hover:border-primary group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
-                          <span className="dark:text-dark-text text-text-primary font-medium text-[11px]">{model.name}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <span className="text-[10px] px-1.5 py-0.5 bg-surface-hover dark:bg-dark-surface-hover rounded-md dark:text-dark-text-secondary text-text-secondary">{model.id}</span>
-                          {model.supportsImage && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
-                              {i18nService.t('imageInput')}
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleEditModel(model.id, model.name, model.supportsImage)}
-                            className="p-0.5 dark:text-dark-text-secondary text-text-secondary hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <PencilIcon className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteModel(model.id)}
-                            className="p-0.5 dark:text-dark-text-secondary text-text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {(!providers[activeProvider].models || providers[activeProvider].models.length === 0) && (
-                    <div className="dark:bg-dark-surface/20 bg-surface/20 p-2.5 rounded-xl border dark:border-dark-border/50 border-border/50 text-center">
-                      <p className="text-[11px] dark:text-dark-text-secondary text-text-secondary">{i18nService.t('noModelsAvailable')}</p>
-                      <button
-                        type="button"
-                        onClick={handleAddModel}
-                        className="mt-1.5 inline-flex items-center text-[11px] font-medium text-primary hover:text-primary-light"
-                      >
-                        <PlusCircleIcon className="h-3 w-3 mr-1" />
-                        {i18nService.t('addFirstModel')}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
       case 'shortcuts':
         return (
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium dark:text-dark-text text-text-primary mb-3">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium dark:text-dark-text text-text-primary">
                 {i18nService.t('keyboardShortcuts')}
-              </label>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm dark:text-dark-text text-text-primary">{i18nService.t('newChat')}</span>
+              </h4>
+              <p className="text-xs dark:text-dark-text-secondary text-text-secondary">
+                使用 `Ctrl`、`Shift`、`Alt`、`Cmd`/`Meta` 加上主键，例如 `Ctrl+N`、`Ctrl+Shift+F`、`Ctrl+,`。
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-xl border px-4 py-4 dark:border-dark-border border-border">
+              {([
+                { key: 'newChat', label: i18nService.t('newChat') },
+                { key: 'search', label: i18nService.t('search') },
+                { key: 'settings', label: i18nService.t('openSettings') },
+              ] as Array<{ key: keyof typeof shortcuts; label: string }>).map((item) => (
+                <label key={item.key} className="flex items-center justify-between gap-4">
+                  <span className="text-sm dark:text-dark-text text-text-primary">
+                    {item.label}
+                  </span>
                   <input
                     type="text"
-                    value={shortcuts.newChat}
-                    onChange={(e) => handleShortcutChange('newChat', e.target.value)}
+                    value={shortcuts[item.key]}
+                    onChange={(event) => handleShortcutChange(item.key, event.target.value)}
                     data-shortcut-input="true"
-                    className="w-32 rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-1.5 text-sm"
+                    spellCheck={false}
+                    className="w-40 rounded-xl border px-3 py-2 text-sm dark:border-dark-border border-border dark:bg-dark-surface bg-surface dark:text-dark-text text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
                   />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm dark:text-dark-text text-text-primary">{i18nService.t('search')}</span>
-                  <input
-                    type="text"
-                    value={shortcuts.search}
-                    onChange={(e) => handleShortcutChange('search', e.target.value)}
-                    data-shortcut-input="true"
-                    className="w-32 rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-1.5 text-sm"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm dark:text-dark-text text-text-primary">{i18nService.t('openSettings')}</span>
-                  <input
-                    type="text"
-                    value={shortcuts.settings}
-                    onChange={(e) => handleShortcutChange('settings', e.target.value)}
-                    data-shortcut-input="true"
-                    className="w-32 rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-1.5 text-sm"
-                  />
-                </div>
-              </div>
+                </label>
+              ))}
             </div>
           </div>
         );
 
+      case 'model':
+        return (
+          <ProviderSettingsPanel
+            visibleProviders={visibleProviders}
+            providers={providers}
+            providerMeta={providerMeta}
+            activeProvider={activeProvider}
+            activeProviderEditable={activeProviderEditable}
+            isTesting={isTesting}
+            isImportingProviders={isImportingProviders}
+            isExportingProviders={isExportingProviders}
+            showApiKey={showApiKey}
+            importInputRef={importInputRef}
+            isBaseUrlLocked={isBaseUrlLocked}
+            currentBaseUrlValue={
+              activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled
+                ? (getEffectiveApiFormat('zhipu', providers.zhipu.apiFormat) === 'anthropic'
+                  ? 'https://open.bigmodel.cn/api/anthropic'
+                  : 'https://open.bigmodel.cn/api/coding/paas/v4')
+                : activeProvider === 'qwen' && providers.qwen.codingPlanEnabled
+                  ? (getEffectiveApiFormat('qwen', providers.qwen.apiFormat) === 'anthropic'
+                    ? 'https://coding.dashscope.aliyuncs.com/apps/anthropic'
+                    : 'https://coding.dashscope.aliyuncs.com/v1')
+                  : activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled
+                    ? (getEffectiveApiFormat('volcengine', providers.volcengine.apiFormat) === 'anthropic'
+                      ? 'https://ark.cn-beijing.volces.com/api/coding'
+                      : 'https://ark.cn-beijing.volces.com/api/coding/v3')
+                    : activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled
+                      ? (getEffectiveApiFormat('moonshot', providers.moonshot.apiFormat) === 'anthropic'
+                        ? 'https://api.kimi.com/coding'
+                        : 'https://api.kimi.com/coding/v1')
+                      : providers[activeProvider].baseUrl
+            }
+            currentBaseUrlPlaceholder={
+              getProviderDefaultBaseUrl(activeProvider, getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat))
+              || defaultConfig.providers?.[activeProvider]?.baseUrl
+              || i18nService.t('baseUrlPlaceholder')
+            }
+            currentProviderLabel={providerMeta[activeProvider]?.label ?? activeProvider.charAt(0).toUpperCase() + activeProvider.slice(1)}
+            customBaseUrlHintVisible={activeProvider === 'custom'}
+            apiFormatSelectorVisible={shouldShowApiFormatSelector(activeProvider)}
+            currentApiFormat={getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat)}
+            showManagedProviderTestHint={!activeProviderEditable}
+            showManagedProviderModelsHint={!activeProviderEditable}
+            canTestConnection={!isTesting && !(providerRequiresApiKey(activeProvider) && !providers[activeProvider].apiKey)}
+            showZhipuCodingPlan={activeProvider === 'zhipu' && !!providers.zhipu.codingPlanEnabled}
+            showQwenCodingPlan={activeProvider === 'qwen' && !!providers.qwen.codingPlanEnabled}
+            showVolcengineCodingPlan={activeProvider === 'volcengine' && !!providers.volcengine.codingPlanEnabled}
+            showMoonshotCodingPlan={activeProvider === 'moonshot' && !!providers.moonshot.codingPlanEnabled}
+            onImportClick={handleImportProvidersClick}
+            onExportClick={handleExportProviders}
+            onImportChange={handleImportProviders}
+            onProviderChange={(provider) => handleProviderChange(provider as ProviderType)}
+            onToggleProvider={(provider) => toggleProviderEnabled(provider as ProviderType)}
+            onProviderConfigChange={(provider, field, value) => handleProviderConfigChange(provider as ProviderType, field, value)}
+            onToggleApiKeyVisibility={() => setShowApiKey(!showApiKey)}
+            onTestConnection={handleTestConnection}
+            onAddModel={handleAddModel}
+            onEditModel={handleEditModel}
+            onDeleteModel={handleDeleteModel}
+            maskSecret={maskSecret}
+            providerRequiresApiKey={(provider) => providerRequiresApiKey(provider as ProviderType)}
+            isEditableProvider={(provider) => isEditableProvider(provider as ProviderType)}
+          />
+        );
       case 'im':
         return <IMSettings />;
 
@@ -3062,162 +2501,37 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           </div>
         )}
 
-        {(isAddingModel || isEditingModel) && (
-          <div
-            className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
-            onClick={handleCancelModelEdit}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label={isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={handleModelDialogKeyDown}
-              className="w-full max-w-md rounded-2xl dark:bg-dark-surface bg-page dark:border-dark-border border-border border shadow-modal p-4"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold dark:text-dark-text text-text-primary">
-                  {isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
-                </h4>
-                <button
-                  type="button"
-                  onClick={handleCancelModelEdit}
-                  className="p-1 dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary rounded-md dark:hover:bg-dark-surface-hover hover:bg-surface-hover"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </div>
-
-              {modelFormError && (
-                <p className="mb-3 text-xs text-red-600 dark:text-red-400">
-                  {modelFormError}
-                </p>
-              )}
-
-              <div className="space-y-3">
-                {activeProvider === 'ollama' ? (
-                  <>
-                    <div>
-                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                        {i18nService.t('ollamaModelName')}
-                      </label>
-                      <input
-                        autoFocus
-                        type="text"
-                        value={newModelId}
-                        onChange={(e) => {
-                          setNewModelId(e.target.value);
-                          if (!newModelName || newModelName === newModelId) {
-                            setNewModelName(e.target.value);
-                          }
-                          if (modelFormError) {
-                            setModelFormError(null);
-                          }
-                        }}
-                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                        placeholder={i18nService.t('ollamaModelNamePlaceholder')}
-                      />
-                      <p className="mt-1 text-[11px] dark:text-dark-text-secondary/70 text-text-secondary/70">
-                        {i18nService.t('ollamaModelNameHint')}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                        {i18nService.t('ollamaDisplayName')}
-                      </label>
-                      <input
-                        type="text"
-                        value={newModelName === newModelId ? '' : newModelName}
-                        onChange={(e) => {
-                          setNewModelName(e.target.value || newModelId);
-                          if (modelFormError) {
-                            setModelFormError(null);
-                          }
-                        }}
-                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                        placeholder={i18nService.t('ollamaDisplayNamePlaceholder')}
-                      />
-                      <p className="mt-1 text-[11px] dark:text-dark-text-secondary/70 text-text-secondary/70">
-                        {i18nService.t('ollamaDisplayNameHint')}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                        {i18nService.t('modelName')}
-                      </label>
-                      <input
-                        autoFocus
-                        type="text"
-                        value={newModelName}
-                        onChange={(e) => {
-                          setNewModelName(e.target.value);
-                          if (modelFormError) {
-                            setModelFormError(null);
-                          }
-                        }}
-                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                        placeholder="GPT-4"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
-                        {i18nService.t('modelId')}
-                      </label>
-                      <input
-                        type="text"
-                        value={newModelId}
-                        onChange={(e) => {
-                          setNewModelId(e.target.value);
-                          if (modelFormError) {
-                            setModelFormError(null);
-                          }
-                        }}
-                        className="block w-full rounded-xl bg-surface-inset dark:bg-dark-surface-inset dark:border-dark-border border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 dark:text-dark-text text-text-primary px-3 py-2 text-xs"
-                        placeholder="gpt-4"
-                      />
-                    </div>
-                  </>
-                )}
-                <div className="flex items-center space-x-2">
-                  <input
-                    id={`${activeProvider}-supportsImage`}
-                    type="checkbox"
-                    checked={newModelSupportsImage}
-                    onChange={(e) => setNewModelSupportsImage(e.target.checked)}
-                    className="h-3.5 w-3.5 text-primary focus:ring-primary dark:bg-dark-surface bg-surface border-border dark:border-dark-border rounded"
-                  />
-                  <label
-                    htmlFor={`${activeProvider}-supportsImage`}
-                    className="text-xs dark:text-dark-text-secondary text-text-secondary"
-                  >
-                    {i18nService.t('supportsImageInput')}
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2 mt-4">
-                <button
-                  type="button"
-                  onClick={handleCancelModelEdit}
-                  className="px-3 py-1.5 text-xs dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-xl border dark:border-dark-border border-border"
-                >
-                  {i18nService.t('cancel')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveNewModel}
-                  className="px-3 py-1.5 text-xs text-white bg-primary hover:bg-primary-light rounded-xl active:scale-[0.98]"
-                >
-                  {i18nService.t('save')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
+        <ProviderModelDialog
+          open={isAddingModel || isEditingModel}
+          isEditing={isEditingModel}
+          activeProvider={activeProvider}
+          modelName={newModelName}
+          modelId={newModelId}
+          supportsImage={newModelSupportsImage}
+          error={modelFormError}
+          onClose={handleCancelModelEdit}
+          onSave={handleSaveNewModel}
+          onModelNameChange={(value) => {
+            if (activeProvider === 'ollama') {
+              setNewModelName(value || newModelId);
+            } else {
+              setNewModelName(value);
+            }
+            if (modelFormError) {
+              setModelFormError(null);
+            }
+          }}
+          onModelIdChange={(value) => {
+            setNewModelId(value);
+            if (activeProvider === 'ollama' && (!newModelName || newModelName === newModelId)) {
+              setNewModelName(value);
+            }
+            if (modelFormError) {
+              setModelFormError(null);
+            }
+          }}
+          onSupportsImageChange={setNewModelSupportsImage}
+        />
         {/* Memory Modal */}
         {showMemoryModal && (
           <div

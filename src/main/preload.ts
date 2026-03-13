@@ -325,6 +325,12 @@ contextBridge.exposeInMainWorld('electron', {
     verify: () => ipcRenderer.invoke('auth:verify'),
     logout: () => ipcRenderer.invoke('auth:logout'),
     getCachedUser: () => ipcRenderer.invoke('auth:getCachedUser'),
+    syncTenantConfig: () => ipcRenderer.invoke('auth:syncTenantConfig'),
+  },
+  config: {
+    getUserPreferences: () => ipcRenderer.invoke('config:getUserPreferences'),
+    updateUserPreferences: (patch: unknown) => ipcRenderer.invoke('config:updateUserPreferences', patch),
+    getResolvedModelConfig: () => ipcRenderer.invoke('config:getResolvedModelConfig'),
   },
   networkStatus: {
     send: (status: 'online' | 'offline') => ipcRenderer.send('network:status-change', status),

@@ -25,7 +25,6 @@ import { setAvailableModels, setSelectedModel } from './store/slices/modelSlice'
 import { clearSelection } from './store/slices/quickActionSlice';
 import { selectTask, setViewMode } from './store/slices/scheduledTaskSlice';
 import { setAuthLoggedIn, setAuthLoggedOut, setAuthDisabled } from './store/slices/authSlice';
-import type { ApiConfig } from './services/api';
 import type { CoworkPermissionResult } from './types/cowork';
 import type { AuthUser } from './types/auth';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
@@ -62,6 +61,72 @@ const App: React.FC = () => {
   const authUser = useSelector((state: RootState) => state.auth.user);
   const isWindows = window.electron.platform === 'win32';
 
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 2200);
+  }, []);
+
+  const applyResolvedModelConfig = useCallback(async () => {
+    const resolved = await window.electron.config.getResolvedModelConfig();
+    apiService.setConfig({
+      apiKey: resolved.api?.apiKey ?? '',
+      baseUrl: resolved.api?.baseUrl ?? '',
+      apiFormat: resolved.api?.apiFormat,
+    });
+
+    const models = resolved.availableModels.map((model) => ({
+      id: model.id,
+      name: model.name,
+      provider: model.providerLabel,
+      providerKey: model.providerKey,
+      supportsImage: model.supportsImage ?? false,
+    }));
+
+    dispatch(setAvailableModels(models));
+    if (models.length > 0) {
+      const selected = models.find(
+        model => model.id === resolved.selectedModel && model.providerKey === resolved.selectedProvider
+      ) ?? models[0];
+      dispatch(setSelectedModel(selected));
+    } else {
+      dispatch(setSelectedModel(null));
+    }
+
+    return resolved;
+  }, [dispatch]);
+
+  const applyAppPreferencesToRuntime = useCallback(async () => {
+    const preferences = await window.electron.config.getUserPreferences();
+    configService.applyUserPreferences({
+      theme: preferences.theme ?? defaultConfig.theme,
+      language: preferences.language ?? defaultConfig.language,
+      useSystemProxy: preferences.useSystemProxy ?? defaultConfig.useSystemProxy,
+      shortcuts: {
+        ...(preferences.shortcuts ?? {}),
+        newChat: preferences.shortcuts?.newChat ?? defaultConfig.shortcuts!.newChat,
+        search: preferences.shortcuts?.search ?? defaultConfig.shortcuts!.search,
+        settings: preferences.shortcuts?.settings ?? defaultConfig.shortcuts!.settings,
+      },
+    });
+    return preferences;
+  }, []);
+
+  const syncTenantConfig = useCallback(async () => {
+    const result = await window.electron.auth.syncTenantConfig();
+    if (!result.success) {
+      console.warn('[App] Failed to sync tenant config:', result.error);
+      showToast(`模型配置同步失败: ${result.error || '未知错误'}`);
+      return false;
+    }
+    return true;
+  }, [showToast]);
+
   // 初始化应用
   useEffect(() => {
     const initializeApp = async () => {
@@ -88,53 +153,15 @@ const App: React.FC = () => {
 
         // 初始化配置
         await configService.init();
+        await applyAppPreferencesToRuntime();
+        await syncTenantConfig();
 
         // 初始化主题
         themeService.initialize();
 
         // 初始化语言
         await i18nService.initialize();
-
-        const config = await configService.getConfig();
-
-        const apiConfig: ApiConfig = {
-          apiKey: config.api.key,
-          baseUrl: config.api.baseUrl,
-        };
-        apiService.setConfig(apiConfig);
-
-        // 从 providers 配置中加载可用模型列表到 Redux
-        const providerModels: { id: string; name: string; provider?: string; providerKey?: string; supportsImage?: boolean }[] = [];
-        if (config.providers) {
-          Object.entries(config.providers).forEach(([providerName, providerConfig]) => {
-            if (providerConfig.enabled && providerConfig.models) {
-              providerConfig.models.forEach((model: { id: string; name: string; supportsImage?: boolean }) => {
-                providerModels.push({
-                  id: model.id,
-                  name: model.name,
-                  provider: providerName.charAt(0).toUpperCase() + providerName.slice(1),
-                  providerKey: providerName,
-                  supportsImage: model.supportsImage ?? false,
-                });
-              });
-            }
-          });
-        }
-        const fallbackModels = config.model.availableModels.map(model => ({
-          id: model.id,
-          name: model.name,
-          providerKey: undefined,
-          supportsImage: model.supportsImage ?? false,
-        }));
-        const resolvedModels = providerModels.length > 0 ? providerModels : fallbackModels;
-        if (resolvedModels.length > 0) {
-          dispatch(setAvailableModels(resolvedModels));
-          const preferredModel = resolvedModels.find(
-            model => model.id === config.model.defaultModel
-              && (!config.model.defaultModelProvider || model.providerKey === config.model.defaultModelProvider)
-          ) ?? resolvedModels[0];
-          dispatch(setSelectedModel(preferredModel));
-        }
+        await applyResolvedModelConfig();
 
         // 初始化定时任务服务
         await scheduledTaskService.init();
@@ -148,7 +175,7 @@ const App: React.FC = () => {
     };
 
     initializeApp();
-  }, [dispatch, initNonce]);
+  }, [dispatch, initNonce, applyAppPreferencesToRuntime, applyResolvedModelConfig, syncTenantConfig]);
 
   useEffect(() => {
     const unsubscribe = i18nService.subscribe(() => {
@@ -181,21 +208,22 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isInitialized || !selectedModel?.id) return;
-    const config = configService.getConfig();
-    if (
-      config.model.defaultModel === selectedModel.id
-      && (config.model.defaultModelProvider ?? '') === (selectedModel.providerKey ?? '')
-    ) {
-      return;
-    }
-    void configService.updateConfig({
-      model: {
-        ...config.model,
-        defaultModel: selectedModel.id,
-        defaultModelProvider: selectedModel.providerKey,
-      },
-    });
+    const currentSelectedModel = selectedModel;
+    if (!isInitialized || !currentSelectedModel?.id) return;
+    void (async () => {
+      const preferences = await window.electron.config.getUserPreferences();
+      if (
+        preferences.preferredModel === currentSelectedModel.id
+        && (preferences.preferredProvider ?? '') === (currentSelectedModel.providerKey ?? '')
+      ) {
+        return;
+      }
+
+      await window.electron.config.updateUserPreferences({
+        preferredModel: currentSelectedModel.id,
+        preferredProvider: currentSelectedModel.providerKey,
+      });
+    })();
   }, [isInitialized, selectedModel?.id, selectedModel?.providerKey]);
 
   const handleShowSettings = useCallback((options?: SettingsOpenOptions) => {
@@ -257,17 +285,6 @@ const App: React.FC = () => {
       }));
     }, 0);
   }, [dispatch, mainView, currentSessionId]);
-
-  const showToast = useCallback((message: string) => {
-    setToastMessage(message);
-    if (toastTimerRef.current) {
-      window.clearTimeout(toastTimerRef.current);
-    }
-    toastTimerRef.current = window.setTimeout(() => {
-      setToastMessage(null);
-      toastTimerRef.current = null;
-    }, 2200);
-  }, []);
 
   const handleShowLogin = useCallback(async () => {
     // 登出后直接显示登录页，无需重新跑完整初始化
@@ -404,31 +421,10 @@ const App: React.FC = () => {
 
   const handleCloseSettings = () => {
     setShowSettings(false);
-    const config = configService.getConfig();
-    apiService.setConfig({
-      apiKey: config.api.key,
-      baseUrl: config.api.baseUrl,
-    });
-
-    if (config.providers) {
-      const allModels: { id: string; name: string; provider?: string; providerKey?: string; supportsImage?: boolean }[] = [];
-      Object.entries(config.providers).forEach(([providerName, providerConfig]) => {
-        if (providerConfig.enabled && providerConfig.models) {
-          providerConfig.models.forEach((model: { id: string; name: string; supportsImage?: boolean }) => {
-            allModels.push({
-              id: model.id,
-              name: model.name,
-              provider: providerName.charAt(0).toUpperCase() + providerName.slice(1),
-              providerKey: providerName,
-              supportsImage: model.supportsImage ?? false,
-            });
-          });
-        }
-      });
-      if (allModels.length > 0) {
-        dispatch(setAvailableModels(allModels));
-      }
-    }
+    void (async () => {
+      await applyAppPreferencesToRuntime();
+      await applyResolvedModelConfig();
+    })();
   };
 
   const isShortcutInputActive = () => {
