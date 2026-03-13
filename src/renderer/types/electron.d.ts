@@ -5,6 +5,7 @@ interface AuthUser {
   email?: string;
   avatar?: string;
   orgSlug?: string;
+  orgId?: string | null;
   [key: string]: unknown;
 }
 

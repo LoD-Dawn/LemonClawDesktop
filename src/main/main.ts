@@ -38,7 +38,7 @@ import crypto from 'crypto';
 // 主进程本地类型定义（不依赖渲染层类型文件）
 interface AuthVerifyResult {
   valid: boolean;
-  user?: { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; [key: string]: unknown };
+  user?: { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; orgId?: string | null; [key: string]: unknown };
   reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }
 
@@ -61,13 +61,15 @@ const getAuthStore = (): AuthStore => {
   return authStore;
 };
 
-const normalizeAuthUser = (payload: any): { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; [key: string]: unknown } => {
+const normalizeAuthUser = (payload: any): { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; orgId?: string | null; [key: string]: unknown } => {
   const user = payload?.data?.user ?? payload?.user ?? payload?.data ?? { id: 'unknown', name: '用户' };
   const orgSlug = payload?.data?.orgSlug ?? payload?.orgSlug ?? (typeof user?.orgSlug === 'string' ? user.orgSlug : '未知组织');
+  const orgId = payload?.data?.orgId ?? payload?.orgId ?? user?.orgId ?? null;
 
   return {
     ...user,
     ...(typeof orgSlug === 'string' && orgSlug.trim() ? { orgSlug } : {}),
+    orgId,
   };
 };
 
