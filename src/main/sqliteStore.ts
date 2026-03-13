@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
-import { DB_FILENAME, LEGACY_DB_FILENAME } from './appConstants';
+import { DB_FILENAME } from './appConstants';
 
 type ChangePayload<T = unknown> = {
   key: string;
@@ -14,17 +14,46 @@ type ChangePayload<T = unknown> = {
 
 const USER_MEMORIES_MIGRATION_KEY = 'userMemories.migration.v1.completed';
 
+function resolveSqlJsWasmPath(): string {
+  const candidates = app.isPackaged
+    ? [
+        path.join(
+          process.resourcesPath,
+          'app.asar.unpacked',
+          'node_modules',
+          'sql.js',
+          'dist',
+          'sql-wasm.wasm'
+        ),
+        path.join(process.resourcesPath, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+      ]
+    : [
+        path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+        path.resolve(app.getAppPath(), '..', '..', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+        path.join(app.getAppPath(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+      ];
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        return candidate;
+      }
+    } catch {
+      // Ignore unreadable candidate paths and continue probing.
+    }
+  }
+
+  throw new Error(
+    `sql.js wasm not found. Checked: ${candidates.join(', ')}`
+  );
+}
+
 // Pre-read the sql.js WASM binary from disk.
 // Using fs.readFileSync (which handles non-ASCII paths via Windows wide-char APIs)
 // and passing the buffer directly to initSqlJs bypasses Emscripten's file loading,
 // which can fail or hang when the install path contains Chinese characters on Windows.
 function loadWasmBinary(): ArrayBuffer {
-  const wasmPath = app.isPackaged
-    ? path.join(
-        process.resourcesPath,
-        'app.asar.unpacked/node_modules/sql.js/dist/sql-wasm.wasm'
-      )
-    : path.join(app.getAppPath(), 'node_modules/sql.js/dist/sql-wasm.wasm');
+  const wasmPath = resolveSqlJsWasmPath();
   const buf = fs.readFileSync(wasmPath);
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 }
@@ -43,11 +72,6 @@ export class SqliteStore {
   static async create(userDataPath?: string): Promise<SqliteStore> {
     const basePath = userDataPath ?? app.getPath('userData');
     const dbPath = path.join(basePath, DB_FILENAME);
-    const legacyDbPath = path.join(basePath, LEGACY_DB_FILENAME);
-
-    if (!fs.existsSync(dbPath) && fs.existsSync(legacyDbPath)) {
-      fs.copyFileSync(legacyDbPath, dbPath);
-    }
 
     // Initialize SQL.js with WASM file path (cached promise for reuse)
     if (!SqliteStore.sqlPromise) {

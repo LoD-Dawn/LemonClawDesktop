@@ -33,6 +33,9 @@ import {
   setSystemProxyEnabled,
 } from './libs/systemProxy';
 import { AuthStore } from './authStore';
+import { resolveModelConfig } from './libs/modelConfigResolver';
+import { getUserPreferences, updateUserPreferences } from './libs/userPreferencesStore';
+import type { ProviderConfig, ProviderModelConfig, ResolvedModelConfig, TenantConfig, TenantConfigMeta } from '../shared/modelConfig';
 import crypto from 'crypto';
 
 // 主进程本地类型定义（不依赖渲染层类型文件）
@@ -41,6 +44,52 @@ interface AuthVerifyResult {
   user?: { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; orgId?: string | null; [key: string]: unknown };
   reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }
+
+type LegacyProviderAppConfig = {
+  enabled: boolean;
+  apiKey: string;
+  baseUrl: string;
+  apiFormat?: 'anthropic' | 'openai';
+  codingPlanEnabled?: boolean;
+  models?: ProviderModelConfig[];
+};
+
+type LegacyRendererAppConfig = {
+  api?: {
+    key?: string;
+    baseUrl?: string;
+  };
+  model?: {
+    availableModels?: ProviderModelConfig[];
+    defaultModel?: string;
+    defaultModelProvider?: string;
+  };
+  providers?: Record<string, LegacyProviderAppConfig>;
+  theme?: string;
+  language?: string;
+  useSystemProxy?: boolean;
+  app?: Record<string, unknown>;
+  shortcuts?: Record<string, string | undefined>;
+};
+
+type RemoteModelsResponse = {
+  model?: {
+    defaultModel?: string;
+    defaultModelProvider?: string;
+  };
+  providers?: Record<string, {
+    enabled?: boolean;
+    apiKey?: string;
+    baseUrl?: string;
+    apiFormat?: 'anthropic' | 'openai';
+    codingPlanEnabled?: boolean;
+    models?: Array<{
+      id?: string;
+      name?: string;
+      supportsImage?: boolean;
+    }>;
+  }>;
+};
 
 // ==================== Auth ====================
 const ADMIN_BASE_URL = 'http://172.16.10.34:3006';
@@ -112,6 +161,9 @@ const parseAuthCallback = (url: string): {
     return { accessToken: null, refreshToken: null, expiresIn: 0, state: null };
   }
 };
+
+const TENANT_CONFIG_KEY = 'tenant_config';
+const TENANT_CONFIG_META_KEY = 'tenant_config_meta';
 
 /**
  * 处理深链接回调：解析 OAuth 参数，校验 state，获取用户信息，保存 token，通知渲染进程
@@ -243,6 +295,269 @@ const refreshAccessToken = async (): Promise<{
     console.error('[Auth] refreshAccessToken network error:', error);
     return null;
   }
+};
+
+const normalizeRemoteProviderModels = (
+  models: RemoteModelsResponse['providers'][string]['models']
+): ProviderModelConfig[] => {
+  return (models ?? [])
+    .filter((model): model is NonNullable<typeof model> & { id: string } => typeof model?.id === 'string' && model.id.trim().length > 0)
+    .map((model) => ({
+      id: model.id.trim(),
+      name: typeof model.name === 'string' && model.name.trim().length > 0 ? model.name.trim() : model.id.trim(),
+      supportsImage: model.supportsImage ?? false,
+    }));
+};
+
+const inferRemoteProviderApiFormat = (
+  providerKey: string,
+  apiFormat: RemoteModelsResponse['providers'][string]['apiFormat'],
+  baseUrl?: string
+): 'anthropic' | 'openai' => {
+  if (apiFormat === 'openai' || apiFormat === 'anthropic') {
+    return apiFormat;
+  }
+
+  const normalizedProvider = providerKey.trim().toLowerCase();
+  if (['openai', 'gemini', 'stepfun', 'youdaozhiyun', 'ollama'].includes(normalizedProvider)) {
+    return 'openai';
+  }
+  if (normalizedProvider === 'anthropic') {
+    return 'anthropic';
+  }
+
+  const normalizedBaseUrl = baseUrl?.trim().replace(/\/+$/, '').toLowerCase() ?? '';
+  if (
+    normalizedBaseUrl.includes('/anthropic')
+    || normalizedBaseUrl.endsWith('/api')
+    || normalizedBaseUrl.endsWith('/api/compatible')
+    || normalizedBaseUrl.endsWith('/api/coding')
+  ) {
+    return 'anthropic';
+  }
+  if (
+    normalizedBaseUrl.endsWith('/chat/completions')
+    || normalizedBaseUrl.endsWith('/responses')
+    || normalizedBaseUrl.includes('/openai')
+    || normalizedBaseUrl.endsWith('/v1')
+    || normalizedBaseUrl.endsWith('/v3')
+    || normalizedBaseUrl.endsWith('/v4')
+  ) {
+    return 'openai';
+  }
+
+  return 'anthropic';
+};
+
+const normalizeRemoteProviders = (
+  providers: RemoteModelsResponse['providers']
+): Record<string, ProviderConfig> => {
+  return Object.fromEntries(
+    Object.entries(providers ?? {}).map(([providerKey, providerConfig]) => {
+      const baseUrl = providerConfig.baseUrl?.trim().replace(/\/+$/, '') ?? '';
+      return [
+        providerKey,
+        {
+          enabled: providerConfig.enabled ?? false,
+          apiKey: providerConfig.apiKey ?? '',
+          baseUrl,
+          apiFormat: inferRemoteProviderApiFormat(providerKey, providerConfig.apiFormat, baseUrl),
+          codingPlanEnabled: providerConfig.codingPlanEnabled ?? false,
+          models: normalizeRemoteProviderModels(providerConfig.models),
+        } satisfies ProviderConfig,
+      ];
+    })
+  );
+};
+
+const getTenantConfig = (): TenantConfig | null => {
+  return getStore().get<TenantConfig>(TENANT_CONFIG_KEY) ?? null;
+};
+
+const getTenantConfigMeta = (): TenantConfigMeta | null => {
+  return getStore().get<TenantConfigMeta>(TENANT_CONFIG_META_KEY) ?? null;
+};
+
+const getResolvedModelConfig = (): ResolvedModelConfig => {
+  return resolveModelConfig({
+    tenantConfig: getTenantConfig(),
+    tenantMeta: getTenantConfigMeta(),
+    userPreferences: getUserPreferences(getStore()),
+    legacyAppConfig: getStore().get<LegacyRendererAppConfig>('app_config') ?? null,
+  });
+};
+
+const fetchAuthSessionWithRefresh = async (): Promise<{
+  ok: true;
+  accessToken: string;
+  user: { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; orgId?: string | null; [key: string]: unknown };
+} | {
+  ok: false;
+  reason: 'no_token' | 'expired' | 'disabled' | 'network_error';
+}> => {
+  const callSession = async (accessToken: string) => {
+    return fetch(`${ADMIN_BASE_URL}/api/v1/auth/session`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10000),
+    });
+  };
+
+  let accessToken = getAuthStore().getToken();
+  if (!accessToken) {
+    return { ok: false, reason: 'no_token' };
+  }
+
+  try {
+    let resp = await callSession(accessToken);
+    if (resp.status === 401) {
+      console.log('[Auth] access_token expired (401), attempting refresh...');
+      const refreshed = await refreshAccessToken();
+      if (!refreshed) {
+        console.warn('[Auth] Token refresh failed, clearing tokens.');
+        getAuthStore().clear();
+        return { ok: false, reason: 'expired' };
+      }
+
+      const cachedUser = getAuthStore().getCachedUser() ?? { id: 'unknown', name: '用户' };
+      getAuthStore().save(refreshed.accessToken, cachedUser, refreshed.refreshToken, refreshed.expiresAt);
+      accessToken = refreshed.accessToken;
+      resp = await callSession(accessToken);
+
+      if (!resp.ok) {
+        console.warn('[Auth] Session invalid after token refresh, status:', resp.status);
+        getAuthStore().clear();
+        return { ok: false, reason: 'expired' };
+      }
+    }
+
+    if (!resp.ok) {
+      console.warn('[Auth] Session check failed, status:', resp.status, '→ treating as disabled');
+      getAuthStore().clear();
+      return { ok: false, reason: 'disabled' };
+    }
+
+    const json = await resp.json();
+    const user = normalizeAuthUser(json);
+    getAuthStore().updateUser(user);
+
+    return { ok: true, accessToken, user };
+  } catch (error) {
+    console.warn('[Auth] verify network error (offline not permitted):', error);
+    return { ok: false, reason: 'network_error' };
+  }
+};
+
+const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }> => {
+  const metaBefore = getTenantConfigMeta() ?? {};
+  getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
+    ...metaBefore,
+    lastAttemptAt: Date.now(),
+    lastError: undefined,
+  });
+
+  if (isDevAuthBypassEnabled() && getAuthStore().getToken() === DEV_AUTH_BYPASS_TOKEN) {
+    getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
+      ...metaBefore,
+      lastAttemptAt: Date.now(),
+      lastError: 'Development fake login does not provide remote model config.',
+      stale: !getTenantConfig(),
+    });
+    return { success: false, error: 'Development fake login does not provide remote model config.' };
+  }
+
+  const authContext = await fetchAuthSessionWithRefresh();
+  if (!authContext.ok) {
+    const reason = 'reason' in authContext ? authContext.reason : 'network_error';
+    console.warn('[Auth] Remote model config sync aborted: auth session unavailable, reason =', reason);
+    getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
+      ...metaBefore,
+      lastAttemptAt: Date.now(),
+      lastError: `Authentication required (${reason}).`,
+      stale: !!getTenantConfig(),
+    });
+    return { success: false, error: `Authentication required (${reason}).` };
+  }
+
+  const orgSlug = authContext.user.orgSlug?.trim();
+  if (!orgSlug) {
+    console.warn('[Auth] Remote model config sync aborted: missing orgSlug in auth session payload for user', authContext.user.id);
+    getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
+      ...metaBefore,
+      lastAttemptAt: Date.now(),
+      lastError: 'Missing tenant slug in auth session.',
+      stale: !!getTenantConfig(),
+    });
+    return { success: false, error: 'Missing tenant slug in auth session.' };
+  }
+
+  console.log('[Auth] Syncing remote model config for orgSlug =', orgSlug);
+  const resp = await fetch(`${ADMIN_BASE_URL}/api/models`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${authContext.accessToken}`,
+      'x-org-id': orgSlug,
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!resp.ok) {
+    const errorBody = await resp.text().catch(() => '');
+    console.warn(
+      '[Auth] Failed to fetch remote model config:',
+      JSON.stringify({
+        status: resp.status,
+        statusText: resp.statusText,
+        orgSlug,
+        bodyPreview: errorBody.slice(0, 300),
+      })
+    );
+    getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
+      ...metaBefore,
+      lastAttemptAt: Date.now(),
+      lastError: `Failed to fetch remote model config: ${resp.status} ${resp.statusText}`,
+      stale: !!getTenantConfig(),
+    });
+    return { success: false, error: `Failed to fetch remote model config: ${resp.status} ${resp.statusText}` };
+  }
+
+  const remoteConfig = await resp.json() as RemoteModelsResponse;
+  console.log(
+    '[Auth] Remote model config fetched:',
+    JSON.stringify({
+      orgSlug,
+      defaultModel: remoteConfig.model?.defaultModel ?? null,
+      defaultModelProvider: remoteConfig.model?.defaultModelProvider ?? null,
+      providers: Object.keys(remoteConfig.providers ?? {}),
+    })
+  );
+  const tenantConfig: TenantConfig = {
+    orgSlug,
+    fetchedAt: Date.now(),
+    providers: normalizeRemoteProviders(remoteConfig.providers),
+    defaults: {
+      provider: remoteConfig.model?.defaultModelProvider?.trim() || undefined,
+      model: remoteConfig.model?.defaultModel?.trim() || undefined,
+    },
+  };
+
+  getStore().set(TENANT_CONFIG_KEY, tenantConfig);
+  getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
+    lastAttemptAt: tenantConfig.fetchedAt,
+    lastSuccessAt: tenantConfig.fetchedAt,
+    stale: false,
+  });
+  console.log(
+    '[Auth] Remote model config saved to tenant_config:',
+    JSON.stringify({
+      defaultModel: tenantConfig.defaults.model ?? null,
+      defaultModelProvider: tenantConfig.defaults.provider ?? null,
+      enabledProviders: Object.entries(tenantConfig.providers ?? {})
+        .filter(([, provider]) => provider.enabled)
+        .map(([providerKey]) => providerKey),
+    })
+  );
+  return { success: true };
 };
 
 const DICLAW_PROTOCOL = 'diclaw';
@@ -542,6 +857,27 @@ const isLinux = process.platform === 'linux';
 const isMac = process.platform === 'darwin';
 const isWindows = process.platform === 'win32';
 const DEV_SERVER_URL = process.env.ELECTRON_START_URL || 'http://localhost:5175';
+const APP_USER_MODEL_ID = 'com.diclaw.app';
+const PREFERRED_USER_DATA_PATH = path.join(app.getPath('appData'), APP_NAME);
+
+const normalizeFsPath = (value: string): string => path.resolve(value).replace(/[\\/]+$/, '').toLowerCase();
+
+if (normalizeFsPath(app.getPath('userData')) !== normalizeFsPath(PREFERRED_USER_DATA_PATH)) {
+  app.setPath('userData', PREFERRED_USER_DATA_PATH);
+}
+
+app.setName(APP_NAME);
+
+const getDevProjectRoot = (): string => {
+  // Support both Vite-bundled output (dist-electron/main.js) and tsc output
+  // (dist-electron/main/main.js) when resolving development-only assets.
+  const currentDirName = path.basename(__dirname);
+  return currentDirName === 'main'
+    ? path.resolve(__dirname, '..', '..')
+    : path.resolve(__dirname, '..');
+};
+
+const getDevDistElectronRoot = (): string => path.join(getDevProjectRoot(), 'dist-electron');
 const enableVerboseLogging =
   process.env.ELECTRON_ENABLE_LOGGING === '1' ||
   process.env.ELECTRON_ENABLE_LOGGING === 'true';
@@ -930,24 +1266,17 @@ const getIMGatewayManager = () => {
     // Initialize with LLM config provider
     imGatewayManager.initialize({
       getLLMConfig: async () => {
-        const appConfig = sqliteStore.get<any>('app_config');
-        if (!appConfig) return null;
-
-        // Find first enabled provider
-        const providers = appConfig.providers || {};
-        for (const [providerName, providerConfig] of Object.entries(providers) as [string, any][]) {
-          if (providerConfig.enabled && providerConfig.apiKey) {
-            const model = providerConfig.models?.[0]?.id;
-            return {
-              apiKey: providerConfig.apiKey,
-              baseUrl: providerConfig.baseUrl,
-              model: model,
-              provider: providerName,
-            };
-          }
+        const resolvedConfig = getResolvedModelConfig();
+        if (resolvedConfig.api && resolvedConfig.selectedModel) {
+          return {
+            apiKey: resolvedConfig.api.apiKey,
+            baseUrl: resolvedConfig.api.baseUrl,
+            model: resolvedConfig.selectedModel,
+            provider: resolvedConfig.selectedProvider,
+          };
         }
 
-        // Fallback to legacy api config
+        const appConfig = sqliteStore.get<any>('app_config');
         if (appConfig.api?.key) {
           return {
             apiKey: appConfig.api.key,
@@ -959,7 +1288,7 @@ const getIMGatewayManager = () => {
         return null;
       },
       getSkillsPrompt: async () => {
-        return getSkillManager().buildAutoRoutingPrompt();
+        return getSkillManager().buildInlineSkillsPrompt();
       },
     });
 
@@ -1017,14 +1346,14 @@ const getScheduler = () => {
 // 获取正确的预加载脚本路径
 const PRELOAD_PATH = app.isPackaged
   ? path.join(__dirname, 'preload.js')
-  : path.join(__dirname, '../dist-electron/preload.js');
+  : path.join(getDevDistElectronRoot(), 'main', 'preload.js');
 
 // 获取应用图标路径（Windows 使用 .ico，其他平台使用 .png）
 const getAppIconPath = (): string | undefined => {
   if (process.platform !== 'win32' && process.platform !== 'linux') return undefined;
   const basePath = app.isPackaged
     ? path.join(process.resourcesPath, 'tray')
-    : path.join(__dirname, '..', 'resources', 'tray');
+    : path.join(getDevProjectRoot(), 'resources', 'tray');
   return process.platform === 'win32'
     ? path.join(basePath, 'tray-icon.ico')
     : path.join(basePath, 'tray-icon.png');
@@ -1065,14 +1394,28 @@ const resolveThemeFromConfig = (config?: AppConfigSettings): 'light' | 'dark' =>
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
 };
 
+const getUserPreferenceSnapshot = () => getUserPreferences(getStore());
+
+const getPreferredTheme = (): 'light' | 'dark' | 'system' | undefined => {
+  return getUserPreferenceSnapshot().theme;
+};
+
+const getPreferredLanguage = (): 'zh' | 'en' => {
+  return getUserPreferenceSnapshot().language === 'en' ? 'en' : 'zh';
+};
+
+const getPreferredUseSystemProxy = (): boolean => {
+  return getUserPreferenceSnapshot().useSystemProxy ?? false;
+};
+
 const getInitialTheme = (): 'light' | 'dark' => {
-  const config = getStore().get<AppConfigSettings>('app_config');
-  return resolveThemeFromConfig(config);
+  const preferredTheme = getPreferredTheme();
+  return resolveThemeFromConfig(preferredTheme ? { theme: preferredTheme } : getStore().get<AppConfigSettings>('app_config'));
 };
 
 const getTitleBarOverlayOptions = () => {
-  const config = getStore().get<AppConfigSettings>('app_config');
-  const theme = resolveThemeFromConfig(config);
+  const preferredTheme = getPreferredTheme();
+  const theme = resolveThemeFromConfig(preferredTheme ? { theme: preferredTheme } : getStore().get<AppConfigSettings>('app_config'));
   return {
     color: TITLEBAR_COLORS[theme].color,
     symbolColor: TITLEBAR_COLORS[theme].symbolColor,
@@ -1086,8 +1429,8 @@ const updateTitleBarOverlay = () => {
     mainWindow.setTitleBarOverlay(getTitleBarOverlayOptions());
   }
   // Also update the window background color to match the theme
-  const config = getStore().get<AppConfigSettings>('app_config');
-  const theme = resolveThemeFromConfig(config);
+  const preferredTheme = getPreferredTheme();
+  const theme = resolveThemeFromConfig(preferredTheme ? { theme: preferredTheme } : getStore().get<AppConfigSettings>('app_config'));
   mainWindow.setBackgroundColor(theme === 'dark' ? '#0F1117' : '#F8F9FB');
 };
 
@@ -1168,6 +1511,10 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
+  if (isWindows) {
+    app.setAppUserModelId(APP_USER_MODEL_ID);
+  }
+
   app.on('second-instance', (_event, commandLine, workingDirectory) => {
     console.log('[Main] second-instance event', { commandLine, workingDirectory });
 
@@ -1249,60 +1596,16 @@ if (!gotTheLock) {
       return { valid: true, user };
     }
 
-    const callSession = async (accessToken: string) => {
-      return fetch(`${ADMIN_BASE_URL}/api/v1/auth/session`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-        signal: AbortSignal.timeout(10000),
-      });
-    };
-
-    try {
-      let resp = await callSession(token);
-
-      // ===== 401：access_token 过期，尝试刷新 =====
-      if (resp.status === 401) {
-        console.log('[Auth] access_token expired (401), attempting refresh...');
-        const refreshed = await refreshAccessToken();
-
-        if (!refreshed) {
-          // refresh_token 也失效，需重新登录
-          console.warn('[Auth] Token refresh failed, clearing tokens.');
-          getAuthStore().clear();
-          return { valid: false, reason: 'expired' };
-        }
-
-        // 保存新 token，再次请求 session
-        const cachedUser = getAuthStore().getCachedUser() ?? { id: 'unknown', name: '用户' };
-        getAuthStore().save(refreshed.accessToken, cachedUser, refreshed.refreshToken, refreshed.expiresAt);
-        console.log('[Auth] Token refreshed successfully, re-verifying session...');
-
-        resp = await callSession(refreshed.accessToken);
-
-        // 刷新后仍然不对 → 清除并要求重登
-        if (!resp.ok) {
-          console.warn('[Auth] Session invalid after token refresh, status:', resp.status);
-          getAuthStore().clear();
-          return { valid: false, reason: 'expired' };
-        }
-      } else if (!resp.ok) {
-        // ===== 非 401 的错误（403 禁用、500 等）→ 视为账号禁用/异常 =====
-        console.warn('[Auth] Session check failed, status:', resp.status, '→ treating as disabled');
-        getAuthStore().clear();
-        return { valid: false, reason: 'disabled' };
-      }
-
-      // ===== 200：获取用户信息 =====
-      const json = await resp.json();
-      const user = normalizeAuthUser(json);
-      getAuthStore().updateUser(user);
-      return { valid: true, user };
-
-    } catch (error) {
-      // 网络错误 → 不允许离线，直接返回失败
-      console.warn('[Auth] verify network error (offline not permitted):', error);
-      return { valid: false, reason: 'network_error' };
+    const sessionResult = await fetchAuthSessionWithRefresh();
+    if (sessionResult.ok) {
+      return { valid: true, user: sessionResult.user };
     }
+
+    if ('reason' in sessionResult) {
+      return { valid: false, reason: sessionResult.reason };
+    }
+
+    return { valid: false, reason: 'network_error' };
   });
 
   /**
@@ -1320,6 +1623,30 @@ if (!gotTheLock) {
    */
   ipcMain.handle('auth:getCachedUser', () => {
     return getAuthStore().getCachedUser();
+  });
+
+  ipcMain.handle('auth:syncTenantConfig', async () => {
+    try {
+      return await syncTenantConfig();
+    } catch (error) {
+      console.error('[Auth] Failed to sync tenant config:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to sync tenant config.',
+      };
+    }
+  });
+
+  ipcMain.handle('config:getUserPreferences', () => {
+    return getUserPreferences(getStore());
+  });
+
+  ipcMain.handle('config:updateUserPreferences', (_event, patch) => {
+    return updateUserPreferences(getStore(), patch);
+  });
+
+  ipcMain.handle('config:getResolvedModelConfig', () => {
+    return getResolvedModelConfig();
   });
 
 
@@ -2796,7 +3123,7 @@ if (!gotTheLock) {
 
     // 设置 macOS Dock 图标（开发模式下 Electron 默认图标不是应用 Logo）
     if (isMac && isDev) {
-      const iconPath = path.join(__dirname, '../build/icons/png/512x512.png');
+      const iconPath = path.join(getDevProjectRoot(), 'build', 'icons', 'png', '512x512.png');
       if (fs.existsSync(iconPath)) {
         app.dock.setIcon(nativeImage.createFromPath(iconPath));
       }
@@ -2856,7 +3183,7 @@ if (!gotTheLock) {
           } else {
             console.error('Failed to load URL after maximum retries');
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.loadFile(path.join(__dirname, '../resources/error.html'));
+              mainWindow.loadFile(path.join(getDevProjectRoot(), 'resources', 'error.html'));
             }
           }
         });
@@ -2868,7 +3195,7 @@ if (!gotTheLock) {
       mainWindow.webContents.openDevTools();
     } else {
       // 生产环境
-      mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+      mainWindow.loadFile(path.join(getDevProjectRoot(), 'dist', 'index.html'));
     }
 
     // 添加错误处理
@@ -3059,8 +3386,7 @@ if (!gotTheLock) {
       console.error('[Main] initApp: skill services failed:', error);
     }
 
-    const appConfig = getStore().get<AppConfigSettings>('app_config');
-    await applyProxyPreference(getUseSystemProxyFromConfig(appConfig));
+    await applyProxyPreference(getPreferredUseSystemProxy());
 
     await startCoworkOpenAICompatProxy().catch((error) => {
       console.error('Failed to start OpenAI compatibility proxy:', error);
@@ -3093,22 +3419,18 @@ if (!gotTheLock) {
       setAutoLaunchEnabled(true);
     }
 
-    let lastLanguage = getStore().get<AppConfigSettings>('app_config')?.language;
-    let lastUseSystemProxy = getUseSystemProxyFromConfig(getStore().get<AppConfigSettings>('app_config'));
-    getStore().onDidChange<AppConfigSettings>('app_config', (newConfig, oldConfig) => {
+    let lastLanguage = getPreferredLanguage();
+    let lastUseSystemProxy = getPreferredUseSystemProxy();
+    getStore().onDidChange('user_preferences', () => {
       updateTitleBarOverlay();
-      // 仅在语言变更时刷新托盘菜单文本
-      const currentLanguage = newConfig?.language;
+      const currentLanguage = getPreferredLanguage();
       if (currentLanguage !== lastLanguage) {
         lastLanguage = currentLanguage;
         updateTrayMenu(() => mainWindow, getStore());
       }
 
-      const previousUseSystemProxy = oldConfig
-        ? getUseSystemProxyFromConfig(oldConfig)
-        : lastUseSystemProxy;
-      const currentUseSystemProxy = getUseSystemProxyFromConfig(newConfig);
-      if (currentUseSystemProxy !== previousUseSystemProxy) {
+      const currentUseSystemProxy = getPreferredUseSystemProxy();
+      if (currentUseSystemProxy !== lastUseSystemProxy) {
         void applyProxyPreference(currentUseSystemProxy);
       }
       lastUseSystemProxy = currentUseSystemProxy;

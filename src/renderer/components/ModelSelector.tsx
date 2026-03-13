@@ -38,7 +38,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ dropdownDirection = 'down
   };
 
   // 如果没有可用模型，显示提示
-  if (availableModels.length === 0) {
+  if (availableModels.length === 0 || !selectedModel) {
     return (
       <div className="px-3 py-1.5 rounded-xl dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary text-sm">
         请先在设置中配置模型

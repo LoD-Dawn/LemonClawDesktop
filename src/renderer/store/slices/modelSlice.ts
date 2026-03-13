@@ -53,7 +53,7 @@ export let availableModels: Model[] = buildInitialModels();
 const defaultModelProvider = defaultConfig.model.defaultModelProvider;
 
 interface ModelState {
-  selectedModel: Model;
+  selectedModel: Model | null;
   availableModels: Model[];
 }
 
@@ -62,7 +62,7 @@ const initialState: ModelState = {
   selectedModel: availableModels.find(
     model => model.id === defaultConfig.model.defaultModel
       && (!defaultModelProvider || model.providerKey === defaultModelProvider)
-  ) || availableModels[0],
+  ) || availableModels[0] || null,
   availableModels: availableModels,
 };
 
@@ -70,7 +70,7 @@ const modelSlice = createSlice({
   name: 'model',
   initialState,
   reducers: {
-    setSelectedModel: (state, action: PayloadAction<Model>) => {
+    setSelectedModel: (state, action: PayloadAction<Model | null>) => {
       state.selectedModel = action.payload;
     },
     setAvailableModels: (state, action: PayloadAction<Model[]>) => {
@@ -79,13 +79,17 @@ const modelSlice = createSlice({
       availableModels = action.payload;
       // 同步选中模型信息，确保名称与最新配置一致
       if (action.payload.length > 0) {
-        const matchedModel = action.payload.find(m => isSameModelIdentity(m, state.selectedModel));
+        const matchedModel = state.selectedModel
+          ? action.payload.find(m => isSameModelIdentity(m, state.selectedModel as Model))
+          : null;
         if (matchedModel) {
           state.selectedModel = matchedModel;
         } else {
           // 如果当前选中的模型不在新的可用模型列表中，选择第一个可用模型
           state.selectedModel = action.payload[0];
         }
+      } else {
+        state.selectedModel = null;
       }
     },
   },

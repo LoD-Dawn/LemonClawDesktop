@@ -136,6 +136,19 @@ class ConfigService {
     await localStore.setItem(CONFIG_KEYS.APP_CONFIG, this.config);
   }
 
+  applyUserPreferences(preferences: Pick<AppConfig, 'theme' | 'language' | 'useSystemProxy' | 'shortcuts'>) {
+    this.config = {
+      ...this.config,
+      theme: preferences.theme,
+      language: preferences.language,
+      useSystemProxy: preferences.useSystemProxy,
+      shortcuts: {
+        ...defaultConfig.shortcuts!,
+        ...(preferences.shortcuts ?? {}),
+      } as AppConfig['shortcuts'],
+    };
+  }
+
   getApiConfig() {
     return {
       apiKey: this.config.api.key,

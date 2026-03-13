@@ -2,13 +2,17 @@ import { join } from 'path';
 import { app } from 'electron';
 import type { SqliteStore } from '../sqliteStore';
 import type { CoworkApiConfig } from './coworkConfigStore';
+import { resolveModelConfig } from './modelConfigResolver';
+import { getUserPreferences } from './userPreferencesStore';
 import {
   configureCoworkOpenAICompatProxy,
   type OpenAICompatProxyTarget,
   getCoworkOpenAICompatProxyBaseURL,
   getCoworkOpenAICompatProxyStatus,
 } from './coworkOpenAICompatProxy';
+import { getDevProjectRoot } from './devPaths';
 import { normalizeProviderApiFormat, type AnthropicApiFormat } from './coworkFormatTransform';
+import type { ResolvedModelConfig, TenantConfig, TenantConfigMeta } from '../../shared/modelConfig';
 
 const ZHIPU_CODING_PLAN_BASE_URL = 'https://open.bigmodel.cn/api/coding/paas/v4';
 // Qwen Coding Plan 专属端点 (OpenAI 兼容和 Anthropic 兼容)
@@ -35,7 +39,16 @@ type ProviderConfig = {
 };
 
 type AppConfig = {
+  api?: {
+    key?: string;
+    baseUrl?: string;
+  };
   model?: {
+    availableModels?: Array<{
+      id?: string;
+      name?: string;
+      supportsImage?: boolean;
+    }>;
     defaultModel?: string;
     defaultModelProvider?: string;
   };
@@ -72,11 +85,7 @@ export function getClaudeCodePath(): string {
   // In development, try to find the SDK in the project root node_modules
   // app.getAppPath() might point to dist-electron or other build output directories
   // We need to look in the project root
-  const appPath = app.getAppPath();
-  // If appPath ends with dist-electron, go up one level
-  const rootDir = appPath.endsWith('dist-electron') 
-    ? join(appPath, '..') 
-    : appPath;
+  const rootDir = getDevProjectRoot();
 
   return join(rootDir, 'node_modules/@anthropic-ai/claude-agent-sdk/cli.js');
 }
@@ -103,26 +112,30 @@ function providerRequiresApiKey(providerName: string): boolean {
   return providerName !== 'ollama';
 }
 
-function resolveMatchedProvider(appConfig: AppConfig): { matched: MatchedProvider | null; error?: string } {
-  const providers = appConfig.providers ?? {};
+function resolveMatchedProvider(resolvedConfig: ResolvedModelConfig): { matched: MatchedProvider | null; error?: string } {
+  const providers = resolvedConfig.providers;
 
-  const resolveFallbackModel = (): string | undefined => {
-    for (const provider of Object.values(providers)) {
+  const resolveFallbackSelection = (): { providerName?: string; modelId?: string } => {
+    for (const [providerName, provider] of Object.entries(providers)) {
       if (!provider?.enabled || !provider.models || provider.models.length === 0) {
         continue;
       }
-      return provider.models[0].id;
+      return {
+        providerName,
+        modelId: provider.models[0].id,
+      };
     }
-    return undefined;
+    return {};
   };
 
-  const modelId = appConfig.model?.defaultModel || resolveFallbackModel();
+  const fallbackSelection = resolveFallbackSelection();
+  const modelId = resolvedConfig.selectedModel || fallbackSelection.modelId;
   if (!modelId) {
     return { matched: null, error: 'No available model configured in enabled providers.' };
   }
 
   let providerEntry: [string, ProviderConfig] | undefined;
-  const preferredProviderName = appConfig.model?.defaultModelProvider?.trim();
+  const preferredProviderName = resolvedConfig.selectedProvider?.trim() || fallbackSelection.providerName;
   if (preferredProviderName) {
     const preferredProvider = providers[preferredProviderName];
     if (
@@ -217,15 +230,14 @@ export function resolveCurrentApiConfig(target: OpenAICompatProxyTarget = 'local
     };
   }
 
-  const appConfig = sqliteStore.get<AppConfig>('app_config');
-  if (!appConfig) {
-    return {
-      config: null,
-      error: 'Application config not found.',
-    };
-  }
+  const resolvedConfig = resolveModelConfig({
+    tenantConfig: sqliteStore.get<TenantConfig>('tenant_config') ?? null,
+    tenantMeta: sqliteStore.get<TenantConfigMeta>('tenant_config_meta') ?? null,
+    userPreferences: getUserPreferences(sqliteStore),
+    legacyAppConfig: sqliteStore.get<AppConfig>('app_config') ?? null,
+  });
 
-  const { matched, error } = resolveMatchedProvider(appConfig);
+  const { matched, error } = resolveMatchedProvider(resolvedConfig);
   if (!matched) {
     return {
       config: null,

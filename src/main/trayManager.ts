@@ -2,11 +2,19 @@ import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import path from 'path';
 import { APP_NAME } from './appConstants';
 import type { SqliteStore } from './sqliteStore';
+import { getUserPreferences } from './libs/userPreferencesStore';
 
 let tray: Tray | null = null;
 let contextMenu: Menu | null = null;
 let clickHandler: (() => void) | null = null;
 let rightClickHandler: (() => void) | null = null;
+
+function getDevProjectRoot(): string {
+  const currentDirName = path.basename(__dirname);
+  return currentDirName === 'main'
+    ? path.resolve(__dirname, '..', '..')
+    : path.resolve(__dirname, '..');
+}
 
 function getTrayIconPath(): string {
   const isMac = process.platform === 'darwin';
@@ -14,7 +22,7 @@ function getTrayIconPath(): string {
 
   const basePath = app.isPackaged
     ? path.join(process.resourcesPath, 'tray')
-    : path.join(__dirname, '..', 'resources', 'tray');
+    : path.join(getDevProjectRoot(), 'resources', 'tray');
 
   if (isMac) {
     return path.join(basePath, 'tray-icon-mac.png');
@@ -28,8 +36,8 @@ function getTrayIconPath(): string {
 
 function getLabels(store: SqliteStore): { showWindow: string; newTask: string; settings: string; quit: string } {
   try {
-    const config = store.get<{ language?: string }>('app_config');
-    const lang = config?.language === 'en' ? 'en' : 'zh';
+    const preferences = getUserPreferences(store);
+    const lang = preferences.language === 'en' ? 'en' : 'zh';
     return lang === 'en'
       ? { showWindow: 'Open DiClaw', newTask: 'New Task', settings: 'Settings', quit: 'Quit' }
       : { showWindow: '打开 DiClaw', newTask: '新建任务', settings: '设置', quit: '退出' };

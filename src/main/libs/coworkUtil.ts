@@ -6,6 +6,7 @@ import { buildEnvForConfig, getCurrentApiConfig, resolveCurrentApiConfig } from 
 import type { OpenAICompatProxyTarget } from './coworkOpenAICompatProxy';
 import { getInternalApiBaseURL } from './coworkOpenAICompatProxy';
 import { coworkLog } from './coworkLogger';
+import { getDevProjectRoot } from './devPaths';
 import { appendPythonRuntimeToEnv } from './pythonRuntime';
 import { isSystemProxyEnabled, resolveSystemProxyUrl } from './systemProxy';
 
@@ -1100,7 +1101,7 @@ function applyPackagedEnvOverrides(env: Record<string, string | undefined>): voi
   if (!app.isPackaged) {
     // In dev mode, prepend project's node_modules/.bin to PATH so bundled
     // npx/npm are found even if the user has no global Node.js installation.
-    const devBinDir = join(app.getAppPath(), 'node_modules', '.bin');
+    const devBinDir = join(getDevProjectRoot(), 'node_modules', '.bin');
     if (existsSync(devBinDir)) {
       env.PATH = [devBinDir, env.PATH].filter(Boolean).join(delimiter);
       coworkLog('INFO', 'applyPackagedEnvOverrides', `Dev mode: prepended node_modules/.bin to PATH: ${devBinDir}`);
@@ -1276,7 +1277,7 @@ export function getSkillsRoot(): string {
     .filter((value): value is string => Boolean(value));
   const candidates = [
     ...envRoots,
-    join(app.getAppPath(), 'SKILLs'),
+    join(getDevProjectRoot(), 'SKILLs'),
     join(process.cwd(), 'SKILLs'),
     join(__dirname, '..', 'SKILLs'),
     join(__dirname, '..', '..', 'SKILLs'),
@@ -1289,7 +1290,7 @@ export function getSkillsRoot(): string {
   }
 
   // Final fallback for first-run dev environments where SKILLs may not exist yet.
-  return join(app.getAppPath(), 'SKILLs');
+  return join(getDevProjectRoot(), 'SKILLs');
 }
 
 /**

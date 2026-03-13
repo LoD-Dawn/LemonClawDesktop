@@ -32,7 +32,7 @@ export class AuthStore {
 
   constructor(private store: SqliteStore) {
     // 用 userData 路径做 salt，绑定到当前机器
-    const seed = 'diosclaw-auth-v1';
+    const seed = 'diclaw-auth-v1';
     const salt = app.getPath('userData');
     this.encKey = crypto.scryptSync(seed, salt, 32);
   }
