@@ -93,15 +93,6 @@ type RemoteModelsResponse = {
 
 // ==================== Auth ====================
 const ADMIN_BASE_URL = 'http://114.132.74.2:3006';
-const DEV_AUTH_BYPASS_TOKEN = 'diclaw-dev-auth-token';
-const DEV_AUTH_BYPASS_USER = {
-  id: 'dev-local-user',
-  name: 'Local Dev',
-  email: 'dev@local.test',
-  orgSlug: 'local-dev',
-};
-const DEV_AUTH_BYPASS_EXPIRES_AT = Date.UTC(2099, 0, 1);
-
 let authStore: AuthStore | null = null;
 const getAuthStore = (): AuthStore => {
   if (!authStore) {
@@ -122,19 +113,9 @@ const normalizeAuthUser = (payload: any): { id: string; name: string; email?: st
   };
 };
 
-const isDevAuthBypassEnabled = (): boolean => (
-  process.env.NODE_ENV === 'development' && process.env.DICLAW_DEV_FAKE_LOGIN !== '0'
+const isLegacyDevAuthToken = (token: string | null | undefined): boolean => (
+  token === 'diclaw-dev-auth-token'
 );
-
-const saveDevAuthSession = (): typeof DEV_AUTH_BYPASS_USER => {
-  getAuthStore().save(
-    DEV_AUTH_BYPASS_TOKEN,
-    DEV_AUTH_BYPASS_USER,
-    undefined,
-    DEV_AUTH_BYPASS_EXPIRES_AT
-  );
-  return DEV_AUTH_BYPASS_USER;
-};
 
 /** 防 CSRF：记录本次登录发起时生成的 state，回调时校验 */
 let pendingAuthState: string | null = null;
@@ -455,16 +436,6 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
     lastAttemptAt: Date.now(),
     lastError: undefined,
   });
-
-  if (isDevAuthBypassEnabled() && getAuthStore().getToken() === DEV_AUTH_BYPASS_TOKEN) {
-    getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
-      ...metaBefore,
-      lastAttemptAt: Date.now(),
-      lastError: 'Development fake login does not provide remote model config.',
-      stale: !getTenantConfig(),
-    });
-    return { success: false, error: 'Development fake login does not provide remote model config.' };
-  }
 
   const authContext = await fetchAuthSessionWithRefresh();
   if (!authContext.ok) {
@@ -1552,17 +1523,6 @@ if (!gotTheLock) {
    * 登录 URL 格式：{ADMIN_BASE_URL}/login?redirect_uri=diclaw://auth/callback&state=随机字符串
    */
   ipcMain.handle('auth:openLoginUrl', async () => {
-    if (isDevAuthBypassEnabled()) {
-      const user = saveDevAuthSession();
-      console.log('[Auth] Development fake login enabled, skipping external login.');
-      BrowserWindow.getAllWindows().forEach(win => {
-        if (!win.isDestroyed()) {
-          win.webContents.send('auth:loginSuccess', user);
-        }
-      });
-      return;
-    }
-
     // 生成随机 state，用于 CSRF 防护
     const state = crypto.randomBytes(16).toString('hex');
     pendingAuthState = state;
@@ -1591,9 +1551,11 @@ if (!gotTheLock) {
       return { valid: false, reason: 'no_token' };
     }
 
-    if (isDevAuthBypassEnabled() && token === DEV_AUTH_BYPASS_TOKEN) {
-      const user = getAuthStore().getCachedUser() ?? saveDevAuthSession();
-      return { valid: true, user };
+    if (isLegacyDevAuthToken(token)) {
+      console.log('[Auth] Clearing legacy development auth token and requiring remote login.');
+      getAuthStore().clear();
+      pendingAuthState = null;
+      return { valid: false, reason: 'no_token' };
     }
 
     const sessionResult = await fetchAuthSessionWithRefresh();
