@@ -55,10 +55,7 @@ type ProviderSettingsPanelProps = {
   activeProvider: string;
   activeProviderEditable: boolean;
   isTesting: boolean;
-  isImportingProviders: boolean;
-  isExportingProviders: boolean;
   showApiKey: boolean;
-  importInputRef: React.RefObject<HTMLInputElement>;
   isBaseUrlLocked: boolean;
   currentBaseUrlValue: string;
   currentBaseUrlPlaceholder: string;
@@ -73,9 +70,6 @@ type ProviderSettingsPanelProps = {
   showQwenCodingPlan: boolean;
   showVolcengineCodingPlan: boolean;
   showMoonshotCodingPlan: boolean;
-  onImportClick: () => void;
-  onExportClick: () => void;
-  onImportChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onProviderChange: (provider: string) => void;
   onToggleProvider: (provider: string) => void;
   onProviderConfigChange: (provider: string, field: string, value: string) => void;
@@ -96,10 +90,7 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
   activeProvider,
   activeProviderEditable,
   isTesting,
-  isImportingProviders,
-  isExportingProviders,
   showApiKey,
-  importInputRef,
   isBaseUrlLocked,
   currentBaseUrlValue,
   currentBaseUrlPlaceholder,
@@ -114,9 +105,6 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
   showQwenCodingPlan,
   showVolcengineCodingPlan,
   showMoonshotCodingPlan,
-  onImportClick,
-  onExportClick,
-  onImportChange,
   onProviderChange,
   onToggleProvider,
   onProviderConfigChange,
@@ -130,6 +118,17 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
   isEditableProvider,
 }) => {
   const activeConfig = providers[activeProvider];
+  const selectedApiFormatLabel = currentApiFormat === 'openai'
+    ? i18nService.t('apiFormatOpenAI')
+    : i18nService.t('apiFormatNative');
+  const showReadOnlyApiFormat = !activeProviderEditable;
+  const shouldShowCodingPlanSection = (
+    (activeProviderEditable && ['zhipu', 'qwen', 'volcengine', 'moonshot'].includes(activeProvider))
+    || showZhipuCodingPlan
+    || showQwenCodingPlan
+    || showVolcengineCodingPlan
+    || showMoonshotCodingPlan
+  );
 
   return (
     <div className="flex h-full">
@@ -138,32 +137,7 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
           <h3 className="text-sm font-medium dark:text-dark-text text-text-primary">
             {i18nService.t('modelProviders')}
           </h3>
-          <div className="flex items-center space-x-1">
-            <button
-              type="button"
-              onClick={onImportClick}
-              disabled={isImportingProviders || isExportingProviders}
-              className="inline-flex items-center px-2 py-1 text-[11px] font-medium rounded-lg border dark:border-dark-border border-border dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-            >
-              {i18nService.t('import')}
-            </button>
-            <button
-              type="button"
-              onClick={onExportClick}
-              disabled={isImportingProviders || isExportingProviders}
-              className="inline-flex items-center px-2 py-1 text-[11px] font-medium rounded-lg border dark:border-dark-border border-border dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-            >
-              {i18nService.t('export')}
-            </button>
-          </div>
         </div>
-        <input
-          ref={importInputRef}
-          type="file"
-          accept="application/json"
-          className="hidden"
-          onChange={onImportChange}
-        />
         {Object.entries(visibleProviders).map(([provider, config]) => {
           const providerInfo = providerMeta[provider];
           const missingApiKey = providerRequiresApiKey(provider) && !config.apiKey.trim();
@@ -194,26 +168,28 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
                   <ManagedProviderBadge compact className="ml-2 rounded-md" />
                 )}
               </div>
-              <div className="flex items-center ml-2">
-                <div
-                  title={!canToggleProvider ? i18nService.t('configureApiKey') : undefined}
-                  className={`w-7 h-4 rounded-full flex items-center transition-colors ${config.enabled ? 'bg-primary' : 'dark:bg-dark-border bg-border'
-                    } ${canToggleProvider ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                    }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!canToggleProvider) {
-                      return;
-                    }
-                    onToggleProvider(provider);
-                  }}
-                >
+              {editable && (
+                <div className="flex items-center ml-2">
                   <div
-                    className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${config.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                    title={!canToggleProvider ? i18nService.t('configureApiKey') : undefined}
+                    className={`w-7 h-4 rounded-full flex items-center transition-colors ${config.enabled ? 'bg-primary' : 'dark:bg-dark-border bg-border'
+                      } ${canToggleProvider ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
                       }`}
-                  />
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!canToggleProvider) {
+                        return;
+                      }
+                      onToggleProvider(provider);
+                    }}
+                  >
+                    <div
+                      className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${config.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                        }`}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
@@ -243,7 +219,7 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
           <ManagedProviderNotice />
         )}
 
-        {providerRequiresApiKey(activeProvider) && (
+        {providerRequiresApiKey(activeProvider) && activeProviderEditable && (
           <div>
             <label htmlFor={`${activeProvider}-apiKey`} className="block text-xs font-medium dark:text-dark-text text-text-primary mb-1">
               {i18nService.t('apiKey')}
@@ -356,7 +332,20 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
           )}
         </div>
 
-        {apiFormatSelectorVisible && (
+        {showReadOnlyApiFormat && (
+          <div>
+            <label className="block text-xs font-medium dark:text-dark-text text-text-primary mb-1">
+              {i18nService.t('apiFormat')}
+            </label>
+            <div className="rounded-xl border dark:border-dark-border border-border bg-surface/40 dark:bg-dark-surface/40 px-3 py-2">
+              <span className="text-xs dark:text-dark-text text-text-primary">
+                {selectedApiFormatLabel}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {apiFormatSelectorVisible && activeProviderEditable && (
           <div>
             <label htmlFor={`${activeProvider}-apiFormat`} className="block text-xs font-medium dark:text-dark-text text-text-primary mb-1">
               {i18nService.t('apiFormat')}
@@ -397,7 +386,7 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
           </div>
         )}
 
-        {(['zhipu', 'qwen', 'volcengine', 'moonshot'] as const).map((providerKey) => {
+        {shouldShowCodingPlanSection && (['zhipu', 'qwen', 'volcengine', 'moonshot'] as const).map((providerKey) => {
           if (activeProvider !== providerKey) {
             return null;
           }
@@ -470,15 +459,16 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
             <h3 className="text-xs font-medium dark:text-dark-text text-text-primary">
               {i18nService.t('availableModels')}
             </h3>
-            <button
-              type="button"
-              onClick={onAddModel}
-              disabled={!activeProviderEditable}
-              className="inline-flex items-center text-xs text-primary hover:text-primary-light disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <PlusCircleIcon className="h-3.5 w-3.5 mr-1" />
-              {i18nService.t('addModel')}
-            </button>
+            {activeProviderEditable && (
+              <button
+                type="button"
+                onClick={onAddModel}
+                className="inline-flex items-center text-xs text-primary hover:text-primary-light"
+              >
+                <PlusCircleIcon className="h-3.5 w-3.5 mr-1" />
+                {i18nService.t('addModel')}
+              </button>
+            )}
           </div>
 
           <div className="space-y-1.5 max-h-60 overflow-y-auto">
@@ -499,22 +489,24 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
                         {i18nService.t('imageInput')}
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => onEditModel(model.id, model.name, model.supportsImage)}
-                      disabled={!activeProviderEditable}
-                      className="p-0.5 dark:text-dark-text-secondary text-text-secondary hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <PencilIcon className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteModel(model.id)}
-                      disabled={!activeProviderEditable}
-                      className="p-0.5 dark:text-dark-text-secondary text-text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <TrashIcon className="h-3.5 w-3.5" />
-                    </button>
+                    {activeProviderEditable && (
+                      <button
+                        type="button"
+                        onClick={() => onEditModel(model.id, model.name, model.supportsImage)}
+                        className="p-0.5 dark:text-dark-text-secondary text-text-secondary hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <PencilIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {activeProviderEditable && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteModel(model.id)}
+                        className="p-0.5 dark:text-dark-text-secondary text-text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -523,15 +515,16 @@ export const ProviderSettingsPanel: React.FC<ProviderSettingsPanelProps> = ({
             {(!activeConfig.models || activeConfig.models.length === 0) && (
               <div className="dark:bg-dark-surface/20 bg-surface/20 p-2.5 rounded-xl border dark:border-dark-border/50 border-border/50 text-center">
                 <p className="text-[11px] dark:text-dark-text-secondary text-text-secondary">{i18nService.t('noModelsAvailable')}</p>
-                <button
-                  type="button"
-                  onClick={onAddModel}
-                  disabled={!activeProviderEditable}
-                  className="mt-1.5 inline-flex items-center text-[11px] font-medium text-primary hover:text-primary-light disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <PlusCircleIcon className="h-3 w-3 mr-1" />
-                  {i18nService.t('addFirstModel')}
-                </button>
+                {activeProviderEditable && (
+                  <button
+                    type="button"
+                    onClick={onAddModel}
+                    className="mt-1.5 inline-flex items-center text-[11px] font-medium text-primary hover:text-primary-light"
+                  >
+                    <PlusCircleIcon className="h-3 w-3 mr-1" />
+                    {i18nService.t('addFirstModel')}
+                  </button>
+                )}
               </div>
             )}
           </div>
