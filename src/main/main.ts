@@ -92,7 +92,7 @@ type RemoteModelsResponse = {
 };
 
 // ==================== Auth ====================
-const ADMIN_BASE_URL = 'http://172.16.10.34:3006';
+const ADMIN_BASE_URL = 'http://114.132.74.2:3006';
 const DEV_AUTH_BYPASS_TOKEN = 'diclaw-dev-auth-token';
 const DEV_AUTH_BYPASS_USER = {
   id: 'dev-local-user',
