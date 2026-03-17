@@ -40,3 +40,6 @@ nul
 
 # editorconfig files
 .vscode/
+
+# release build outputs
+release/
