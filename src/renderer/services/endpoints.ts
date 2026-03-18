@@ -21,16 +21,16 @@ export const getAdminApiBase = () => isTestMode()
 
 /**
  * 管理端 Token 校验接口
- * GET {base}/api/desktop/auth/verify
+ * GET {base}/api/v1/desktop/auth/verify
  * Authorization: Bearer {token}
  */
-export const getAdminVerifyUrl = () => `${getAdminApiBase()}/api/desktop/auth/verify`;
+export const getAdminVerifyUrl = () => `${getAdminApiBase()}/api/v1/desktop/auth/verify`;
 
 /**
  * 管理端登出接口（可选）
- * POST {base}/api/desktop/auth/logout
+ * POST {base}/api/v1/desktop/auth/logout
  */
-export const getAdminLogoutUrl = () => `${getAdminApiBase()}/api/desktop/auth/logout`;
+export const getAdminLogoutUrl = () => `${getAdminApiBase()}/api/v1/desktop/auth/logout`;
 
 /**
  * 管理端提供的登录页 URL（在外部浏览器打开）

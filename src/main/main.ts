@@ -463,7 +463,7 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
   }
 
   console.log('[Auth] Syncing remote model config for orgSlug =', orgSlug);
-  const resp = await fetch(`${ADMIN_BASE_URL}/api/models`, {
+  const resp = await fetch(`${ADMIN_BASE_URL}/api/v1/models`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${authContext.accessToken}`,
