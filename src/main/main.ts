@@ -92,7 +92,7 @@ type RemoteModelsResponse = {
 };
 
 // ==================== Auth ====================
-const ADMIN_BASE_URL = 'http://114.132.74.2:3006';
+const ADMIN_BASE_URL = 'http://114.132.74.2:3000';
 let authStore: AuthStore | null = null;
 const getAuthStore = (): AuthStore => {
   if (!authStore) {
@@ -3421,7 +3421,6 @@ if (!gotTheLock) {
     }
   });
 }
-
 
 
 

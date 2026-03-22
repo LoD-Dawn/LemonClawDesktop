@@ -16,8 +16,8 @@ const isTestMode = () => {
  * 渲染进程只需要知道"打开登录 URL"，具体 URL 由主进程管理。
  */
 export const getAdminApiBase = () => isTestMode()
-  ? 'http://114.132.74.2:3006'
-  : 'http://114.132.74.2:3006';
+  ? 'http://114.132.74.2:3000'
+  : 'http://114.132.74.2:3000';
 
 /**
  * 管理端 Token 校验接口
@@ -37,8 +37,8 @@ export const getAdminLogoutUrl = () => `${getAdminApiBase()}/api/v1/desktop/auth
  * 登录成功后管理端会重定向到：diclaw://auth?token=xxx
  */
 export const getAdminLoginUrl = () => isTestMode()
-  ? 'http://114.132.74.2:3006/login?from=desktop'
-  : 'http://114.132.74.2:3006/login?from=desktop';
+  ? 'http://114.132.74.2:3000/login?from=desktop'
+  : 'http://114.132.74.2:3000/login?from=desktop';
 
 // 自动更新
 export const getUpdateCheckUrl = () => isTestMode()
