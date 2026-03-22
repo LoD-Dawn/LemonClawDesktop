@@ -14,7 +14,7 @@ export type ProviderConfig = {
 };
 
 export type TenantConfig = {
-  orgSlug: string;
+  tenantLabel: string;
   fetchedAt: number;
   version?: string;
   providers: Record<string, ProviderConfig>;

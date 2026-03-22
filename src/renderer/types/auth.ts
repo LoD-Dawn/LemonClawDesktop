@@ -4,9 +4,27 @@ export interface AuthUser {
   id: string;
   name: string;
   email?: string;
-  avatar?: string;
-  orgSlug?: string;
-  orgId?: string | null;
+  isActive?: boolean;
+  roles?: {
+    isSuperAdmin?: boolean;
+    isDepartmentAdmin?: boolean;
+  };
+  organization?: {
+    id?: string;
+    name?: string;
+    type?: string;
+    path?: string;
+    level?: number;
+  };
+  department?: {
+    id?: string;
+    name?: string;
+    type?: string;
+    path?: string;
+    level?: number;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
   [key: string]: unknown;
 }
 
@@ -34,4 +52,3 @@ export interface AuthVerifyResult {
 export interface AuthLogoutResult {
   success: boolean;
 }
-

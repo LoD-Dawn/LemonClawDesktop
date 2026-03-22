@@ -183,8 +183,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     { value: 'zh', label: i18nService.t('chinese') },
     { value: 'en', label: i18nService.t('english') },
   ];
+  const organizationLabel = authUser?.organization?.name || authUser?.organization?.path;
   const displayUserName = authUser
-    ? [authUser.orgSlug, authUser.name].filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join('-')
+    ? [organizationLabel, authUser.name].filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join('-')
     : '';
 
   const handleLanguageChange = useCallback((nextLanguage: LanguageType) => {
@@ -476,6 +477,4 @@ const Sidebar: React.FC<SidebarProps> = ({
 };
 
 export default Sidebar;
-
-
 

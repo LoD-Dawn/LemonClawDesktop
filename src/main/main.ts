@@ -39,9 +39,67 @@ import type { ProviderConfig, ProviderModelConfig, ResolvedModelConfig, TenantCo
 import crypto from 'crypto';
 
 // 主进程本地类型定义（不依赖渲染层类型文件）
+type AuthOrganization = {
+  id?: string;
+  name?: string;
+  type?: string;
+  path?: string;
+  level?: number;
+};
+
+type ExternalAuthUser = {
+  id?: string;
+  email?: string;
+  name?: string;
+  isActive?: boolean;
+  roles?: {
+    isSuperAdmin?: boolean;
+    isDepartmentAdmin?: boolean;
+  };
+  organization?: AuthOrganization;
+  department?: AuthOrganization | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type AuthValidateResponse = {
+  valid?: boolean;
+  auth?: {
+    type?: string;
+    scopes?: string[];
+    accessTokenExpiresAt?: string;
+    client?: {
+      id?: string;
+      clientId?: string;
+      name?: string;
+    };
+  };
+  user?: ExternalAuthUser;
+};
+
+type AuthMeResponse = {
+  data?: ExternalAuthUser;
+};
+
+type NormalizedAuthUser = {
+  id: string;
+  name: string;
+  email?: string;
+  isActive?: boolean;
+  roles?: {
+    isSuperAdmin?: boolean;
+    isDepartmentAdmin?: boolean;
+  };
+  organization?: AuthOrganization;
+  department?: AuthOrganization | null;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+};
+
 interface AuthVerifyResult {
   valid: boolean;
-  user?: { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; orgId?: string | null; [key: string]: unknown };
+  user?: NormalizedAuthUser;
   reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }
 
@@ -101,15 +159,61 @@ const getAuthStore = (): AuthStore => {
   return authStore;
 };
 
-const normalizeAuthUser = (payload: any): { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; orgId?: string | null; [key: string]: unknown } => {
-  const user = payload?.data?.user ?? payload?.user ?? payload?.data ?? { id: 'unknown', name: '用户' };
-  const orgSlug = payload?.data?.orgSlug ?? payload?.orgSlug ?? (typeof user?.orgSlug === 'string' ? user.orgSlug : '未知组织');
-  const orgId = payload?.data?.orgId ?? payload?.orgId ?? user?.orgId ?? null;
+const normalizeAuthUser = (user: ExternalAuthUser | null | undefined): NormalizedAuthUser => {
+  const organization = user?.organization && typeof user.organization === 'object'
+    ? user.organization
+    : undefined;
+  const department = user?.department && typeof user.department === 'object'
+    ? user.department
+    : user?.department === null
+      ? null
+      : undefined;
+  const name = typeof user?.name === 'string' && user.name.trim()
+    ? user.name.trim()
+    : (typeof user?.email === 'string' && user.email.trim() ? user.email.trim() : '用户');
 
   return {
     ...user,
-    ...(typeof orgSlug === 'string' && orgSlug.trim() ? { orgSlug } : {}),
-    orgId,
+    id: typeof user?.id === 'string' && user.id.trim() ? user.id.trim() : 'unknown',
+    name,
+    ...(typeof user?.email === 'string' && user.email.trim() ? { email: user.email.trim() } : {}),
+    ...(typeof user?.isActive === 'boolean' ? { isActive: user.isActive } : {}),
+    ...(user?.roles && typeof user.roles === 'object' ? { roles: user.roles } : {}),
+    ...(organization ? { organization } : {}),
+    ...(department !== undefined ? { department } : {}),
+    ...(typeof user?.createdAt === 'string' ? { createdAt: user.createdAt } : {}),
+    ...(typeof user?.updatedAt === 'string' ? { updatedAt: user.updatedAt } : {}),
+  };
+};
+
+const getUserFromMeResponse = (payload: AuthMeResponse | null | undefined): ExternalAuthUser | undefined => {
+  return payload?.data;
+};
+
+const getUserFromValidateResponse = (payload: AuthValidateResponse | null | undefined): ExternalAuthUser | undefined => {
+  return payload?.user;
+};
+
+const normalizeTenantConfig = (payload: unknown): TenantConfig | null => {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const raw = payload as Partial<TenantConfig>;
+  const tenantLabel = typeof raw.tenantLabel === 'string' && raw.tenantLabel.trim()
+    ? raw.tenantLabel.trim()
+    : '';
+
+  if (!tenantLabel) {
+    return null;
+  }
+
+  return {
+    tenantLabel,
+    fetchedAt: typeof raw.fetchedAt === 'number' ? raw.fetchedAt : Date.now(),
+    ...(typeof raw.version === 'string' ? { version: raw.version } : {}),
+    providers: raw.providers ?? {},
+    defaults: raw.defaults ?? {},
   };
 };
 
@@ -178,9 +282,9 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
   }
 
   try {
-    // ② 用 access_token 从管理端获取用户会话信息
-    const sessionUrl = `${ADMIN_BASE_URL}/api/v1/auth/session`;
-    const resp = await fetch(sessionUrl, {
+    // ② 用 access_token 获取当前用户信息
+    const meUrl = `${ADMIN_BASE_URL}/api/external/v1/me`;
+    const resp = await fetch(meUrl, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(10000),
@@ -204,8 +308,16 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
       return;
     }
 
-    const json = await resp.json();
-    const user = normalizeAuthUser(json);
+    const json = await resp.json() as AuthMeResponse;
+    const user = normalizeAuthUser(getUserFromMeResponse(json));
+    if (user.isActive === false) {
+      BrowserWindow.getAllWindows().forEach(win => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('auth:loginError', '账号已被管理员禁用');
+        }
+      });
+      return;
+    }
 
     // ③ 计算过期时间（expires_in 单位为秒）
     const expiresAt = expiresIn > 0 ? Date.now() + expiresIn * 1000 : undefined;
@@ -221,7 +333,7 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
       }
     });
   } catch (error) {
-    console.error('[Auth] Failed to get user session:', error);
+    console.error('[Auth] Failed to get current user:', error);
     BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
         win.webContents.send('auth:loginError', '网络连接失败，请检查网络后重试');
@@ -233,6 +345,7 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
 /**
  * 用 refresh_token 换取新的 access_token
  * POST /api/v1/auth/refresh
+ * body: { refresh_token: string }
  * 成功返回新 token 信息，失败返回 null
  */
 const refreshAccessToken = async (): Promise<{
@@ -352,7 +465,8 @@ const normalizeRemoteProviders = (
 };
 
 const getTenantConfig = (): TenantConfig | null => {
-  return getStore().get<TenantConfig>(TENANT_CONFIG_KEY) ?? null;
+  const stored = getStore().get<unknown>(TENANT_CONFIG_KEY);
+  return normalizeTenantConfig(stored);
 };
 
 const getTenantConfigMeta = (): TenantConfigMeta | null => {
@@ -368,16 +482,16 @@ const getResolvedModelConfig = (): ResolvedModelConfig => {
   });
 };
 
-const fetchAuthSessionWithRefresh = async (): Promise<{
+const fetchAuthContextWithRefresh = async (): Promise<{
   ok: true;
   accessToken: string;
-  user: { id: string; name: string; email?: string; avatar?: string; orgSlug?: string; orgId?: string | null; [key: string]: unknown };
+  user: NormalizedAuthUser;
 } | {
   ok: false;
   reason: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }> => {
-  const callSession = async (accessToken: string) => {
-    return fetch(`${ADMIN_BASE_URL}/api/v1/auth/session`, {
+  const callValidate = async (accessToken: string) => {
+    return fetch(`${ADMIN_BASE_URL}/api/external/v1/me/validate`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(10000),
@@ -390,7 +504,7 @@ const fetchAuthSessionWithRefresh = async (): Promise<{
   }
 
   try {
-    let resp = await callSession(accessToken);
+    let resp = await callValidate(accessToken);
     if (resp.status === 401) {
       console.log('[Auth] access_token expired (401), attempting refresh...');
       const refreshed = await refreshAccessToken();
@@ -403,23 +517,42 @@ const fetchAuthSessionWithRefresh = async (): Promise<{
       const cachedUser = getAuthStore().getCachedUser() ?? { id: 'unknown', name: '用户' };
       getAuthStore().save(refreshed.accessToken, cachedUser, refreshed.refreshToken, refreshed.expiresAt);
       accessToken = refreshed.accessToken;
-      resp = await callSession(accessToken);
+      resp = await callValidate(accessToken);
 
       if (!resp.ok) {
-        console.warn('[Auth] Session invalid after token refresh, status:', resp.status);
+        console.warn('[Auth] Validation failed after token refresh, status:', resp.status);
         getAuthStore().clear();
         return { ok: false, reason: 'expired' };
       }
     }
 
-    if (!resp.ok) {
-      console.warn('[Auth] Session check failed, status:', resp.status, '→ treating as disabled');
+    if (resp.status === 403) {
+      console.warn('[Auth] Validation rejected with 403, treating account as disabled');
       getAuthStore().clear();
       return { ok: false, reason: 'disabled' };
     }
 
-    const json = await resp.json();
-    const user = normalizeAuthUser(json);
+    if (!resp.ok) {
+      console.warn('[Auth] Validation failed, status:', resp.status, '→ treating as disabled');
+      getAuthStore().clear();
+      return { ok: false, reason: 'disabled' };
+    }
+
+    const json = await resp.json() as AuthValidateResponse;
+    if (json.valid !== true) {
+      const currentUser = getUserFromValidateResponse(json);
+      const reason = currentUser?.isActive === false ? 'disabled' : 'expired';
+      console.warn('[Auth] Validation response marked token as invalid, reason =', reason);
+      getAuthStore().clear();
+      return { ok: false, reason };
+    }
+
+    const user = normalizeAuthUser(getUserFromValidateResponse(json));
+    if (user.isActive === false) {
+      console.warn('[Auth] Validation response returned inactive user, treating as disabled');
+      getAuthStore().clear();
+      return { ok: false, reason: 'disabled' };
+    }
     getAuthStore().updateUser(user);
 
     return { ok: true, accessToken, user };
@@ -437,10 +570,10 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
     lastError: undefined,
   });
 
-  const authContext = await fetchAuthSessionWithRefresh();
+  const authContext = await fetchAuthContextWithRefresh();
   if (!authContext.ok) {
     const reason = 'reason' in authContext ? authContext.reason : 'network_error';
-    console.warn('[Auth] Remote model config sync aborted: auth session unavailable, reason =', reason);
+    console.warn('[Auth] Remote model config sync aborted: auth context unavailable, reason =', reason);
     getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
       ...metaBefore,
       lastAttemptAt: Date.now(),
@@ -450,24 +583,15 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
     return { success: false, error: `Authentication required (${reason}).` };
   }
 
-  const orgSlug = authContext.user.orgSlug?.trim();
-  if (!orgSlug) {
-    console.warn('[Auth] Remote model config sync aborted: missing orgSlug in auth session payload for user', authContext.user.id);
-    getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
-      ...metaBefore,
-      lastAttemptAt: Date.now(),
-      lastError: 'Missing tenant slug in auth session.',
-      stale: !!getTenantConfig(),
-    });
-    return { success: false, error: 'Missing tenant slug in auth session.' };
-  }
-
-  console.log('[Auth] Syncing remote model config for orgSlug =', orgSlug);
-  const resp = await fetch(`${ADMIN_BASE_URL}/api/v1/models`, {
+  const tenantLabel = authContext.user.organization?.name?.trim()
+    || authContext.user.organization?.path?.trim()
+    || authContext.user.organization?.id?.trim()
+    || authContext.user.id;
+  console.log('[Auth] Syncing remote model config for tenant =', tenantLabel);
+  const resp = await fetch(`${ADMIN_BASE_URL}/api/external/v1/me/models`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${authContext.accessToken}`,
-      'x-org-id': orgSlug,
     },
     signal: AbortSignal.timeout(10000),
   });
@@ -479,7 +603,7 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
       JSON.stringify({
         status: resp.status,
         statusText: resp.statusText,
-        orgSlug,
+        tenantLabel,
         bodyPreview: errorBody.slice(0, 300),
       })
     );
@@ -496,14 +620,14 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
   console.log(
     '[Auth] Remote model config fetched:',
     JSON.stringify({
-      orgSlug,
+      tenantLabel,
       defaultModel: remoteConfig.model?.defaultModel ?? null,
       defaultModelProvider: remoteConfig.model?.defaultModelProvider ?? null,
       providers: Object.keys(remoteConfig.providers ?? {}),
     })
   );
   const tenantConfig: TenantConfig = {
-    orgSlug,
+    tenantLabel,
     fetchedAt: Date.now(),
     providers: normalizeRemoteProviders(remoteConfig.providers),
     defaults: {
@@ -1536,7 +1660,7 @@ if (!gotTheLock) {
   });
 
   /**
-   * 校验本地 token 是否有效（调用管理端 session 接口）
+   * 校验本地 token 是否有效（调用管理端 /api/external/v1/me/validate 接口）
    *
    * 状态机：
    *   200  → 有效，更新缓存用户信息
@@ -1558,7 +1682,7 @@ if (!gotTheLock) {
       return { valid: false, reason: 'no_token' };
     }
 
-    const sessionResult = await fetchAuthSessionWithRefresh();
+    const sessionResult = await fetchAuthContextWithRefresh();
     if (sessionResult.ok) {
       return { valid: true, user: sessionResult.user };
     }
@@ -3421,6 +3545,3 @@ if (!gotTheLock) {
     }
   });
 }
-
-
-
