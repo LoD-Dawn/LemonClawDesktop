@@ -13,7 +13,6 @@ import CoworkPermissionModal from './components/cowork/CoworkPermissionModal';
 import CoworkSearchModal from './components/cowork/CoworkSearchModal';
 import CoworkQuestionWizard from './components/cowork/CoworkQuestionWizard';
 import LoginScreen from './components/auth/LoginScreen';
-import DisabledScreen from './components/auth/DisabledScreen';
 import { configService } from './services/config';
 import { apiService } from './services/api';
 import { themeService } from './services/theme';
@@ -24,7 +23,7 @@ import { defaultConfig } from './config';
 import { setAvailableModels, setSelectedModel } from './store/slices/modelSlice';
 import { clearSelection } from './store/slices/quickActionSlice';
 import { selectTask, setViewMode } from './store/slices/scheduledTaskSlice';
-import { setAuthLoggedIn, setAuthLoggedOut, setAuthDisabled } from './store/slices/authSlice';
+import { setAuthLoggedIn, setAuthLoggedOut } from './store/slices/authSlice';
 import type { CoworkPermissionResult } from './types/cowork';
 import type { AuthUser } from './types/auth';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
@@ -58,7 +57,6 @@ const App: React.FC = () => {
   const pendingPermissions = useSelector((state: RootState) => state.cowork.pendingPermissions);
   const pendingPermission = pendingPermissions[0] ?? null;
   const authStatus = useSelector((state: RootState) => state.auth.status);
-  const authUser = useSelector((state: RootState) => state.auth.user);
   const isWindows = window.electron.platform === 'win32';
 
   const showToast = useCallback((message: string) => {
@@ -127,6 +125,22 @@ const App: React.FC = () => {
     return true;
   }, [showToast]);
 
+  useEffect(() => {
+    const unsubscribe = window.electron.ipcRenderer.on(
+      'auth:sessionInvalid',
+      () => {
+        coworkService.clearSession();
+        dispatch(setAuthLoggedOut());
+        setInitError(null);
+        setIsInitialized(true);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [dispatch]);
+
   // 初始化应用
   useEffect(() => {
     const initializeApp = async () => {
@@ -137,15 +151,8 @@ const App: React.FC = () => {
         // ===== 1. 认证校验（最优先，失败则不继续初始化）=====
         const verifyResult = await window.electron.auth.verify();
         if (!verifyResult.valid) {
-          if (verifyResult.reason === 'disabled') {
-            dispatch(setAuthDisabled());
-            // 显示禁用页（setIsInitialized 让加载画面消失）
-            setIsInitialized(true);
-          } else {
-            // expired / no_token / network_error → 显示登录页
-            dispatch(setAuthLoggedOut());
-            setIsInitialized(true);
-          }
+          dispatch(setAuthLoggedOut());
+          setIsInitialized(true);
           return; // 停止后续初始化
         }
         dispatch(setAuthLoggedIn(verifyResult.user!));
@@ -301,16 +308,6 @@ const App: React.FC = () => {
     setIsInitialized(false);
     setInitNonce((value) => value + 1);
   }, [dispatch]);
-
-  // 处理禁用页切换账号
-  const handleSwitchAccount = useCallback(async () => {
-    await window.electron.auth.logout();
-    dispatch(setAuthLoggedOut());
-    setInitError(null);
-    setIsInitialized(true);
-  }, [dispatch]);
-
-
   const runUpdateCheck = useCallback(async () => {
     try {
       const currentVersion = await window.electron.appInfo.getVersion();
@@ -613,10 +610,6 @@ const App: React.FC = () => {
   // 认证状态渲染分叉
   if (authStatus === 'logged_out') {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  }
-
-  if (authStatus === 'disabled') {
-    return <DisabledScreen user={authUser} onSwitchAccount={handleSwitchAccount} />;
   }
 
   if (initError) {

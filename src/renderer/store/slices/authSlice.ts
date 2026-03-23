@@ -26,11 +26,8 @@ const authSlice = createSlice({
       state.status = 'logged_out';
       state.user = null;
     },
-    setAuthDisabled(state) {
-      state.status = 'disabled';
-    },
   },
 });
 
-export const { setAuthChecking, setAuthLoggedIn, setAuthLoggedOut, setAuthDisabled } = authSlice.actions;
+export const { setAuthChecking, setAuthLoggedIn, setAuthLoggedOut } = authSlice.actions;
 export default authSlice.reducer;

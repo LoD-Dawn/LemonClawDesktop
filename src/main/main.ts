@@ -103,6 +103,18 @@ interface AuthVerifyResult {
   reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }
 
+type AuthFailureReason = NonNullable<AuthVerifyResult['reason']>;
+type AuthContextSuccess = {
+  ok: true;
+  accessToken: string;
+  user: NormalizedAuthUser;
+};
+type AuthContextFailure = {
+  ok: false;
+  reason: AuthFailureReason;
+  error: string;
+};
+
 type LegacyProviderAppConfig = {
   enabled: boolean;
   apiKey: string;
@@ -489,6 +501,15 @@ const fetchAuthContextWithRefresh = async (): Promise<{
   ok: false;
   reason: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }> => {
+  const readAuthErrorCode = async (resp: Response): Promise<string | null> => {
+    try {
+      const json = await resp.clone().json() as { code?: unknown };
+      return typeof json?.code === 'string' ? json.code : null;
+    } catch {
+      return null;
+    }
+  };
+
   const callValidate = async (accessToken: string) => {
   return fetch(`${ADMIN_API_BASE_URL}/api/external/v1/me/validate`, {
       method: 'GET',
@@ -505,6 +526,13 @@ const fetchAuthContextWithRefresh = async (): Promise<{
   try {
     let resp = await callValidate(accessToken);
     if (resp.status === 401) {
+      const authErrorCode = await readAuthErrorCode(resp);
+      if (authErrorCode === 'AUTH_INVALID_TOKEN') {
+        console.warn('[Auth] Validation returned AUTH_INVALID_TOKEN, treating account as disabled');
+        getAuthStore().clear();
+        return { ok: false, reason: 'disabled' };
+      }
+
       console.log('[Auth] access_token expired (401), attempting refresh...');
       const refreshed = await refreshAccessToken();
       if (!refreshed) {
@@ -519,39 +547,32 @@ const fetchAuthContextWithRefresh = async (): Promise<{
       resp = await callValidate(accessToken);
 
       if (!resp.ok) {
+        const refreshedAuthErrorCode = await readAuthErrorCode(resp);
+        if (resp.status === 401 && refreshedAuthErrorCode === 'AUTH_INVALID_TOKEN') {
+          console.warn('[Auth] Validation after refresh returned AUTH_INVALID_TOKEN, treating account as disabled');
+          getAuthStore().clear();
+          return { ok: false, reason: 'disabled' };
+        }
         console.warn('[Auth] Validation failed after token refresh, status:', resp.status);
         getAuthStore().clear();
         return { ok: false, reason: 'expired' };
       }
     }
 
-    if (resp.status === 403) {
-      console.warn('[Auth] Validation rejected with 403, treating account as disabled');
-      getAuthStore().clear();
-      return { ok: false, reason: 'disabled' };
-    }
-
     if (!resp.ok) {
-      console.warn('[Auth] Validation failed, status:', resp.status, '→ treating as disabled');
+      console.warn('[Auth] Validation failed, status:', resp.status, '→ treating as expired');
       getAuthStore().clear();
-      return { ok: false, reason: 'disabled' };
+      return { ok: false, reason: 'expired' };
     }
 
     const json = await resp.json() as AuthValidateResponse;
     if (json.valid !== true) {
-      const currentUser = getUserFromValidateResponse(json);
-      const reason = currentUser?.isActive === false ? 'disabled' : 'expired';
-      console.warn('[Auth] Validation response marked token as invalid, reason =', reason);
+      console.warn('[Auth] Validation response marked token as invalid, treating as expired');
       getAuthStore().clear();
-      return { ok: false, reason };
+      return { ok: false, reason: 'expired' };
     }
 
     const user = normalizeAuthUser(getUserFromValidateResponse(json));
-    if (user.isActive === false) {
-      console.warn('[Auth] Validation response returned inactive user, treating as disabled');
-      getAuthStore().clear();
-      return { ok: false, reason: 'disabled' };
-    }
     getAuthStore().updateUser(user);
 
     return { ok: true, accessToken, user };
@@ -559,6 +580,51 @@ const fetchAuthContextWithRefresh = async (): Promise<{
     console.warn('[Auth] verify network error (offline not permitted):', error);
     return { ok: false, reason: 'network_error' };
   }
+};
+
+const getAuthFailureMessage = (reason: AuthFailureReason): string => {
+  switch (reason) {
+    case 'disabled':
+      return '账号已无访问权限，请重新登录';
+    case 'expired':
+      return '登录已过期，请重新登录';
+    case 'no_token':
+      return '请先登录';
+    case 'network_error':
+    default:
+      return '网络连接失败，请稍后重试';
+  }
+};
+
+const emitAuthSessionInvalid = (reason: Exclude<AuthFailureReason, 'network_error'>): void => {
+  const payload = {
+    reason,
+    message: getAuthFailureMessage(reason),
+  };
+
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('auth:sessionInvalid', payload);
+    }
+  });
+};
+
+const ensureActiveAuthSession = async (): Promise<AuthContextSuccess | AuthContextFailure> => {
+  const sessionResult = await fetchAuthContextWithRefresh();
+  if (sessionResult.ok) {
+    return sessionResult;
+  }
+
+  const reason: AuthFailureReason = 'reason' in sessionResult ? sessionResult.reason : 'network_error';
+  if (reason !== 'network_error') {
+    emitAuthSessionInvalid(reason);
+  }
+
+  return {
+    ok: false,
+    reason,
+    error: getAuthFailureMessage(reason),
+  };
 };
 
 const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }> => {
@@ -1426,6 +1492,7 @@ const getScheduler = () => {
       scheduledTaskStore: getScheduledTaskStore(),
       coworkStore: getCoworkStore(),
       getCoworkRunner,
+      ensureActiveAuthSession,
       getIMGatewayManager: () => {
         try { return getIMGatewayManager(); } catch { return null; }
       },
@@ -2033,6 +2100,12 @@ if (!gotTheLock) {
     imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
   }) => {
     try {
+      const authContext = await ensureActiveAuthSession();
+      if ('error' in authContext) {
+        const { error } = authContext;
+        return { success: false, error };
+      }
+
       const coworkStoreInstance = getCoworkStore();
       const config = coworkStoreInstance.getConfig();
       const systemPrompt = options.systemPrompt ?? config.systemPrompt;
@@ -2124,6 +2197,12 @@ if (!gotTheLock) {
     imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
   }) => {
     try {
+      const authContext = await ensureActiveAuthSession();
+      if ('error' in authContext) {
+        const { error } = authContext;
+        return { success: false, error };
+      }
+
       console.log('[main] cowork:session:continue handler', {
         sessionId: options.sessionId,
         hasImageAttachments: !!options.imageAttachments,
@@ -2597,6 +2676,12 @@ if (!gotTheLock) {
 
   ipcMain.handle('scheduledTask:runManually', async (_event, id: string) => {
     try {
+      const authContext = await ensureActiveAuthSession();
+      if ('error' in authContext) {
+        const { error } = authContext;
+        return { success: false, error };
+      }
+
       getScheduler().runManually(id).catch((err) => {
         console.error(`[IPC] Manual run failed for ${id}:`, err);
       });

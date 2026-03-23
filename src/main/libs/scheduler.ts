@@ -8,6 +8,10 @@ interface SchedulerDeps {
   scheduledTaskStore: ScheduledTaskStore;
   coworkStore: CoworkStore;
   getCoworkRunner: () => CoworkRunner;
+  ensureActiveAuthSession?: () => Promise<
+    | { ok: true }
+    | { ok: false; reason: 'no_token' | 'expired' | 'disabled' | 'network_error'; error: string }
+  >;
   getIMGatewayManager?: () => IMGatewayManager | null;
   getSkillsPrompt?: () => Promise<string | null>;
 }
@@ -16,6 +20,7 @@ export class Scheduler {
   private store: ScheduledTaskStore;
   private coworkStore: CoworkStore;
   private getCoworkRunner: () => CoworkRunner;
+  private ensureActiveAuthSession: SchedulerDeps['ensureActiveAuthSession'];
   private getIMGatewayManager: (() => IMGatewayManager | null) | null;
   private getSkillsPrompt: (() => Promise<string | null>) | null;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -31,6 +36,7 @@ export class Scheduler {
     this.store = deps.scheduledTaskStore;
     this.coworkStore = deps.coworkStore;
     this.getCoworkRunner = deps.getCoworkRunner;
+    this.ensureActiveAuthSession = deps.ensureActiveAuthSession;
     this.getIMGatewayManager = deps.getIMGatewayManager ?? null;
     this.getSkillsPrompt = deps.getSkillsPrompt ?? null;
   }
@@ -206,6 +212,14 @@ export class Scheduler {
   }
 
   private async startCoworkSession(task: ScheduledTask): Promise<string> {
+    if (this.ensureActiveAuthSession) {
+      const authCheck = await this.ensureActiveAuthSession();
+      if ('error' in authCheck) {
+        const { error } = authCheck;
+        throw new Error(error);
+      }
+    }
+
     const config = this.coworkStore.getConfig();
     const cwd = task.workingDirectory || config.workingDirectory;
     const baseSystemPrompt = task.systemPrompt || config.systemPrompt;
