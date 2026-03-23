@@ -1,4 +1,4 @@
-import { getUpdateCheckUrl, getFallbackDownloadUrl } from './endpoints';
+import { getUpdateCheckUrl } from './endpoints';
 
 export const UPDATE_POLL_INTERVAL_MS = 12 * 60 * 60 * 1000;
 export const UPDATE_HEARTBEAT_INTERVAL_MS = 30 * 60 * 1000;
@@ -80,14 +80,14 @@ const getPlatformDownloadUrl = (value: UpdateValue | undefined): string => {
 
   if (platform === 'darwin') {
     const download = arch === 'arm64' ? value?.macArm : value?.macIntel;
-    return download?.url?.trim() || getFallbackDownloadUrl();
+    return download?.url?.trim() || '';
   }
 
   if (platform === 'win32') {
-    return value?.windowsX64?.url?.trim() || getFallbackDownloadUrl();
+    return value?.windowsX64?.url?.trim() || '';
   }
 
-  return getFallbackDownloadUrl();
+  return '';
 };
 
 export const checkForAppUpdate = async (currentVersion: string): Promise<AppUpdateInfo | null> => {
@@ -114,6 +114,11 @@ export const checkForAppUpdate = async (currentVersion: string): Promise<AppUpda
     return null;
   }
 
+  const url = getPlatformDownloadUrl(value);
+  if (!url) {
+    return null;
+  }
+
   const toEntry = (log?: ChangeLogLang): ChangeLogEntry => ({
     title: typeof log?.title === 'string' ? log.title : '',
     content: Array.isArray(log?.content) ? log.content : [],
@@ -126,6 +131,6 @@ export const checkForAppUpdate = async (currentVersion: string): Promise<AppUpda
       zh: toEntry(value?.changeLog?.ch),
       en: toEntry(value?.changeLog?.en),
     },
-    url: getPlatformDownloadUrl(value),
+    url,
   };
 };
