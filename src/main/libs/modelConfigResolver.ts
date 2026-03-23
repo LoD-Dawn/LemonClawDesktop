@@ -8,6 +8,7 @@ import type {
   UserPreferences,
 } from '../../shared/modelConfig';
 import { normalizeProviderApiFormat } from './coworkFormatTransform';
+import { decryptManagedProviderApiKeyIfNeeded } from './modelApiKeyCrypto';
 
 type LegacyAppConfig = {
   api?: {
@@ -168,6 +169,7 @@ export function resolveModelConfig(input: {
     Object.entries(tenantConfig.providers).forEach(([providerKey, providerConfig]) => {
       resolvedProviders[providerKey] = {
         ...providerConfig,
+        apiKey: decryptManagedProviderApiKeyIfNeeded(providerConfig.apiKey, { providerKey }),
         source: 'tenant',
       };
     });
