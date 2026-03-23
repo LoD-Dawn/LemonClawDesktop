@@ -14,7 +14,7 @@ import { generateSessionTitle, probeCoworkModelReadiness } from './libs/coworkUt
 import { ensureSandboxReady, getSandboxStatus, onSandboxProgress } from './libs/coworkSandboxRuntime';
 import { startCoworkOpenAICompatProxy, stopCoworkOpenAICompatProxy, setScheduledTaskDeps } from './libs/coworkOpenAICompatProxy';
 import { IMGatewayManager, IMPlatform, IMGatewayConfig } from './im';
-import { APP_NAME } from './appConstants';
+import { ADMIN_API_BASE_URL, APP_NAME } from '../shared/appConstants';
 import { getSkillServiceManager } from './skillServices';
 import { createTray, destroyTray, updateTrayMenu } from './trayManager';
 import { isAutoLaunched, getAutoLaunchEnabled, setAutoLaunchEnabled } from './autoLaunchManager';
@@ -150,7 +150,6 @@ type RemoteModelsResponse = {
 };
 
 // ==================== Auth ====================
-const ADMIN_BASE_URL = 'http://114.132.74.2:3000';
 let authStore: AuthStore | null = null;
 const getAuthStore = (): AuthStore => {
   if (!authStore) {
@@ -283,7 +282,7 @@ const handleAuthDeepLink = async (url: string): Promise<void> => {
 
   try {
     // ② 用 access_token 获取当前用户信息
-    const meUrl = `${ADMIN_BASE_URL}/api/external/v1/me`;
+  const meUrl = `${ADMIN_API_BASE_URL}/api/external/v1/me`;
     const resp = await fetch(meUrl, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${accessToken}` },
@@ -360,7 +359,7 @@ const refreshAccessToken = async (): Promise<{
   }
 
   try {
-    const resp = await fetch(`${ADMIN_BASE_URL}/api/v1/auth/refresh`, {
+  const resp = await fetch(`${ADMIN_API_BASE_URL}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
@@ -491,7 +490,7 @@ const fetchAuthContextWithRefresh = async (): Promise<{
   reason: 'no_token' | 'expired' | 'disabled' | 'network_error';
 }> => {
   const callValidate = async (accessToken: string) => {
-    return fetch(`${ADMIN_BASE_URL}/api/external/v1/me/validate`, {
+  return fetch(`${ADMIN_API_BASE_URL}/api/external/v1/me/validate`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(10000),
@@ -588,7 +587,7 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
     || authContext.user.organization?.id?.trim()
     || authContext.user.id;
   console.log('[Auth] Syncing remote model config for tenant =', tenantLabel);
-  const resp = await fetch(`${ADMIN_BASE_URL}/api/external/v1/me/models`, {
+  const resp = await fetch(`${ADMIN_API_BASE_URL}/api/external/v1/me/models`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${authContext.accessToken}`,
@@ -1644,14 +1643,14 @@ if (!gotTheLock) {
 
   /**
    * 打开管理端登录 URL（在外部浏览器），等待深链接回调
-   * 登录 URL 格式：{ADMIN_BASE_URL}/login?redirect_uri=diclaw://auth/callback&state=随机字符串
+ * 登录 URL 格式：{ADMIN_API_BASE_URL}/login?redirect_uri=diclaw://auth/callback&state=随机字符串
    */
   ipcMain.handle('auth:openLoginUrl', async () => {
     // 生成随机 state，用于 CSRF 防护
     const state = crypto.randomBytes(16).toString('hex');
     pendingAuthState = state;
 
-    const loginUrl = new URL(`${ADMIN_BASE_URL}/login`);
+  const loginUrl = new URL(`${ADMIN_API_BASE_URL}/login`);
     loginUrl.searchParams.set('redirect_uri', 'diclaw://auth/callback');
     loginUrl.searchParams.set('state', state);
 

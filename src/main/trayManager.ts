@@ -1,6 +1,6 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import path from 'path';
-import { APP_NAME } from './appConstants';
+import { APP_NAME } from '../shared/appConstants';
 import type { SqliteStore } from './sqliteStore';
 import { getUserPreferences } from './libs/userPreferencesStore';
 

@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
-import { DB_FILENAME } from './appConstants';
+import { DB_FILENAME } from '../shared/appConstants';
 
 type ChangePayload<T = unknown> = {
   key: string;

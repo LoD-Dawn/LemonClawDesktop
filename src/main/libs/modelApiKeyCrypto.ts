@@ -1,16 +1,9 @@
 import crypto from 'crypto';
-
-const DEFAULT_MANAGED_PROVIDER_API_KEY_SECRET = '37HrRDXVh5RfrSZPpPVUuxDCw5mNtv';
-const MANAGED_PROVIDER_API_KEY_SECRET_ENV_KEY = 'DICLAW_MANAGED_PROVIDER_API_KEY_SECRET';
-
-const getManagedProviderApiKeySecret = (): string => {
-  const envSecret = process.env[MANAGED_PROVIDER_API_KEY_SECRET_ENV_KEY]?.trim();
-  return envSecret || DEFAULT_MANAGED_PROVIDER_API_KEY_SECRET;
-};
+import { MANAGED_PROVIDER_API_KEY_SECRET_ENV_KEY } from '../../shared/appConstants';
 
 export const decryptManagedProviderApiKey = (
   encryptedValue: string,
-  secret: string = getManagedProviderApiKeySecret()
+  secret: string = MANAGED_PROVIDER_API_KEY_SECRET_ENV_KEY
 ): string => {
   if (!encryptedValue) {
     return encryptedValue;
