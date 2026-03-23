@@ -17,10 +17,17 @@ import { i18nService } from '../../services/i18n';
 import { skillService, resolveLocalizedText } from '../../services/skill';
 import { setSkills } from '../../store/slices/skillSlice';
 import { RootState } from '../../store';
-import { Skill, MarketplaceSkill, MarketTag } from '../../types/skill';
+import { Skill, MarketplacePagination, MarketplaceSkill, MarketTag } from '../../types/skill';
 import ErrorMessage from '../ErrorMessage';
 
 type SkillTab = 'installed' | 'marketplace';
+
+const DEFAULT_MARKETPLACE_PAGINATION: MarketplacePagination = {
+  page: 1,
+  pageSize: 20,
+  total: 0,
+  pageCount: 1,
+};
 
 const SkillsManager: React.FC = () => {
   const dispatch = useDispatch();
@@ -37,6 +44,7 @@ const SkillsManager: React.FC = () => {
   const [marketTags, setMarketTags] = useState<MarketTag[]>([]);
   const [activeMarketTag, setActiveMarketTag] = useState('all');
   const [isLoadingMarketplace, setIsLoadingMarketplace] = useState(false);
+  const [marketplacePagination, setMarketplacePagination] = useState<MarketplacePagination>(DEFAULT_MARKETPLACE_PAGINATION);
   const [installingSkillId, setInstallingSkillId] = useState<string | null>(null);
   const [selectedMarketplaceSkill, setSelectedMarketplaceSkill] = useState<MarketplaceSkill | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
@@ -71,14 +79,21 @@ const SkillsManager: React.FC = () => {
   useEffect(() => {
     let isActive = true;
     setIsLoadingMarketplace(true);
-    skillService.fetchMarketplaceSkills().then((data) => {
+    skillService.fetchMarketplaceSkills({
+      page: marketplacePagination.page,
+      pageSize: marketplacePagination.pageSize,
+    }).then((data) => {
       if (!isActive) return;
       setMarketplaceSkills(data.skills);
       setMarketTags(data.tags);
+      setMarketplacePagination(data.pagination);
+      if (data.error) {
+        setSkillActionError(data.error);
+      }
       setIsLoadingMarketplace(false);
     });
     return () => { isActive = false; };
-  }, []);
+  }, [marketplacePagination.page, marketplacePagination.pageSize]);
 
   useEffect(() => {
     if (!isAddSkillMenuOpen) return;
@@ -158,7 +173,7 @@ const SkillsManager: React.FC = () => {
       });
     }
     if (activeMarketTag !== 'all') {
-      results = results.filter(skill => skill.tags?.includes(activeMarketTag));
+      results = results.filter(skill => skill.tagIds?.includes(activeMarketTag));
     }
     return results;
   }, [marketplaceSkills, skillSearchQuery, activeMarketTag]);
@@ -266,7 +281,7 @@ const SkillsManager: React.FC = () => {
   };
 
   const handleInstallMarketplaceSkill = async (skill: MarketplaceSkill) => {
-    if (installingSkillId || !skill.url) return;
+    if (installingSkillId || !skill.url || skill.permission?.canUse === false) return;
     setInstallingSkillId(skill.id);
     setSkillActionError('');
     try {
@@ -512,66 +527,101 @@ const SkillsManager: React.FC = () => {
                 {i18nService.t('skillMarketplaceEmpty')}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {filteredMarketplaceSkills.map((skill) => (
-              <div
-                key={skill.id}
-                className="rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface/50 bg-surface/50 p-3 transition-colors hover:border-primary/50 cursor-pointer"
-                onClick={() => setSelectedMarketplaceSkill(skill)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-lg dark:bg-dark-surface bg-surface flex items-center justify-center flex-shrink-0">
-                      <PuzzleIcon className="h-4 w-4 dark:text-dark-text-secondary text-text-secondary" />
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {filteredMarketplaceSkills.map((skill) => (
+                    <div
+                      key={skill.id}
+                      className="rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface/50 bg-surface/50 p-3 transition-colors hover:border-primary/50 cursor-pointer"
+                      onClick={() => setSelectedMarketplaceSkill(skill)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-lg dark:bg-dark-surface bg-surface flex items-center justify-center flex-shrink-0">
+                            <PuzzleIcon className="h-4 w-4 dark:text-dark-text-secondary text-text-secondary" />
+                          </div>
+                          <span className="text-sm font-medium dark:text-dark-text text-text-primary truncate">
+                            {skill.name}
+                          </span>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {isSkillInstalled(skill.id) ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg text-green-600 dark:text-green-400 bg-green-500/10">
+                              <CheckCircleIcon className="h-3.5 w-3.5" />
+                              {i18nService.t('skillAlreadyInstalled')}
+                            </span>
+                          ) : skill.permission?.canUse === false ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                              {i18nService.t('skillNoAccess')}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleInstallMarketplaceSkill(skill); }}
+                              disabled={installingSkillId !== null}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                              {installingSkillId === skill.id ? i18nService.t('skillInstalling') : i18nService.t('skillInstall')}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-xs dark:text-dark-text-secondary text-text-secondary line-clamp-2 mb-2">
+                        {resolveLocalizedText(skill.description)}
+                      </p>
+
+                      <div className="flex items-center gap-2 text-[10px] dark:text-dark-text-secondary text-text-secondary">
+                        {skill.source?.from && (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded dark:bg-dark-surface-hover bg-surface-hover font-medium">
+                              {skill.source.from}
+                            </span>
+                            <span>·</span>
+                          </>
+                        )}
+                        {skill.version && (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded dark:bg-dark-surface-hover bg-surface-hover font-medium">
+                              v{skill.version}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-sm font-medium dark:text-dark-text text-text-primary truncate">
-                      {skill.name}
-                    </span>
-                  </div>
-                  <div className="flex-shrink-0">
-                    {isSkillInstalled(skill.id) ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg text-green-600 dark:text-green-400 bg-green-500/10">
-                        <CheckCircleIcon className="h-3.5 w-3.5" />
-                        {i18nService.t('skillAlreadyInstalled')}
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleInstallMarketplaceSkill(skill); }}
-                        disabled={installingSkillId !== null}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ArrowDownTrayIcon className="h-3.5 w-3.5" />
-                        {installingSkillId === skill.id ? i18nService.t('skillInstalling') : i18nService.t('skillInstall')}
-                      </button>
-                    )}
-                  </div>
+                  ))}
                 </div>
-
-                <p className="text-xs dark:text-dark-text-secondary text-text-secondary line-clamp-2 mb-2">
-                  {resolveLocalizedText(skill.description)}
-                </p>
-
-                <div className="flex items-center gap-2 text-[10px] dark:text-dark-text-secondary text-text-secondary">
-                  {skill.source?.from && (
-                    <>
-                      <span className="px-1.5 py-0.5 rounded dark:bg-dark-surface-hover bg-surface-hover font-medium">
-                        {skill.source.from}
-                      </span>
-                      <span>·</span>
-                    </>
-                  )}
-                  {skill.version && (
-                    <>
-                      <span className="px-1.5 py-0.5 rounded dark:bg-dark-surface-hover bg-surface-hover font-medium">
-                        v{skill.version}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+                {marketplacePagination.pageCount > 1 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setMarketplacePagination((prev) => ({
+                        ...prev,
+                        page: Math.max(1, prev.page - 1),
+                      }))}
+                      disabled={marketplacePagination.page <= 1}
+                      className="px-3 py-1.5 text-xs rounded-lg border dark:border-dark-border border-border dark:text-dark-text text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {i18nService.t('paginationPrevious')}
+                    </button>
+                    <div className="text-xs dark:text-dark-text-secondary text-text-secondary">
+                      {marketplacePagination.page} / {marketplacePagination.pageCount}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMarketplacePagination((prev) => ({
+                        ...prev,
+                        page: Math.min(prev.pageCount, prev.page + 1),
+                      }))}
+                      disabled={marketplacePagination.page >= marketplacePagination.pageCount}
+                      className="px-3 py-1.5 text-xs rounded-lg border dark:border-dark-border border-border dark:text-dark-text text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {i18nService.t('paginationNext')}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )
@@ -650,6 +700,10 @@ const SkillsManager: React.FC = () => {
               <div className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium">
                 <CheckCircleIcon className="h-4 w-4" />
                 {i18nService.t('skillAlreadyInstalled')}
+              </div>
+            ) : selectedMarketplaceSkill.permission?.canUse === false ? (
+              <div className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-medium">
+                {i18nService.t('skillNoAccess')}
               </div>
             ) : (
               <button

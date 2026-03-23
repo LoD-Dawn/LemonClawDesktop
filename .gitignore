@@ -7,6 +7,7 @@ dist
 dist-electron
 .DS_Store
 .env 
+src/main/appConstants.private.ts
 .claude/
 __pycache__/
 .codebuddy/

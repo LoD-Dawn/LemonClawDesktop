@@ -1,5 +1,4 @@
-import { Skill, MarketplaceSkill, MarketTag, LocalSkillInfo, LocalizedText } from '../types/skill';
-import { getSkillStoreUrl } from './endpoints';
+import { Skill, MarketplacePagination, MarketplaceSkill, MarketTag, LocalSkillInfo, LocalizedText } from '../types/skill';
 import { i18nService } from './i18n';
 
 export function resolveLocalizedText(text: string | LocalizedText): string {
@@ -20,6 +19,51 @@ type EmailConnectivityTestResult = {
   testedAt: number;
   verdict: 'pass' | 'fail';
   checks: EmailConnectivityCheck[];
+};
+
+type MarketplaceFetchResult = {
+  skills: MarketplaceSkill[];
+  tags: MarketTag[];
+  pagination: MarketplacePagination;
+  error?: string;
+};
+
+const DEFAULT_MARKETPLACE_PAGINATION: MarketplacePagination = {
+  page: 1,
+  pageSize: 20,
+  total: 0,
+  pageCount: 1,
+};
+
+const normalizeMarketTag = (tag: MarketTag): MarketTag | null => {
+  const id = tag.id.trim();
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    en: tag.en || id,
+    zh: tag.zh || null,
+  };
+};
+
+const buildMarketplaceTags = (skills: MarketplaceSkill[]): MarketTag[] => {
+  const seen = new Set<string>();
+  const tags: MarketTag[] = [];
+
+  skills.forEach((skill) => {
+    skill.tags?.forEach((tag) => {
+      const normalizedTag = normalizeMarketTag(tag);
+      if (!normalizedTag || seen.has(normalizedTag.id)) {
+        return;
+      }
+      seen.add(normalizedTag.id);
+      tags.push(normalizedTag);
+    });
+  });
+
+  return tags;
 };
 
 class SkillService {
@@ -169,33 +213,55 @@ class SkillService {
       return null;
     }
   }
-  async fetchMarketplaceSkills(): Promise<{ skills: MarketplaceSkill[]; tags: MarketTag[] }> {
+  async fetchMarketplaceSkills(options?: { page?: number; pageSize?: number }): Promise<MarketplaceFetchResult> {
     try {
-      const response = await fetch(getSkillStoreUrl());
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const result = await window.electron.skills.fetchMarketplace(options);
+      if (!result.success) {
+        return {
+          skills: [],
+          tags: [],
+          pagination: DEFAULT_MARKETPLACE_PAGINATION,
+          error: result.error || 'Failed to fetch marketplace skills',
+        };
       }
-      const json = await response.json();
-      const value = json?.data?.value;
-      // Store local skill descriptions for i18n lookup
-      const localSkills: LocalSkillInfo[] = Array.isArray(value?.localSkill) ? value.localSkill : [];
+
+      const skills: MarketplaceSkill[] = Array.isArray(result.data) ? result.data : [];
+      const normalizedSkills = skills.map((skill) => ({
+        ...skill,
+        tags: Array.isArray(skill.tags)
+          ? skill.tags
+              .map((tag) => normalizeMarketTag(tag))
+              .filter((tag): tag is MarketTag => Boolean(tag))
+          : [],
+        tagIds: Array.isArray(skill.tagIds) ? skill.tagIds : (skill.tags || []).map((tag) => tag.id),
+      }));
+
+      const localSkills: LocalSkillInfo[] = [];
       this.localSkillDescriptions.clear();
       for (const ls of localSkills) {
         this.localSkillDescriptions.set(ls.name, ls.description);
       }
-      const skills: MarketplaceSkill[] = Array.isArray(value?.marketplace) ? value.marketplace : [];
-      const tags: MarketTag[] = Array.isArray(value?.marketTags) ? value.marketTags : [];
-      // Also store marketplace skill descriptions for i18n lookup (keyed by id)
+
       this.marketplaceSkillDescriptions.clear();
-      for (const ms of skills) {
+      for (const ms of normalizedSkills) {
         if (typeof ms.description === 'object') {
           this.marketplaceSkillDescriptions.set(ms.id, ms.description);
         }
       }
-      return { skills, tags };
+
+      return {
+        skills: normalizedSkills,
+        tags: buildMarketplaceTags(normalizedSkills),
+        pagination: result.pagination || DEFAULT_MARKETPLACE_PAGINATION,
+      };
     } catch (error) {
       console.error('Failed to fetch marketplace skills:', error);
-      return { skills: [], tags: [] };
+      return {
+        skills: [],
+        tags: [],
+        pagination: DEFAULT_MARKETPLACE_PAGINATION,
+        error: error instanceof Error ? error.message : 'Failed to fetch marketplace skills',
+      };
     }
   }
 

@@ -12,12 +12,28 @@ export interface Skill {
   version?: string;       // Skill version from SKILL.md frontmatter
 }
 
-export type LocalizedText = { en: string; zh: string };
+export type LocalizedText = { en?: string | null; zh?: string | null };
+
+export interface MarketplaceSkillPermission {
+  accessState?: string | null;
+  canUse: boolean;
+  canApply: boolean;
+  grantStatus?: string | null;
+  applicationStatus?: string | null;
+  sensitiveFieldsHidden: boolean;
+}
+
+export interface MarketplacePagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  pageCount: number;
+}
 
 export interface MarketTag {
   id: string;
   en: string;
-  zh: string;
+  zh: string | null;
 }
 
 export interface LocalSkillInfo {
@@ -29,9 +45,11 @@ export interface LocalSkillInfo {
 
 export interface MarketplaceSkill {
   id: string;
+  resourceId?: string;
   name: string;
   description: string | LocalizedText;
-  tags?: string[];
+  tags?: MarketTag[];
+  tagIds?: string[];
   url: string;              // Download URL (.zip)
   version: string;
   source: {
@@ -39,4 +57,5 @@ export interface MarketplaceSkill {
     url: string;            // Source repo URL
     author?: string;        // Author name
   };
+  permission?: MarketplaceSkillPermission;
 }

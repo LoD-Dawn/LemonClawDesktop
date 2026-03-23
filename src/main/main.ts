@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, session, nativeTheme, dialog, shell, nativeImage, systemPreferences, Menu } from 'electron';
 import type { WebContents } from 'electron';
+import './libs/runtimeEnv';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -79,6 +80,55 @@ type AuthValidateResponse = {
 
 type AuthMeResponse = {
   data?: ExternalAuthUser;
+};
+
+type ExternalMarketplaceLocalizedText = {
+  en?: string | null;
+  zh?: string | null;
+};
+
+type ExternalMarketplaceTag = {
+  id?: string;
+  en?: string | null;
+  zh?: string | null;
+};
+
+type ExternalMarketplaceSkillPermission = {
+  accessState?: string | null;
+  canUse?: boolean;
+  canApply?: boolean;
+  grantStatus?: string | null;
+  applicationStatus?: string | null;
+  sensitiveFieldsHidden?: boolean;
+};
+
+type ExternalMarketplaceSkillItem = {
+  id?: string;
+  resourceId?: string;
+  name?: string;
+  description?: string | ExternalMarketplaceLocalizedText | null;
+  tags?: unknown[];
+  tagIds?: unknown[];
+  url?: string;
+  version?: string;
+  source?: {
+    from?: string;
+    url?: string;
+    author?: string;
+  };
+  permission?: ExternalMarketplaceSkillPermission;
+};
+
+type ExternalMarketplacePagination = {
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  pageCount?: number;
+};
+
+type ExternalMarketplaceSkillsResponse = {
+  data?: ExternalMarketplaceSkillItem[];
+  pagination?: ExternalMarketplacePagination;
 };
 
 type NormalizedAuthUser = {
@@ -473,6 +523,86 @@ const normalizeRemoteProviders = (
       ];
     })
   );
+};
+
+const clampPositiveInteger = (value: unknown, fallback: number, max: number): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(Math.max(Math.floor(parsed), 1), max);
+};
+
+const normalizeMarketplaceDescription = (
+  description: ExternalMarketplaceSkillItem['description']
+): { en: string; zh: string | null } => {
+  if (typeof description === 'string') {
+    return { en: description, zh: null };
+  }
+
+  return {
+    en: typeof description?.en === 'string' ? description.en : '',
+    zh: typeof description?.zh === 'string' ? description.zh : null,
+  };
+};
+
+const normalizeMarketplaceTag = (tag: unknown): { id: string; en: string; zh: string | null } | null => {
+  if (typeof tag === 'string') {
+    const normalized = tag.trim();
+    if (!normalized) return null;
+    return {
+      id: normalized,
+      en: normalized,
+      zh: null,
+    };
+  }
+
+  const tagObject = tag as ExternalMarketplaceTag | null | undefined;
+  const id = typeof tagObject?.id === 'string' ? tagObject.id.trim() : '';
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    en: typeof tagObject?.en === 'string' ? tagObject.en : id,
+    zh: typeof tagObject?.zh === 'string' ? tagObject.zh : null,
+  };
+};
+
+const normalizeMarketplaceSkillItem = (item: ExternalMarketplaceSkillItem) => {
+  const normalizedTags = Array.isArray(item.tags)
+    ? item.tags
+        .map(normalizeMarketplaceTag)
+        .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag))
+    : [];
+  const normalizedTagIds = Array.isArray(item.tagIds)
+    ? item.tagIds.filter((tagId): tagId is string => typeof tagId === 'string' && tagId.trim().length > 0)
+    : normalizedTags.map((tag) => tag.id);
+
+  return {
+    id: typeof item.id === 'string' ? item.id : '',
+    resourceId: typeof item.resourceId === 'string' ? item.resourceId : undefined,
+    name: typeof item.name === 'string' ? item.name : '',
+    description: normalizeMarketplaceDescription(item.description),
+    tags: normalizedTags,
+    tagIds: normalizedTagIds,
+    url: typeof item.url === 'string' ? item.url : '',
+    version: typeof item.version === 'string' ? item.version : '',
+    source: {
+      from: typeof item.source?.from === 'string' ? item.source.from : '',
+      url: typeof item.source?.url === 'string' ? item.source.url : '',
+      author: typeof item.source?.author === 'string' ? item.source.author : undefined,
+    },
+    permission: {
+      accessState: typeof item.permission?.accessState === 'string' ? item.permission.accessState : null,
+      canUse: item.permission?.canUse ?? true,
+      canApply: item.permission?.canApply ?? false,
+      grantStatus: typeof item.permission?.grantStatus === 'string' ? item.permission.grantStatus : null,
+      applicationStatus: typeof item.permission?.applicationStatus === 'string' ? item.permission.applicationStatus : null,
+      sensitiveFieldsHidden: item.permission?.sensitiveFieldsHidden ?? false,
+    },
+  };
 };
 
 const getTenantConfig = (): TenantConfig | null => {
@@ -1952,6 +2082,60 @@ if (!gotTheLock) {
 
   ipcMain.handle('skills:download', async (_event, source: string) => {
     return getSkillManager().downloadSkill(source);
+  });
+
+  ipcMain.handle('skills:fetchMarketplace', async (_event, options?: { page?: number; pageSize?: number }) => {
+    const authContext = await ensureActiveAuthSession();
+    if (authContext.ok === false) {
+      return { success: false, error: authContext.error, reason: authContext.reason };
+    }
+
+    const page = clampPositiveInteger(options?.page, 1, 9999);
+    const pageSize = clampPositiveInteger(options?.pageSize, 20, 200);
+    const requestUrl = new URL(`${ADMIN_API_BASE_URL}/api/external/v1/me/skills`);
+    requestUrl.searchParams.set('page', String(page));
+    requestUrl.searchParams.set('pageSize', String(pageSize));
+
+    try {
+      const resp = await fetch(requestUrl.toString(), {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${authContext.accessToken}`,
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!resp.ok) {
+        const bodyPreview = await resp.text().catch(() => '');
+        return {
+          success: false,
+          error: `Failed to fetch marketplace skills: ${resp.status} ${resp.statusText}${bodyPreview ? ` - ${bodyPreview.slice(0, 200)}` : ''}`,
+        };
+      }
+
+      const payload = await resp.json() as ExternalMarketplaceSkillsResponse;
+      const items = Array.isArray(payload.data)
+        ? payload.data
+            .map(normalizeMarketplaceSkillItem)
+            .filter((item) => item.id && item.name)
+        : [];
+
+      return {
+        success: true,
+        data: items,
+        pagination: {
+          page: clampPositiveInteger(payload.pagination?.page, page, 9999),
+          pageSize: clampPositiveInteger(payload.pagination?.pageSize, pageSize, 200),
+          total: Math.max(0, Number(payload.pagination?.total) || 0),
+          pageCount: Math.max(1, Number(payload.pagination?.pageCount) || 1),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch marketplace skills',
+      };
+    }
   });
 
   ipcMain.handle('skills:getRoot', () => {

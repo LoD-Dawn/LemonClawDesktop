@@ -191,6 +191,22 @@ interface Skill {
   skillPath: string;
 }
 
+interface MarketplaceSkillPermission {
+  accessState?: string | null;
+  canUse: boolean;
+  canApply: boolean;
+  grantStatus?: string | null;
+  applicationStatus?: string | null;
+  sensitiveFieldsHidden: boolean;
+}
+
+interface MarketplacePagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  pageCount: number;
+}
+
 type EmailConnectivityCheckCode = 'imap_connection' | 'smtp_connection';
 type EmailConnectivityCheckLevel = 'pass' | 'fail';
 type EmailConnectivityVerdict = 'pass' | 'fail';
@@ -272,14 +288,36 @@ interface IElectronAPI {
     set: (key: string, value: any) => Promise<void>;
     remove: (key: string) => Promise<void>;
   };
-  skills: {
-    list: () => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
-    setEnabled: (options: { id: string; enabled: boolean }) => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
-    delete: (id: string) => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
-    download: (source: string) => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
-    getRoot: () => Promise<{ success: boolean; path?: string; error?: string }>;
-    autoRoutingPrompt: () => Promise<{ success: boolean; prompt?: string | null; error?: string }>;
-    getConfig: (skillId: string) => Promise<{ success: boolean; config?: Record<string, string>; error?: string }>;
+    skills: {
+      list: () => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
+      setEnabled: (options: { id: string; enabled: boolean }) => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
+      delete: (id: string) => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
+      download: (source: string) => Promise<{ success: boolean; skills?: Skill[]; error?: string }>;
+      fetchMarketplace: (options?: { page?: number; pageSize?: number }) => Promise<{
+        success: boolean;
+        data?: Array<{
+          id: string;
+          resourceId?: string;
+          name: string;
+          description: { en: string; zh: string | null };
+          tags: Array<{ id: string; en: string; zh: string | null }>;
+          tagIds?: string[];
+          url: string;
+          version: string;
+          source: {
+            from: string;
+            url: string;
+            author?: string;
+          };
+          permission: MarketplaceSkillPermission;
+        }>;
+        pagination?: MarketplacePagination;
+        error?: string;
+        reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
+      }>;
+      getRoot: () => Promise<{ success: boolean; path?: string; error?: string }>;
+      autoRoutingPrompt: () => Promise<{ success: boolean; prompt?: string | null; error?: string }>;
+      getConfig: (skillId: string) => Promise<{ success: boolean; config?: Record<string, string>; error?: string }>;
     setConfig: (skillId: string, config: Record<string, string>) => Promise<{ success: boolean; error?: string }>;
     testEmailConnectivity: (
       skillId: string,
