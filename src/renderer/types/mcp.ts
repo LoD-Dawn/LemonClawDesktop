@@ -38,43 +38,51 @@ export interface McpRegistryEntry {
   id: string;                    // unique identifier, e.g. 'filesystem'
   name: string;                  // display name
   descriptionKey: string;        // i18n translation key for description
-  description_zh?: string;       // Chinese description (remote data)
-  description_en?: string;       // English description (remote data)
-  category: McpCategory;         // category tag
+  description_zh?: string | null; // Chinese description (remote data)
+  description_en?: string | null; // English description (remote data)
+  category: string;              // category tag
   categoryKey: string;           // i18n translation key for category
   transportType: McpTransportType;
-  command: string;               // default command, e.g. 'npx'
-  defaultArgs: string[];         // default arguments
+  command?: string;              // default command, e.g. 'npx'
+  defaultArgs?: string[];        // default arguments
   requiredEnvKeys?: string[];    // env vars the user must fill
   optionalEnvKeys?: string[];    // optional env vars
   argPlaceholders?: string[];    // placeholder hints for args (e.g. path)
+  resourceId?: string;
+  permission?: McpMarketplacePermission;
 }
 
 // Remote marketplace server entry
+export interface McpMarketplacePermission {
+  accessState?: string | null;
+  canUse: boolean;
+  canApply: boolean;
+  grantStatus?: string | null;
+  applicationStatus?: string | null;
+  sensitiveFieldsHidden: boolean;
+}
+
 export interface McpMarketplaceServer {
   id: string;
+  resourceId?: string;
   name: string;
-  description_zh?: string;
-  description_en?: string;
+  description_zh?: string | null;
+  description_en?: string | null;
   category: string;
-  transportType: string;
-  command: string;
-  defaultArgs: string[];
+  transportType: McpTransportType;
+  command?: string;
+  defaultArgs?: string[];
   requiredEnvKeys?: string[];
   optionalEnvKeys?: string[];
+  permission?: McpMarketplacePermission;
 }
 
 // Dynamic marketplace category from remote
 export interface McpMarketplaceCategoryInfo {
   id: string;
-  name_zh: string;
-  name_en: string;
+  key?: string;
+  name_zh?: string;
+  name_en?: string;
 }
 
-export type McpCategory =
-  | 'search'
-  | 'browser'
-  | 'developer'
-  | 'productivity'
-  | 'design'
-  | 'data-api';
+export type McpCategory = string;

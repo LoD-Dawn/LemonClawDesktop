@@ -258,26 +258,17 @@ interface McpServerConfigIPC {
 
 interface McpMarketplaceServer {
   id: string;
+  resourceId?: string;
   name: string;
-  description_zh: string;
-  description_en: string;
+  description_zh?: string | null;
+  description_en?: string | null;
   category: string;
   transportType: 'stdio' | 'sse' | 'http';
-  command: string;
-  defaultArgs: string[];
+  command?: string;
+  defaultArgs?: string[];
   requiredEnvKeys?: string[];
   optionalEnvKeys?: string[];
-}
-
-interface McpMarketplaceCategory {
-  id: string;
-  name_zh: string;
-  name_en: string;
-}
-
-interface McpMarketplaceData {
-  categories: McpMarketplaceCategory[];
-  servers: McpMarketplaceServer[];
+  permission?: MarketplaceSkillPermission;
 }
 
 interface IElectronAPI {
@@ -331,7 +322,13 @@ interface IElectronAPI {
     update: (id: string, data: any) => Promise<{ success: boolean; servers?: McpServerConfigIPC[]; error?: string }>;
     delete: (id: string) => Promise<{ success: boolean; servers?: McpServerConfigIPC[]; error?: string }>;
     setEnabled: (options: { id: string; enabled: boolean }) => Promise<{ success: boolean; servers?: McpServerConfigIPC[]; error?: string }>;
-    fetchMarketplace: () => Promise<{ success: boolean; data?: McpMarketplaceData; error?: string }>;
+    fetchMarketplace: (options?: { page?: number }) => Promise<{
+      success: boolean;
+      data?: McpMarketplaceServer[];
+      pagination?: MarketplacePagination;
+      error?: string;
+      reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
+    }>;
   };
   api: {
     fetch: (options: {

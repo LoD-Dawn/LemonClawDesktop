@@ -131,6 +131,33 @@ type ExternalMarketplaceSkillsResponse = {
   pagination?: ExternalMarketplacePagination;
 };
 
+type ExternalMarketplaceMcpTransport = {
+  type?: string | null;
+  command?: string | null;
+  defaultArgs?: unknown[];
+};
+
+type ExternalMarketplaceMcpEnv = {
+  requiredKeys?: unknown[];
+  optionalKeys?: unknown[];
+};
+
+type ExternalMarketplaceMcpItem = {
+  id?: string;
+  resourceId?: string;
+  name?: string;
+  description?: string | ExternalMarketplaceLocalizedText | null;
+  category?: string | null;
+  transport?: ExternalMarketplaceMcpTransport | null;
+  env?: ExternalMarketplaceMcpEnv | null;
+  permission?: ExternalMarketplaceSkillPermission;
+};
+
+type ExternalMarketplaceMcpsResponse = {
+  data?: ExternalMarketplaceMcpItem[];
+  pagination?: ExternalMarketplacePagination;
+};
+
 type NormalizedAuthUser = {
   id: string;
   name: string;
@@ -602,6 +629,49 @@ const normalizeMarketplaceSkillItem = (item: ExternalMarketplaceSkillItem) => {
       applicationStatus: typeof item.permission?.applicationStatus === 'string' ? item.permission.applicationStatus : null,
       sensitiveFieldsHidden: item.permission?.sensitiveFieldsHidden ?? false,
     },
+  };
+};
+
+const normalizeMarketplaceStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+};
+
+const normalizeMarketplacePermission = (permission?: ExternalMarketplaceSkillPermission) => ({
+  accessState: typeof permission?.accessState === 'string' ? permission.accessState : null,
+  canUse: permission?.canUse ?? true,
+  canApply: permission?.canApply ?? false,
+  grantStatus: typeof permission?.grantStatus === 'string' ? permission.grantStatus : null,
+  applicationStatus: typeof permission?.applicationStatus === 'string' ? permission.applicationStatus : null,
+  sensitiveFieldsHidden: permission?.sensitiveFieldsHidden ?? false,
+});
+
+const normalizeMarketplaceMcpItem = (item: ExternalMarketplaceMcpItem) => {
+  const transportTypeRaw = typeof item.transport?.type === 'string'
+    ? item.transport.type.trim().toLowerCase()
+    : '';
+  const transportType = transportTypeRaw === 'sse' || transportTypeRaw === 'http' ? transportTypeRaw : 'stdio';
+  const description = normalizeMarketplaceDescription(item.description);
+
+  return {
+    id: typeof item.id === 'string' ? item.id : '',
+    resourceId: typeof item.resourceId === 'string' ? item.resourceId : undefined,
+    name: typeof item.name === 'string' ? item.name : '',
+    description_zh: description.zh,
+    description_en: description.en,
+    category: typeof item.category === 'string' ? item.category.trim() : '',
+    transportType,
+    command: typeof item.transport?.command === 'string' ? item.transport.command : '',
+    defaultArgs: normalizeMarketplaceStringArray(item.transport?.defaultArgs),
+    requiredEnvKeys: normalizeMarketplaceStringArray(item.env?.requiredKeys),
+    optionalEnvKeys: normalizeMarketplaceStringArray(item.env?.optionalKeys),
+    permission: normalizeMarketplacePermission(item.permission),
   };
 };
 
@@ -2240,37 +2310,57 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('mcp:fetchMarketplace', async () => {
-    const url = app.isPackaged
-      ? 'https://api-overmind.youdao.com/openapi/get/luna/hardware/diosclaw/prod/mcp-marketplace'
-      : 'https://api-overmind.youdao.com/openapi/get/luna/hardware/diosclaw/test/mcp-marketplace';
+  ipcMain.handle('mcp:fetchMarketplace', async (_event, options?: { page?: number }) => {
+    const authContext = await ensureActiveAuthSession();
+    if (authContext.ok === false) {
+      return { success: false, error: authContext.error, reason: authContext.reason };
+    }
+
+    const page = clampPositiveInteger(options?.page, 1, 9999);
+    const pageSize = 100;
+    const requestUrl = new URL(`${ADMIN_API_BASE_URL}/api/external/v1/me/mcps`);
+    requestUrl.searchParams.set('page', String(page));
+    requestUrl.searchParams.set('pageSize', String(pageSize));
+
     try {
-      const https = await import('https');
-      const data = await new Promise<string>((resolve, reject) => {
-        const req = https.get(url, { timeout: 10000 }, (res) => {
-          if (res.statusCode !== 200) {
-            reject(new Error(`HTTP ${res.statusCode}`));
-            res.resume();
-            return;
-          }
-          let body = '';
-          res.setEncoding('utf8');
-          res.on('data', (chunk: string) => { body += chunk; });
-          res.on('end', () => resolve(body));
-          res.on('error', reject);
-        });
-        req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+      const resp = await fetch(requestUrl.toString(), {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${authContext.accessToken}`,
+        },
+        signal: AbortSignal.timeout(10000),
       });
-      const json = JSON.parse(data);
-      const value = json?.data?.value;
-      if (!value) {
-        return { success: false, error: 'Invalid response: missing data.value' };
+
+      if (!resp.ok) {
+        const bodyPreview = await resp.text().catch(() => '');
+        return {
+          success: false,
+          error: `Failed to fetch marketplace MCPs: ${resp.status} ${resp.statusText}${bodyPreview ? ` - ${bodyPreview.slice(0, 200)}` : ''}`,
+        };
       }
-      const marketplace = typeof value === 'string' ? JSON.parse(value) : value;
-      return { success: true, data: marketplace };
+
+      const payload = await resp.json() as ExternalMarketplaceMcpsResponse;
+      const items = Array.isArray(payload.data)
+        ? payload.data
+            .map(normalizeMarketplaceMcpItem)
+            .filter((item) => item.id && item.name)
+        : [];
+
+      return {
+        success: true,
+        data: items,
+        pagination: {
+          page: clampPositiveInteger(payload.pagination?.page, page, 9999),
+          pageSize: clampPositiveInteger(payload.pagination?.pageSize, pageSize, pageSize),
+          total: Math.max(0, Number(payload.pagination?.total) || 0),
+          pageCount: Math.max(1, Number(payload.pagination?.pageCount) || 1),
+        },
+      };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch marketplace' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch marketplace MCPs',
+      };
     }
   });
 

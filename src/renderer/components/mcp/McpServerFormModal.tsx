@@ -51,8 +51,8 @@ const McpServerFormModal: React.FC<McpServerFormModalProps> = ({
         || (registryEntry.descriptionKey ? i18nService.t(registryEntry.descriptionKey) : '');
       setDescription(registryDescription);
       setTransportType(registryEntry.transportType);
-      setCommand(registryEntry.command);
-      const allArgs = [...registryEntry.defaultArgs];
+      setCommand(registryEntry.command || '');
+      const allArgs = [...(registryEntry.defaultArgs || [])];
       if (registryEntry.argPlaceholders) {
         allArgs.push(...registryEntry.argPlaceholders);
       }

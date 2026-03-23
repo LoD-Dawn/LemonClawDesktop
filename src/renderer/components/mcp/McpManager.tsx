@@ -8,8 +8,7 @@ import { i18nService } from '../../services/i18n';
 import { mcpService } from '../../services/mcp';
 import { setMcpServers } from '../../store/slices/mcpSlice';
 import { RootState } from '../../store';
-import { McpServerConfig, McpServerFormData, McpRegistryEntry, McpMarketplaceCategoryInfo } from '../../types/mcp';
-import { mcpRegistry, mcpCategories } from '../../data/mcpRegistry';
+import { McpServerConfig, McpServerFormData, McpRegistryEntry } from '../../types/mcp';
 import ErrorMessage from '../ErrorMessage';
 import Tooltip from '../ui/Tooltip';
 import McpServerFormModal from './McpServerFormModal';
@@ -35,8 +34,10 @@ const McpManager: React.FC = () => {
   const [editingServer, setEditingServer] = useState<McpServerConfig | null>(null);
   const [installingRegistry, setInstallingRegistry] = useState<McpRegistryEntry | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
-  const [dynamicRegistry, setDynamicRegistry] = useState<McpRegistryEntry[]>(mcpRegistry);
-  const [dynamicCategories, setDynamicCategories] = useState<ReadonlyArray<{ id: string; key: string; name_zh?: string; name_en?: string }>>(mcpCategories);
+  const [dynamicRegistry, setDynamicRegistry] = useState<McpRegistryEntry[]>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<ReadonlyArray<{ id: string; key?: string; name_zh?: string; name_en?: string }>>([
+    { id: 'all', key: 'mcpCategoryAll' },
+  ]);
   const currentLanguage = i18nService.getLanguage();
 
   useEffect(() => {
@@ -54,20 +55,10 @@ const McpManager: React.FC = () => {
     let isActive = true;
     const fetchMarketplace = async () => {
       const result = await mcpService.fetchMarketplace();
-      if (!isActive || !result) return;
+      if (!isActive) return;
       setDynamicRegistry(result.registry);
-      const cats: Array<{ id: string; key: string; name_zh?: string; name_en?: string }> = [
-        { id: 'all', key: 'mcpCategoryAll' },
-        ...result.categories
-          .filter((c: McpMarketplaceCategoryInfo) => c.id !== 'all')
-          .map((c: McpMarketplaceCategoryInfo) => ({
-            id: c.id,
-            key: '',
-            name_zh: c.name_zh,
-            name_en: c.name_en,
-          })),
-      ];
-      setDynamicCategories(cats);
+      setDynamicCategories(result.categories);
+      setActionError(result.error || '');
     };
     fetchMarketplace();
     return () => { isActive = false; };
@@ -82,9 +73,18 @@ const McpManager: React.FC = () => {
   }, [servers]);
 
   const getRegistryEntryDescription = (entry: McpRegistryEntry): string => {
-    const remoteDescription = currentLanguage === 'zh' ? entry.description_zh : entry.description_en;
-    if (remoteDescription) return remoteDescription;
+    const preferredDescription = currentLanguage === 'zh' ? entry.description_zh : entry.description_en;
+    const fallbackDescription = currentLanguage === 'zh' ? entry.description_en : entry.description_zh;
+    if (preferredDescription) return preferredDescription;
+    if (fallbackDescription) return fallbackDescription;
     if (entry.descriptionKey) return i18nService.t(entry.descriptionKey);
+    return '';
+  };
+
+  const getRegistryEntryTransportSummary = (entry: McpRegistryEntry): string => {
+    if (entry.transportType === 'stdio') {
+      return getStdioCommandSummary(entry.command, entry.defaultArgs);
+    }
     return '';
   };
 
@@ -447,10 +447,10 @@ const McpManager: React.FC = () => {
                 className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
                   activeCategory === cat.id
                     ? 'bg-primary text-white'
-                    : 'dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover border dark:border-dark-border border-border'
+                  : 'dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover border dark:border-dark-border border-border'
                 }`}
               >
-                {(i18nService.getLanguage() === 'zh' ? cat.name_zh : cat.name_en) || i18nService.t(cat.key)}
+                {(i18nService.getLanguage() === 'zh' ? cat.name_zh : cat.name_en) || (cat.key ? i18nService.t(cat.key) : cat.id)}
               </button>
             ))}
           </div>
@@ -500,8 +500,12 @@ const McpManager: React.FC = () => {
                     <span className={`px-1.5 py-0.5 rounded font-medium ${TRANSPORT_BADGE_COLORS[entry.transportType] || ''}`}>
                       {entry.transportType}
                     </span>
-                    <span>·</span>
-                    <span className="truncate">{getStdioCommandSummary(entry.command, entry.defaultArgs)}</span>
+                    {getRegistryEntryTransportSummary(entry) && (
+                      <>
+                        <span>·</span>
+                        <span className="truncate">{getRegistryEntryTransportSummary(entry)}</span>
+                      </>
+                    )}
                     {entry.requiredEnvKeys && entry.requiredEnvKeys.length > 0 && (
                       <>
                         <span>·</span>

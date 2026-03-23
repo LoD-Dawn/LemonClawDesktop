@@ -1,4 +1,62 @@
-import { McpServerConfig, McpServerFormData, McpRegistryEntry, McpMarketplaceCategoryInfo, McpCategory, McpMarketplaceServer } from '../types/mcp';
+import { McpServerConfig, McpServerFormData, McpRegistryEntry, McpMarketplaceCategoryInfo, McpMarketplaceServer } from '../types/mcp';
+
+const DEFAULT_MCP_MARKETPLACE_PAGINATION = {
+  page: 1,
+  pageSize: 100,
+  total: 0,
+  pageCount: 1,
+};
+
+const MCP_CATEGORY_LABELS: Record<string, { zh: string; en: string }> = {
+  search: { zh: '搜索', en: 'Search' },
+  browser: { zh: '浏览器', en: 'Browser' },
+  developer: { zh: '开发工具', en: 'Dev Tools' },
+  'development-tools': { zh: '开发工具', en: 'Dev Tools' },
+  productivity: { zh: '效率工具', en: 'Productivity' },
+  design: { zh: '设计', en: 'Design' },
+  data: { zh: '数据', en: 'Data' },
+  'data-api': { zh: '数据 & API', en: 'Data & API' },
+};
+
+const toStartCase = (value: string): string => value
+  .split(/[-_\s]+/)
+  .filter(Boolean)
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ');
+
+const getCategoryLabel = (categoryId: string): { zh: string; en: string } => {
+  const trimmed = categoryId.trim();
+  if (!trimmed) {
+    return { zh: '其他', en: 'Other' };
+  }
+
+  return MCP_CATEGORY_LABELS[trimmed] || {
+    zh: trimmed,
+    en: toStartCase(trimmed),
+  };
+};
+
+const buildMarketplaceCategories = (
+  servers: McpMarketplaceServer[],
+): McpMarketplaceCategoryInfo[] => {
+  const categories = new Map<string, McpMarketplaceCategoryInfo>();
+
+  for (const server of servers) {
+    const categoryId = server.category?.trim();
+    if (!categoryId || categories.has(categoryId)) {
+      continue;
+    }
+
+    const labels = getCategoryLabel(categoryId);
+    categories.set(categoryId, {
+      id: categoryId,
+      name_zh: labels.zh,
+      name_en: labels.en,
+    });
+  }
+
+  return Array.from(categories.values());
+};
 
 /**
  * Convert remote marketplace server data to McpRegistryEntry format.
@@ -10,15 +68,17 @@ function convertMarketplaceToRegistry(
     id: s.id,
     name: s.name,
     descriptionKey: '',
+    resourceId: s.resourceId,
     description_zh: s.description_zh,
     description_en: s.description_en,
-    category: s.category as McpCategory,
+    category: s.category,
     categoryKey: '',
-    transportType: s.transportType as McpRegistryEntry['transportType'],
+    transportType: s.transportType,
     command: s.command,
     defaultArgs: s.defaultArgs,
     requiredEnvKeys: s.requiredEnvKeys,
     optionalEnvKeys: s.optionalEnvKeys,
+    permission: s.permission,
   }));
 }
 
@@ -119,17 +179,40 @@ class McpService {
   async fetchMarketplace(): Promise<{
     registry: McpRegistryEntry[];
     categories: McpMarketplaceCategoryInfo[];
-  } | null> {
+    pagination: typeof DEFAULT_MCP_MARKETPLACE_PAGINATION;
+    error?: string;
+  }> {
     try {
-      const result = await window.electron.mcp.fetchMarketplace();
-      if (result.success && result.data) {
-        const registry = convertMarketplaceToRegistry(result.data.servers);
-        return { registry, categories: result.data.categories };
+      const result = await window.electron.mcp.fetchMarketplace({ page: 1 });
+      if (!result.success) {
+        return {
+          registry: [],
+          categories: [{ id: 'all', key: 'mcpCategoryAll' }],
+          pagination: result.pagination || DEFAULT_MCP_MARKETPLACE_PAGINATION,
+          error: result.error || 'Failed to fetch marketplace MCPs',
+        };
       }
-      return null;
+
+      const servers = Array.isArray(result.data) ? result.data : [];
+      const registry = convertMarketplaceToRegistry(servers);
+      const categories: McpMarketplaceCategoryInfo[] = [
+        { id: 'all', key: 'mcpCategoryAll' },
+        ...buildMarketplaceCategories(servers),
+      ];
+
+      return {
+        registry,
+        categories,
+        pagination: result.pagination || DEFAULT_MCP_MARKETPLACE_PAGINATION,
+      };
     } catch (error) {
       console.error('Failed to fetch MCP marketplace:', error);
-      return null;
+      return {
+        registry: [],
+        categories: [{ id: 'all', key: 'mcpCategoryAll' }],
+        pagination: DEFAULT_MCP_MARKETPLACE_PAGINATION,
+        error: error instanceof Error ? error.message : 'Failed to fetch marketplace MCPs',
+      };
     }
   }
 }
