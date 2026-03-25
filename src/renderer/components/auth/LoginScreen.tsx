@@ -59,8 +59,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <div className="app-shell h-screen overflow-hidden flex flex-col">
       {/* Windows 标题栏占位（匹配主界面风格） */}
       {isWindows && (
-        <div className="draggable relative mb-3 h-9 shrink-0 rounded-2xl border border-border/70 dark:border-dark-border/70 dark:bg-dark-surface-muted/80 bg-surface/80">
-          <WindowTitleBar className="top-1.5 right-1.5" />
+        <div className="draggable relative h-10 shrink-0">
+          <WindowTitleBar isOverlayActive className="right-2 top-1 h-8" />
         </div>
       )}
 

@@ -115,6 +115,7 @@ blockquote {
   --comfort-shadow-light: 0 24px 70px rgba(153, 128, 83, 0.12), 0 8px 26px rgba(153, 128, 83, 0.06);
   --comfort-shadow-dark: 0 28px 78px rgba(8, 11, 8, 0.44), 0 8px 24px rgba(8, 11, 8, 0.24);
   --shell-radius: 32px;
+  --window-frame-radius: 14px;
 }
 
 .dark {
@@ -168,7 +169,7 @@ body {
 
 .app-shell {
   position: relative;
-  border-radius: var(--shell-radius);
+  border-radius: var(--window-frame-radius);
   overflow: hidden;
 }
 
@@ -213,7 +214,7 @@ body {
   box-shadow: var(--comfort-shadow-light);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-radius: var(--shell-radius);
+  border-radius: var(--window-frame-radius);
   position: relative;
 }
 
@@ -456,7 +457,7 @@ select::-ms-expand {
 }
 
 .brand-soft-panel {
-  @apply relative overflow-hidden rounded-[32px] border border-border/75 bg-surface/90 shadow-card;
+  @apply relative overflow-hidden rounded-[28px] border border-border/75 bg-surface/90 shadow-card;
   background: var(--comfort-surface-light);
   box-shadow: var(--comfort-shadow-light);
   backdrop-filter: blur(22px);
@@ -490,7 +491,7 @@ select::-ms-expand {
 }
 
 .comfort-card {
-  @apply relative overflow-hidden rounded-[28px] border border-border/70 bg-surface/85 shadow-subtle backdrop-blur-xl transition-all duration-200;
+  @apply relative overflow-hidden rounded-[24px] border border-border/70 bg-surface/85 shadow-subtle backdrop-blur-xl transition-all duration-200;
 }
 
 .comfort-card::after {
@@ -515,11 +516,11 @@ select::-ms-expand {
 }
 
 .soft-stat-card {
-  @apply comfort-card p-4 md:p-5;
+  @apply comfort-card p-3.5 md:p-4;
 }
 
 .soft-pill {
-  @apply inline-flex items-center gap-2 rounded-full border border-white/45 bg-white/60 px-3 py-1.5 text-xs font-medium text-text-secondary shadow-sm backdrop-blur-md;
+  @apply inline-flex items-center gap-1.5 rounded-full border border-white/45 bg-white/60 px-2.5 py-1 text-[11px] font-medium leading-4 text-text-secondary shadow-sm backdrop-blur-md;
 }
 
 .dark .soft-pill {
@@ -547,7 +548,7 @@ select::-ms-expand {
 }
 
 .soft-floating-bar {
-  @apply rounded-[30px] border border-border/70 bg-surface/80 shadow-card backdrop-blur-xl;
+  @apply rounded-[26px] border border-border/70 bg-surface/80 shadow-card backdrop-blur-xl;
 }
 
 .dark .soft-floating-bar {

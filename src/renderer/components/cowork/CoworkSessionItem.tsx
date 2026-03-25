@@ -274,7 +274,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         }
         onSelect();
       }}
-      className={`group comfort-card relative cursor-pointer p-3 ${
+      className={`group comfort-card relative cursor-pointer p-2.5 ${
         isActive
           ? 'border-primary/30 bg-primary/10 dark:bg-primary/15 shadow-card'
           : ''
@@ -297,7 +297,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className={`flex items-center mb-2 ${showStatusIndicator ? 'gap-2' : 'gap-0'}`}>
+          <div className={`mb-1.5 flex items-center ${showStatusIndicator ? 'gap-1.5' : 'gap-0'}`}>
             {/* Status indicator */}
             {showStatusIndicator && (
               <span
@@ -322,16 +322,16 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
                   }
                 }}
                 onBlur={handleRenameBlur}
-                className="flex-1 min-w-0 rounded-lg border dark:border-dark-border border-border dark:bg-dark-bg bg-page px-2 py-1 text-sm font-medium dark:text-dark-text text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 min-w-0 rounded-lg border dark:border-dark-border border-border dark:bg-dark-bg bg-page px-2 py-1 text-[13px] font-medium dark:text-dark-text text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             ) : (
-              <h3 className="text-sm font-semibold dark:text-dark-text text-text-primary truncate pr-8">
+              <h3 className="truncate pr-8 text-[13px] font-semibold leading-5 dark:text-dark-text text-text-primary">
                 {session.title}
               </h3>
             )}
           </div>
-          <div className="flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">
-            <span className="soft-pill whitespace-nowrap px-2.5 py-1 text-[10px]" title={relativeTime.full}>
+          <div className="flex items-center gap-1.5 text-xs dark:text-dark-text-secondary text-text-secondary">
+            <span className="soft-pill whitespace-nowrap px-2 py-0.5 text-[10px]" title={relativeTime.full}>
               {relativeTime.compact}
             </span>
             <span className="text-[10px] uppercase tracking-[0.18em] whitespace-nowrap">
@@ -355,7 +355,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         <button
           ref={actionButtonRef}
           onClick={openMenu}
-          className="app-icon-btn-soft bg-white/80 dark:bg-dark-surface/78 p-1.5 shadow-sm"
+          className="app-icon-btn-soft bg-white/80 dark:bg-dark-surface/78 p-1 shadow-sm"
           aria-label={actionLabel}
         >
           {session.pinned ? (
@@ -370,10 +370,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
       </div>
       )}
 
-      {menuPosition && (
+      {menuPosition && typeof document !== 'undefined' && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-50 min-w-[180px] overflow-hidden rounded-[22px] border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-popover"
+          className="fixed z-[9999] min-w-[180px] overflow-hidden rounded-[22px] border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-popover popover-enter"
           style={{ top: menuPosition.y, left: menuPosition.x }}
           role="menu"
         >
@@ -401,7 +401,8 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
               {item.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Confirmation Modal */}

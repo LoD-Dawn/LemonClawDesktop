@@ -54,7 +54,7 @@ const CoworkSessionList: React.FC<CoworkSessionListProps> = ({
 
   if (sessions.length === 0) {
     return (
-      <div className="brand-soft-panel px-4 py-8 text-center">
+      <div className="brand-soft-panel px-4 py-6 text-center">
         <p className="text-sm font-medium dark:text-dark-text text-text-primary">
           {i18nService.t('coworkNoSessions')}
         </p>
@@ -66,7 +66,7 @@ const CoworkSessionList: React.FC<CoworkSessionListProps> = ({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {sortedSessions.map((session) => (
         <CoworkSessionItem
           key={session.id}

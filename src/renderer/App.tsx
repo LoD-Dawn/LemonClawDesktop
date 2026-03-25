@@ -575,7 +575,6 @@ const App: React.FC = () => {
     );
   }, [pendingPermission, handlePermissionResponse]);
 
-  const isOverlayActive = showSettings || showUpdateModal || pendingPermissions.length > 0;
   const updateBadge = updateInfo ? (
     <AppUpdateBadge
       latestVersion={updateInfo.latestVersion}
@@ -583,8 +582,8 @@ const App: React.FC = () => {
     />
   ) : null;
   const windowsStandaloneTitleBar = isWindows ? (
-    <div className="draggable relative mx-3 mt-3 h-10 shrink-0 rounded-[26px] border dark:border-dark-border/70 dark:bg-dark-surface-muted/72 bg-surface/72 border-border/70 shadow-subtle backdrop-blur-xl">
-      <WindowTitleBar isOverlayActive={isOverlayActive} />
+    <div className="draggable relative h-10 shrink-0">
+      <WindowTitleBar isOverlayActive className="right-2 top-1 h-8" />
     </div>
   ) : null;
 

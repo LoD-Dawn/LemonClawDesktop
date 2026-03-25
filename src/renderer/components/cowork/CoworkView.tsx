@@ -389,68 +389,68 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scroll-smooth">
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-8 pt-6 md:gap-7 md:px-6 md:pb-10 md:pt-7 animate-fade-in-up">
-          <div className="pointer-events-none absolute -top-14 left-2 h-52 w-52 rounded-full bg-[#f4d1a5]/45 blur-3xl" />
-          <div className="pointer-events-none absolute right-6 top-12 h-56 w-56 rounded-full bg-[#b7deca]/45 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-8 right-20 h-36 w-36 rounded-full bg-secondary/20 blur-3xl" />
+        <div className="relative mx-auto flex max-w-5xl flex-col gap-5 px-4 pb-7 pt-5 md:gap-6 md:px-5 md:pb-8 md:pt-6 animate-fade-in-up">
+          <div className="pointer-events-none absolute -top-12 left-4 h-44 w-44 rounded-full bg-[#f4d1a5]/40 blur-3xl" />
+          <div className="pointer-events-none absolute right-8 top-10 h-48 w-48 rounded-full bg-[#b7deca]/38 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-8 right-20 h-28 w-28 rounded-full bg-secondary/16 blur-3xl" />
 
-          <section className="brand-soft-panel brand-glow px-6 py-6 md:px-8 md:py-8">
-            <div className="relative z-[1] space-y-6">
+          <section className="brand-soft-panel brand-glow px-5 py-5 md:px-6 md:py-6">
+            <div className="relative z-[1] space-y-5">
               <div className="soft-pill w-fit">
                 <SparklesIcon className="h-3.5 w-3.5 text-secondary" />
                 {i18nService.t('coworkHeroEyebrow')}
               </div>
 
-              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                <div className="max-w-2xl space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[26px] bg-gradient-to-br from-[#f4d5a7] via-[#eed8b8] to-[#9fcfb6] p-1 shadow-card md:h-20 md:w-20">
-                      <img src="logo.png" alt="LemonClaw logo" className="h-full w-full rounded-[22px] bg-white/60 object-contain p-2.5 shadow-subtle" />
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-[620px] space-y-3.5">
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#f4d5a7] via-[#eed8b8] to-[#9fcfb6] p-1 shadow-card md:h-16 md:w-16">
+                      <img src="logo.png" alt="LemonClaw logo" className="h-full w-full rounded-[18px] bg-white/60 object-contain p-2 shadow-subtle" />
                     </div>
-                    <div className="space-y-1">
-                      <div className="brand-title text-3xl font-semibold text-text-primary dark:text-dark-text md:text-[42px]">
+                    <div className="space-y-1.5">
+                      <div className="brand-title max-w-[420px] text-[30px] font-semibold leading-[1.08] tracking-[-0.03em] text-text-primary dark:text-dark-text md:max-w-[520px] md:text-[38px]">
                         {i18nService.t('coworkHeroTitle')}
                       </div>
-                      <div className="text-sm font-medium text-primary dark:text-secondary-dark">
+                      <div className="text-[13px] font-medium text-primary dark:text-secondary-dark">
                         {i18nService.t('coworkWelcome')}
                       </div>
                     </div>
                   </div>
-                  <p className="max-w-2xl text-[15px] leading-8 text-text-secondary dark:text-dark-text-secondary">
+                  <p className="max-w-[52ch] text-sm leading-7 text-text-secondary dark:text-dark-text-secondary md:text-[15px]">
                     {i18nService.t('coworkHeroDescription')}
                   </p>
-                  <div className="flex flex-wrap gap-2.5">
+                  <div className="flex flex-wrap gap-2">
                     <span className="soft-pill">{i18nService.t('coworkHeroBenefitPersonal')}</span>
                     <span className="soft-pill">{i18nService.t('coworkHeroBenefitGentle')}</span>
                     <span className="soft-pill">{i18nService.t('coworkHeroBenefitReady')}</span>
                   </div>
                 </div>
 
-                <div className="grid w-full gap-3 md:max-w-[340px]">
+                <div className="grid w-full gap-2.5 md:max-w-[320px]">
                   <div className="soft-stat-card">
-                    <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-text-secondary dark:text-dark-text-secondary">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-text-secondary dark:text-dark-text-secondary">
                       <SparklesIcon className="h-4 w-4 text-primary" />
                       {i18nService.t('coworkHeroCardStart')}
                     </div>
-                    <div className="mt-3 text-base font-semibold text-text-primary dark:text-dark-text">
+                    <div className="mt-2.5 text-[15px] font-semibold leading-6 text-text-primary dark:text-dark-text">
                       {i18nService.t('coworkHeroCardStartValue')}
                     </div>
                   </div>
                   <div className="soft-stat-card">
-                    <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-text-secondary dark:text-dark-text-secondary">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-text-secondary dark:text-dark-text-secondary">
                       <FolderOpenIcon className="h-4 w-4 text-primary" />
                       {i18nService.t('coworkHeroCardSpace')}
                     </div>
-                    <div className="mt-3 truncate text-sm font-medium text-text-primary dark:text-dark-text" title={workingDirectoryDisplay}>
+                    <div className="mt-2.5 truncate text-[13px] font-medium leading-5 text-text-primary dark:text-dark-text" title={workingDirectoryDisplay}>
                       {workingDirectoryDisplay}
                     </div>
                   </div>
                   <div className="soft-stat-card">
-                    <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-text-secondary dark:text-dark-text-secondary">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-text-secondary dark:text-dark-text-secondary">
                       <Squares2X2Icon className="h-4 w-4 text-primary" />
                       {i18nService.t('coworkHeroCardAction')}
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
                       <span className="soft-pill">{i18nService.t('coworkHeroActionTagWrite')}</span>
                       <span className="soft-pill">{i18nService.t('coworkHeroActionTagOrganize')}</span>
                       <span className="soft-pill">{i18nService.t('coworkHeroActionTagCreate')}</span>
@@ -461,13 +461,13 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
             </div>
           </section>
 
-          <section className="brand-soft-panel px-4 py-4 md:px-5 md:py-5">
+          <section className="brand-soft-panel px-4 py-4 md:px-5 md:py-4.5">
             <div className="relative z-[1] space-y-4">
               <div className="space-y-1 px-1">
-                <h3 className="brand-title text-xl font-semibold text-text-primary dark:text-dark-text">
+                <h3 className="brand-title text-lg font-semibold text-text-primary dark:text-dark-text">
                   {i18nService.t('coworkHeroPanelTitle')}
                 </h3>
-                <p className="text-sm leading-6 text-text-secondary dark:text-dark-text-secondary">
+                <p className="text-[13px] leading-6 text-text-secondary dark:text-dark-text-secondary">
                   {i18nService.t('coworkHeroPanelDescription')}
                 </p>
               </div>
@@ -488,13 +488,13 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
             </div>
           </section>
 
-          <section className="brand-soft-panel px-4 py-4 md:px-5 md:py-5">
+          <section className="brand-soft-panel px-4 py-4 md:px-5 md:py-4.5">
             <div className="relative z-[1] space-y-4">
               <div className="space-y-1 px-1">
-                <h3 className="brand-title text-lg font-semibold text-text-primary dark:text-dark-text">
+                <h3 className="brand-title text-base font-semibold text-text-primary dark:text-dark-text">
                   {i18nService.t('coworkQuickActionsTitle')}
                 </h3>
-                <p className="text-sm leading-6 text-text-secondary dark:text-dark-text-secondary">
+                <p className="text-[13px] leading-6 text-text-secondary dark:text-dark-text-secondary">
                   {i18nService.t('coworkQuickActionsDescription')}
                 </p>
               </div>
