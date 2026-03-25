@@ -627,7 +627,7 @@ const ToolCallGroup: React.FC<{
       )}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-start gap-2.5 text-left group relative z-10 rounded-lg border dark:border-dark-border/80 border-border/85 dark:bg-dark-surface-muted/65 bg-surface-muted/70 px-3 py-2.5 transition-colors hover:dark:bg-dark-surface/75 hover:bg-surface/95"
+        className="w-full flex items-start gap-2.5 text-left group relative z-10 rounded-[22px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface-muted/58 bg-white/72 px-3.5 py-3 transition-colors hover:dark:bg-dark-surface/75 hover:bg-white/88"
       >
         <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
           !toolResult
@@ -661,7 +661,7 @@ const ToolCallGroup: React.FC<{
         <ChevronRightIcon className={`h-3.5 w-3.5 mt-0.5 dark:text-dark-text-secondary/75 text-text-secondary/75 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
       </button>
       {isExpanded && (
-        <div className="ml-5 mt-1.5 rounded-lg border dark:border-dark-border/80 border-border/85 dark:bg-dark-surface/72 bg-surface/96 p-2.5">
+        <div className="ml-5 mt-1.5 rounded-[22px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/72 bg-white/88 p-2.5 backdrop-blur-sm">
           {isBashTool ? (
             // Terminal-style display for Bash commands
             <div className="rounded-lg overflow-hidden border dark:border-dark-border border-border">
@@ -783,15 +783,15 @@ const UserMessageItem: React.FC<{ message: CoworkMessage; skills: Skill[] }> = R
 
   return (
     <div
-      className="py-2.5 px-4 md:px-5"
+      className="px-4 py-3 md:px-5"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="max-w-4xl mx-auto">
-        <div className="pl-6 sm:pl-10 md:pl-14">
+        <div className="pl-6 sm:pl-9 md:pl-14">
           <div className="flex items-start gap-3 flex-row-reverse">
             <div className="w-full min-w-0 flex flex-col items-end">
-              <div className="w-fit max-w-[42rem] rounded-2xl border border-border/80 bg-surface/95 px-4 py-3 text-text-primary shadow-subtle dark:border-dark-border/90 dark:bg-[#161b24] dark:text-dark-text">
+              <div className="message-surface-user w-fit max-w-[42rem] px-4 py-3.5 text-text-primary dark:text-dark-text">
                 {message.content?.trim() && (
                   <MarkdownContent
                     content={message.content}
@@ -822,7 +822,7 @@ const UserMessageItem: React.FC<{ message: CoworkMessage; skills: Skill[] }> = R
                 {messageSkills.map(skill => (
                   <div
                     key={skill.id}
-                    className="group inline-flex max-w-[180px] items-center gap-2 rounded-xl border border-border/70 bg-surface/78 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-sm transition-colors hover:border-border hover:bg-surface/92 dark:border-dark-border/75 dark:bg-dark-surface-inset/88 dark:shadow-[0_1px_2px_rgba(2,8,22,0.28)] dark:hover:border-dark-border dark:hover:bg-dark-surface/88"
+                    className="soft-pill group inline-flex max-w-[180px] items-center gap-2 px-2.5 py-1.5 transition-colors"
                     title={skill.description}
                   >
                     <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary dark:bg-primary/16 dark:text-[#8ec5ff]">
@@ -913,7 +913,7 @@ const ExecutionStatusIndicator: React.FC<{
   label: string;
   showTypingDots?: boolean;
 }> = ({ label, showTypingDots = false }) => (
-  <div className="rounded-xl border border-primary/20 bg-primary/5 dark:border-primary-lighter/25 dark:bg-primary-lighter/12 px-3 py-2.5">
+  <div className="rounded-[22px] border border-primary/20 bg-white/78 dark:border-primary-lighter/25 dark:bg-primary-lighter/12 px-3.5 py-3 backdrop-blur-sm">
     <div className="flex items-center gap-3">
       <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary-lighter/15">
         <span className="absolute h-full w-full rounded-full border border-primary/20 animate-ping" />
@@ -949,10 +949,10 @@ const ThinkingBlock: React.FC<{
   }, [isCurrentlyStreaming]);
 
   return (
-    <div className="rounded-lg overflow-hidden border border-border/80 bg-surface-inset/80 dark:border-dark-border/85 dark:bg-[#111722]">
+    <div className="rounded-[22px] overflow-hidden border border-border/80 bg-white/72 dark:border-dark-border/85 dark:bg-[#111722] backdrop-blur-sm">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-surface-hover/70 dark:hover:bg-[#1a2230]"
+        className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-surface-hover/70 dark:hover:bg-[#1a2230]"
       >
         <ChevronRightIcon
           className={`h-3.5 w-3.5 dark:text-dark-text-secondary text-text-secondary flex-shrink-0 transition-transform duration-200 ${
@@ -1049,10 +1049,10 @@ const AssistantTurnBlock: React.FC<{
   };
 
   return (
-    <div className="px-4 md:px-5 py-2">
+    <div className="px-4 py-3 md:px-5">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0 px-4 py-3.5 rounded-2xl border dark:border-dark-border/90 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-subtle">
+          <div className="message-surface-assistant flex-1 min-w-0 px-4 py-4">
             <div className="space-y-3">
               {visibleAssistantItems.map((item, index) => {
                 if (item.type === 'assistant') {
@@ -1624,7 +1624,9 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   };
 
   return (
-    <div ref={detailRootRef} className="flex-1 flex flex-col dark:bg-dark-bg bg-page h-full">
+    <div ref={detailRootRef} className="relative flex-1 flex flex-col dark:bg-dark-bg/90 bg-page/60 h-full">
+      <div className="pointer-events-none absolute left-0 top-10 h-44 w-44 rounded-full bg-[#f4d1a5]/30 blur-3xl" />
+      <div className="pointer-events-none absolute right-10 top-24 h-52 w-52 rounded-full bg-[#b8d8c3]/26 blur-3xl" />
       {/* Header */}
       <div className="app-topbar">
         <div className="app-topbar-inner">
@@ -1664,20 +1666,20 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
                 }
               }}
               onBlur={handleRenameBlur}
-              className="non-draggable min-w-0 max-w-[300px] rounded-lg border dark:border-dark-border border-border dark:bg-dark-bg bg-page px-2 py-1 text-sm font-medium dark:text-dark-text text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              className="non-draggable min-w-0 max-w-[300px] rounded-[18px] border dark:border-dark-border border-border dark:bg-dark-bg bg-page/80 px-3 py-1.5 text-sm font-medium dark:text-dark-text text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
             />
           ) : (
-            <h1 className="text-sm leading-none font-medium dark:text-dark-text text-text-primary truncate max-w-[360px]">
+            <h1 className="soft-pill max-w-[360px] truncate px-3.5 py-1.5 text-sm leading-none font-medium dark:text-dark-text text-text-primary">
               {currentSession.title || i18nService.t('coworkNewSession')}
             </h1>
           )}
           {currentSession.executionMode === 'sandbox' && (
-            <span className="inline-flex items-center rounded-full bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+            <span className="soft-pill border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-500 dark:text-emerald-400">
               {i18nService.t('coworkSandboxBadge')}
             </span>
           )}
           {currentSession.executionMode === 'local' && (
-            <span className="inline-flex items-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+            <span className="soft-pill border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
               {i18nService.t('coworkLocalBadge')}
             </span>
           )}
@@ -1689,7 +1691,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           <button
             type="button"
             onClick={handleOpenFolder}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+            className="soft-pill flex items-center gap-1.5 px-2.5 py-1.5 text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
             aria-label={i18nService.t('coworkOpenFolder')}
           >
             <FolderIcon className="h-4 w-4" />
@@ -1809,19 +1811,19 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       <div
         ref={scrollContainerRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 overflow-y-auto min-h-0 pt-2 scroll-smooth [scrollbar-gutter:stable]"
+        className="flex-1 overflow-y-auto min-h-0 pt-3 scroll-smooth [scrollbar-gutter:stable]"
       >
-        <div className="max-w-4xl mx-auto px-1 md:px-2 pb-2">
-          <div className="space-y-1">
+        <div className="max-w-5xl mx-auto px-2 md:px-4 pb-4">
+          <div className="space-y-1.5">
             {renderConversationTurns()}
           </div>
-          <div className="h-2" />
+          <div className="h-3" />
         </div>
       </div>
 
       {/* Input Area */}
-      <div className="p-4 shrink-0 border-t dark:border-dark-border/75 border-border/80 dark:bg-dark-surface/60 bg-surface/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto">
+      <div className="shrink-0 border-t dark:border-dark-border/75 border-border/75 dark:bg-dark-surface/34 bg-white/34 px-4 pb-4 pt-3 backdrop-blur-sm">
+        <div className="max-w-5xl mx-auto">
           <CoworkPromptInput
             onSubmit={onContinue}
             onStop={onStop}

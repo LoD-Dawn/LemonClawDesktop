@@ -39,18 +39,22 @@ const QuickActionBar: React.FC<QuickActionBarProps> = ({ actions, onActionSelect
             key={action.id}
             type="button"
             onClick={() => onActionSelect(action.id)}
-            className="group flex flex-col items-start gap-3 rounded-[24px] border border-border/80 dark:border-dark-border/80 bg-surface/82 dark:bg-dark-surface/72 px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-surface dark:hover:bg-dark-surface-hover hover:shadow-subtle"
+            className="comfort-card group flex flex-col items-start gap-3 px-4 py-4 text-left"
           >
-            <div className="flex w-full items-start gap-3">
+            <div className="flex w-full items-start justify-between gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-2xl"
+                className="flex h-11 w-11 items-center justify-center rounded-[18px]"
                 style={accentStyle}
               >
                 {IconComponent && <IconComponent className="h-5 w-5" />}
               </div>
+              <span className="soft-pill text-[11px]">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: action.color }} />
+                {action.prompts?.length ?? 0}
+              </span>
             </div>
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-text-primary dark:text-dark-text">
+              <div className="text-[15px] font-semibold text-text-primary dark:text-dark-text">
                 {action.label}
               </div>
               {action.description && (

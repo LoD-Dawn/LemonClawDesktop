@@ -27,8 +27,8 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
 
   return (
     <div className="w-full animate-fade-in-up">
-      <div className="mb-3 space-y-1 px-0.5">
-        <span className="text-xs font-semibold tracking-[0.16em] uppercase dark:text-dark-text-secondary text-text-secondary">
+      <div className="mb-4 space-y-2 px-0.5">
+        <span className="soft-pill text-[11px]">
           {action.label}
         </span>
         {action.description && (
@@ -48,16 +48,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
               type="button"
               onClick={() => handlePromptClick(prompt)}
               className={`
-                group relative flex flex-col items-start gap-1.5 px-4 py-3.5 rounded-2xl
-                border text-left transition-all duration-200
+                group comfort-card relative flex flex-col items-start gap-2 px-4 py-4 text-left
                 ${
                   isPromptSelected
-                    ? 'bg-primary-muted border-primary/45 dark:bg-primary-lighter/15 dark:border-primary-lighter/40 shadow-subtle'
-                    : 'dark:bg-dark-surface/75 bg-surface/75 dark:border-dark-border/80 border-border/80 dark:hover:border-dark-border hover:border-primary/20 dark:hover:bg-dark-surface-hover hover:bg-surface'
+                    ? 'bg-primary-muted border-primary/45 dark:bg-primary-lighter/15 dark:border-primary-lighter/40 shadow-card'
+                    : ''
                 }
               `}
             >
-              {/* 标题 */}
               <div className="flex items-center justify-between w-full">
                 <span className={`text-sm font-medium ${isPromptSelected ? 'text-primary dark:text-dark-text' : 'dark:text-dark-text text-text-primary'}`}>
                   {prompt.label}
@@ -74,9 +72,8 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
                 />
               </div>
 
-              {/* 描述 */}
               {prompt.description && (
-                <p className="text-xs dark:text-dark-text-secondary text-text-secondary line-clamp-2">
+                <p className="text-xs leading-6 dark:text-dark-text-secondary text-text-secondary line-clamp-2">
                   {prompt.description}
                 </p>
               )}

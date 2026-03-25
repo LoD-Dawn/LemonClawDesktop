@@ -172,16 +172,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     handleExitBatchMode();
   }, [selectedIds, handleExitBatchMode]);
 
-  const navButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-200';
-  const navButtonActive = 'bg-primary text-white shadow-card hover:bg-primary-light';
-  const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-surface-hover/80 dark:hover:bg-dark-surface-hover';
-  const secondaryNavButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition-colors';
-  const secondaryNavButtonActive = 'dark:bg-dark-surface-hover bg-surface-hover text-text-primary dark:text-dark-text';
-  const secondaryNavButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover/70 dark:hover:bg-dark-surface-hover hover:text-text-primary dark:hover:text-dark-text';
-  const sidebarBaseClass = 'shrink-0 dark:bg-dark-surface-muted/80 bg-surface/70 flex flex-col sidebar-transition overflow-hidden';
+  const navButtonBase = 'w-full inline-flex items-center gap-3 rounded-[24px] px-4 py-3.5 text-sm font-medium transition-all duration-200';
+  const navButtonActive = 'bg-gradient-to-r from-primary via-primary to-primary-light text-white shadow-card hover:shadow-card-hover';
+  const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-white/70 dark:hover:bg-dark-surface-hover/80 hover:shadow-subtle';
+  const secondaryNavButtonBase = 'w-full inline-flex items-center gap-3 rounded-[22px] px-3.5 py-3 text-sm transition-all duration-200';
+  const secondaryNavButtonActive = 'bg-white/80 dark:bg-dark-surface-hover/85 text-text-primary dark:text-dark-text shadow-subtle';
+  const secondaryNavButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:bg-white/72 dark:hover:bg-dark-surface-hover/75 hover:text-text-primary dark:hover:text-dark-text';
+  const sidebarBaseClass = 'relative shrink-0 dark:bg-dark-surface-muted/45 bg-white/28 flex flex-col sidebar-transition overflow-hidden backdrop-blur-xl';
   const sidebarFrameClass = isEmbedded
     ? `${isCollapsed ? 'border-r-0' : 'border-r dark:border-dark-border/70 border-border/70'}`
-    : 'border dark:border-dark-border/80 border-border/80 rounded-2xl shadow-card';
+    : 'border dark:border-dark-border/80 border-border/80 rounded-[28px] shadow-card';
   const languageOptions: Array<{ value: LanguageType; label: string }> = [
     { value: 'zh', label: i18nService.t('chinese') },
     { value: 'en', label: i18nService.t('english') },
@@ -216,81 +216,94 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
         <div className="brand-soft-panel brand-glow mt-3 px-4 py-4">
-          <div className="brand-badge">
+          <div className="soft-pill w-fit">
             <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
             LemonClaw
           </div>
-          <div className="mt-3 space-y-1">
-            <div className="brand-title text-lg font-semibold text-text-primary dark:text-dark-text">LemonClaw</div>
+          <div className="mt-4 space-y-1.5">
+            <div className="brand-title text-[22px] font-semibold text-text-primary dark:text-dark-text">LemonClaw</div>
             <p className="text-xs leading-5 text-text-secondary dark:text-dark-text-secondary">
               {i18nService.t('coworkSidebarTagline')}
             </p>
           </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="soft-pill">AI</span>
+            <span className="soft-pill">{i18nService.t('coworkSidebarAutomation')}</span>
+          </div>
         </div>
-        <div className="mt-3 space-y-1.5">
-          <div className="px-1 pt-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-text-secondary/85 dark:text-dark-text-secondary/85">
-            {i18nService.t('coworkPrimarySectionTitle')}
+        <div className="mt-3 space-y-3">
+          <div className="comfort-card p-2.5">
+            <div className="px-2 pb-2 pt-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-text-secondary/85 dark:text-dark-text-secondary/85">
+              {i18nService.t('coworkPrimarySectionTitle')}
+            </div>
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={onNewChat}
+                className={`${navButtonBase} ${activeView === 'cowork'
+                  ? navButtonActive
+                  : navButtonInactive
+                  }`}
+              >
+                <ComposeIcon className="h-4 w-4" />
+                {i18nService.t('startConversation')}
+              </button>
+              <button
+                type="button"
+                onClick={onOpenSearch}
+                className={`${navButtonBase} ${navButtonInactive}`}
+              >
+                <MagnifyingGlassIcon className="h-4 w-4" />
+                {i18nService.t('searchHistory')}
+              </button>
+              <button
+                type="button"
+                onClick={onShowScheduledTasks}
+                className={`${navButtonBase} ${activeView === 'scheduledTasks'
+                  ? navButtonActive
+                  : navButtonInactive
+                  }`}
+              >
+                <ClockIcon className="h-4 w-4" />
+                {i18nService.t('coworkSidebarAutomation')}
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onNewChat}
-            className={`${navButtonBase} ${activeView === 'cowork'
-              ? navButtonActive
-              : navButtonInactive
-              }`}
-          >
-            <ComposeIcon className="h-4 w-4" />
-            {i18nService.t('startConversation')}
-          </button>
-          <button
-            type="button"
-            onClick={onOpenSearch}
-            className={`${navButtonBase} ${navButtonInactive}`}
-          >
-            <MagnifyingGlassIcon className="h-4 w-4" />
-            {i18nService.t('searchHistory')}
-          </button>
-          <button
-            type="button"
-            onClick={onShowScheduledTasks}
-            className={`${navButtonBase} ${activeView === 'scheduledTasks'
-              ? navButtonActive
-              : navButtonInactive
-              }`}
-          >
-            <ClockIcon className="h-4 w-4" />
-            {i18nService.t('coworkSidebarAutomation')}
-          </button>
-          <div className="px-1 pt-3 text-[11px] font-semibold tracking-[0.18em] uppercase text-text-secondary/80 dark:text-dark-text-secondary/80">
-            {i18nService.t('coworkAdvancedSectionTitle')}
+
+          <div className="comfort-card p-2.5">
+            <div className="px-2 pb-2 pt-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-text-secondary/80 dark:text-dark-text-secondary/80">
+              {i18nService.t('coworkAdvancedSectionTitle')}
+            </div>
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={onShowSkills}
+                className={`${secondaryNavButtonBase} ${activeView === 'skills'
+                  ? secondaryNavButtonActive
+                  : secondaryNavButtonInactive
+                  }`}
+              >
+                <PuzzlePieceIcon className="h-4 w-4" />
+                {i18nService.t('coworkSidebarSkills')}
+              </button>
+              <button
+                type="button"
+                onClick={onShowMcp}
+                className={`${secondaryNavButtonBase} ${activeView === 'mcp'
+                  ? secondaryNavButtonActive
+                  : secondaryNavButtonInactive
+                  }`}
+              >
+                <ConnectorIcon className="h-4 w-4" />
+                {i18nService.t('coworkSidebarConnections')}
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onShowSkills}
-            className={`${secondaryNavButtonBase} ${activeView === 'skills'
-              ? secondaryNavButtonActive
-              : secondaryNavButtonInactive
-              }`}
-          >
-            <PuzzlePieceIcon className="h-4 w-4" />
-            {i18nService.t('coworkSidebarSkills')}
-          </button>
-          <button
-            type="button"
-            onClick={onShowMcp}
-            className={`${secondaryNavButtonBase} ${activeView === 'mcp'
-              ? secondaryNavButtonActive
-              : secondaryNavButtonInactive
-              }`}
-          >
-            <ConnectorIcon className="h-4 w-4" />
-            {i18nService.t('coworkSidebarConnections')}
-          </button>
         </div>
       </div>
-      <div className="mx-3 mb-3 h-px dark:bg-dark-border/80 bg-border-light" />
+      <div className="mx-3 mb-3 h-px dark:bg-dark-border/70 bg-border-light/90" />
       <div className="flex-1 overflow-y-auto px-2.5 pb-4">
-        <div className="sticky top-0 z-[1] px-3 pb-2.5 pt-1 text-[11px] font-semibold tracking-[0.18em] dark:text-dark-text-secondary/90 text-text-secondary/90 dark:bg-dark-surface-muted/85 bg-surface/80 backdrop-blur-sm">
+        <div className="sticky top-0 z-[1] mb-2 rounded-full px-3 py-2 text-[11px] font-semibold tracking-[0.18em] dark:text-dark-text-secondary/90 text-text-secondary/90 dark:bg-dark-surface-muted/70 bg-white/70 backdrop-blur-md">
           {i18nService.t('coworkHistory')}
         </div>
         <CoworkSessionList

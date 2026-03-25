@@ -583,7 +583,7 @@ const App: React.FC = () => {
     />
   ) : null;
   const windowsStandaloneTitleBar = isWindows ? (
-    <div className="draggable relative mb-3 h-9 shrink-0 rounded-2xl border dark:border-dark-border/70 dark:bg-dark-surface-muted/80 bg-surface/80 border-border/70">
+    <div className="draggable relative mx-3 mt-3 h-10 shrink-0 rounded-[26px] border dark:border-dark-border/70 dark:bg-dark-surface-muted/72 bg-surface/72 border-border/70 shadow-subtle backdrop-blur-xl">
       <WindowTitleBar isOverlayActive={isOverlayActive} />
     </div>
   ) : null;
@@ -654,7 +654,7 @@ const App: React.FC = () => {
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-none animate-fade-in">
+        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden animate-fade-in">
           <Sidebar
             onShowLogin={handleShowLogin}
             onShowSettings={handleShowSettings}

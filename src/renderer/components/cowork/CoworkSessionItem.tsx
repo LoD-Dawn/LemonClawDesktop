@@ -274,10 +274,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         }
         onSelect();
       }}
-      className={`group relative p-3 rounded-2xl border cursor-pointer transition-all duration-200 ${
+      className={`group comfort-card relative cursor-pointer p-3 ${
         isActive
-          ? 'bg-primary/10 dark:bg-primary/15 border-primary/30 shadow-card'
-          : 'border-border/50 dark:border-dark-border/40 bg-surface/55 dark:bg-dark-surface/35 hover:border-border dark:hover:border-dark-border hover:bg-surface/85 dark:hover:bg-dark-surface/60'
+          ? 'border-primary/30 bg-primary/10 dark:bg-primary/15 shadow-card'
+          : ''
       }`}
     >
       {/* Content area */}
@@ -297,7 +297,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className={`flex items-center mb-1 ${showStatusIndicator ? 'gap-2' : 'gap-0'}`}>
+          <div className={`flex items-center mb-2 ${showStatusIndicator ? 'gap-2' : 'gap-0'}`}>
             {/* Status indicator */}
             {showStatusIndicator && (
               <span
@@ -325,16 +325,16 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
                 className="flex-1 min-w-0 rounded-lg border dark:border-dark-border border-border dark:bg-dark-bg bg-page px-2 py-1 text-sm font-medium dark:text-dark-text text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             ) : (
-              <h3 className="text-sm font-medium dark:text-dark-text text-text-primary truncate">
+              <h3 className="text-sm font-semibold dark:text-dark-text text-text-primary truncate pr-8">
                 {session.title}
               </h3>
             )}
           </div>
           <div className="flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">
-            <span className="whitespace-nowrap" title={relativeTime.full}>
+            <span className="soft-pill whitespace-nowrap px-2.5 py-1 text-[10px]" title={relativeTime.full}>
               {relativeTime.compact}
             </span>
-            <span className="text-[10px] uppercase tracking-wider whitespace-nowrap">
+            <span className="text-[10px] uppercase tracking-[0.18em] whitespace-nowrap">
               {i18nService.t(statusLabels[session.status])}
             </span>
           </div>
@@ -355,7 +355,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         <button
           ref={actionButtonRef}
           onClick={openMenu}
-          className="app-icon-btn-soft p-1.5 bg-surface/80 dark:bg-dark-surface/80"
+          className="app-icon-btn-soft bg-white/80 dark:bg-dark-surface/78 p-1.5 shadow-sm"
           aria-label={actionLabel}
         >
           {session.pinned ? (
