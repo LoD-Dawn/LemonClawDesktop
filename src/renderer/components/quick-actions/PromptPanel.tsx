@@ -27,14 +27,17 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
 
   return (
     <div className="w-full animate-fade-in-up">
-      {/* 标题 */}
-      <div className="mb-3 px-0.5">
+      <div className="mb-3 space-y-1 px-0.5">
         <span className="text-xs font-semibold tracking-[0.16em] uppercase dark:text-dark-text-secondary text-text-secondary">
           {action.label}
         </span>
+        {action.description && (
+          <p className="text-sm leading-6 text-text-secondary dark:text-dark-text-secondary">
+            {action.description}
+          </p>
+        )}
       </div>
 
-      {/* 提示词卡片网格 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {action.prompts.map((prompt) => {
           const isPromptSelected = selectedPromptId === prompt.id;

@@ -175,6 +175,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-200';
   const navButtonActive = 'bg-primary text-white shadow-card hover:bg-primary-light';
   const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-surface-hover/80 dark:hover:bg-dark-surface-hover';
+  const secondaryNavButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition-colors';
+  const secondaryNavButtonActive = 'dark:bg-dark-surface-hover bg-surface-hover text-text-primary dark:text-dark-text';
+  const secondaryNavButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover/70 dark:hover:bg-dark-surface-hover hover:text-text-primary dark:hover:text-dark-text';
   const sidebarBaseClass = 'shrink-0 dark:bg-dark-surface-muted/80 bg-surface/70 flex flex-col sidebar-transition overflow-hidden';
   const sidebarFrameClass = isEmbedded
     ? `${isCollapsed ? 'border-r-0' : 'border-r dark:border-dark-border/70 border-border/70'}`
@@ -225,6 +228,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
         <div className="mt-3 space-y-1.5">
+          <div className="px-1 pt-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-text-secondary/85 dark:text-dark-text-secondary/85">
+            {i18nService.t('coworkPrimarySectionTitle')}
+          </div>
           <button
             type="button"
             onClick={onNewChat}
@@ -234,7 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }`}
           >
             <ComposeIcon className="h-4 w-4" />
-            {i18nService.t('newChat')}
+            {i18nService.t('startConversation')}
           </button>
           <button
             type="button"
@@ -242,7 +248,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             className={`${navButtonBase} ${navButtonInactive}`}
           >
             <MagnifyingGlassIcon className="h-4 w-4" />
-            {i18nService.t('search')}
+            {i18nService.t('searchHistory')}
           </button>
           <button
             type="button"
@@ -253,29 +259,32 @@ const Sidebar: React.FC<SidebarProps> = ({
               }`}
           >
             <ClockIcon className="h-4 w-4" />
-            {i18nService.t('scheduledTasks')}
+            {i18nService.t('coworkSidebarAutomation')}
           </button>
+          <div className="px-1 pt-3 text-[11px] font-semibold tracking-[0.18em] uppercase text-text-secondary/80 dark:text-dark-text-secondary/80">
+            {i18nService.t('coworkAdvancedSectionTitle')}
+          </div>
           <button
             type="button"
             onClick={onShowSkills}
-            className={`${navButtonBase} ${activeView === 'skills'
-              ? navButtonActive
-              : navButtonInactive
+            className={`${secondaryNavButtonBase} ${activeView === 'skills'
+              ? secondaryNavButtonActive
+              : secondaryNavButtonInactive
               }`}
           >
             <PuzzlePieceIcon className="h-4 w-4" />
-            {i18nService.t('skills')}
+            {i18nService.t('coworkSidebarSkills')}
           </button>
           <button
             type="button"
             onClick={onShowMcp}
-            className={`${navButtonBase} ${activeView === 'mcp'
-              ? navButtonActive
-              : navButtonInactive
+            className={`${secondaryNavButtonBase} ${activeView === 'mcp'
+              ? secondaryNavButtonActive
+              : secondaryNavButtonInactive
               }`}
           >
             <ConnectorIcon className="h-4 w-4" />
-            {i18nService.t('mcpServers')}
+            {i18nService.t('coworkSidebarConnections')}
           </button>
         </div>
       </div>

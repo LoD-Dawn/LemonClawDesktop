@@ -26,21 +26,39 @@ const QuickActionBar: React.FC<QuickActionBarProps> = ({ actions, onActionSelect
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-start gap-2.5">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {actions.map((action) => {
         const IconComponent = iconMap[action.icon];
+        const accentStyle = {
+          backgroundColor: `${action.color}18`,
+          color: action.color,
+        };
 
         return (
           <button
             key={action.id}
             type="button"
             onClick={() => onActionSelect(action.id)}
-            className="flex items-center gap-2 rounded-2xl border border-border/80 dark:border-dark-border/80 bg-surface/80 dark:bg-dark-surface/70 px-4 py-2.5 text-sm font-medium text-text-secondary dark:text-dark-text-secondary transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-surface hover:text-text-primary dark:hover:bg-dark-surface-hover dark:hover:text-dark-text"
+            className="group flex flex-col items-start gap-3 rounded-[24px] border border-border/80 dark:border-dark-border/80 bg-surface/82 dark:bg-dark-surface/72 px-4 py-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-surface dark:hover:bg-dark-surface-hover hover:shadow-subtle"
           >
-            {IconComponent && (
-              <IconComponent className="h-4 w-4 text-primary dark:text-secondary-dark" />
-            )}
-            <span>{action.label}</span>
+            <div className="flex w-full items-start gap-3">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-2xl"
+                style={accentStyle}
+              >
+                {IconComponent && <IconComponent className="h-5 w-5" />}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-text-primary dark:text-dark-text">
+                {action.label}
+              </div>
+              {action.description && (
+                <p className="text-xs leading-6 text-text-secondary dark:text-dark-text-secondary">
+                  {action.description}
+                </p>
+              )}
+            </div>
           </button>
         );
       })}

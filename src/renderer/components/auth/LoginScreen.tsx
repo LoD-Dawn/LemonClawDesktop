@@ -30,7 +30,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     const unsubscribeError = window.electron.ipcRenderer.on('auth:loginError', (message: string) => {
       setWaitingForCallback(false);
       setIsOpening(false);
-      setError(message || '登录失败，请重试');
+      setError(message || i18nService.t('loginScreenErrorRetry'));
     });
 
     return () => {
@@ -47,7 +47,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       await window.electron.auth.openLoginUrl();
       setWaitingForCallback(true);
     } catch (err) {
-      setError('无法打开登录页面，请检查网络连接');
+      setError(i18nService.t('loginScreenOpenFailed'));
     } finally {
       setIsOpening(false);
     }
@@ -103,12 +103,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 {isOpening ? (
                   <>
                     <SpinnerIcon className="w-4 h-4 animate-spin" />
-                    正在打开登录页…
+                    {i18nService.t('loginScreenOpening')}
                   </>
                 ) : (
                   <>
                     <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                    前往管理端登录
+                    {i18nService.t('loginScreenOpenButton')}
                   </>
                 )}
               </button>
@@ -126,7 +126,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 onClick={() => { setWaitingForCallback(false); setIsOpening(false); }}
                 className="text-xs dark:text-dark-text-muted text-text-muted hover:underline text-center"
               >
-                取消
+                {i18nService.t('cancel')}
               </button>
             )}
           </div>
@@ -141,6 +141,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           {/* 说明 */}
           <p className="text-xs dark:text-dark-text-muted text-text-muted text-center leading-6">
             {i18nService.t('loginScreenHint')}
+          </p>
+          <p className="text-xs dark:text-dark-text-muted text-text-muted text-center leading-6 -mt-3">
+            {i18nService.t('loginScreenBrowserHint')}
           </p>
         </div>
       </div>

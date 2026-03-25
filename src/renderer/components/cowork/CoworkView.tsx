@@ -17,7 +17,7 @@ import WindowTitleBar from '../window/WindowTitleBar';
 import { QuickActionBar, PromptPanel } from '../quick-actions';
 import type { SettingsOpenOptions } from '../Settings';
 import type { CoworkSession, CoworkImageAttachment } from '../../types/cowork';
-import { CpuChipIcon, FolderOpenIcon, SparklesIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
+import { FolderOpenIcon, SparklesIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 
 export interface CoworkViewProps {
   onRequestAppSettings?: (options?: SettingsOpenOptions) => void;
@@ -303,18 +303,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     promptInputRef.current?.focus();
   };
 
-  const executionModeLabel = React.useMemo(() => {
-    switch (config.executionMode) {
-      case 'auto':
-        return i18nService.t('coworkExecutionModeAuto');
-      case 'sandbox':
-        return i18nService.t('coworkExecutionModeSandbox');
-      default:
-        return i18nService.t('coworkExecutionModeLocal');
-    }
-  }, [config.executionMode]);
-
-  const workingDirectoryDisplay = config.workingDirectory?.trim() || i18nService.t('noFolderSelected');
+  const workingDirectoryDisplay = config.workingDirectory?.trim() || i18nService.t('coworkHeroCardSpaceEmpty');
 
   useEffect(() => {
     const handleNewSession = () => {
@@ -437,11 +426,11 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
                 <div className="grid w-full gap-3 md:max-w-[320px]">
                   <div className="rounded-[24px] border border-border/80 bg-surface/80 p-4 shadow-subtle dark:border-dark-border/80 dark:bg-dark-surface/75">
                     <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-text-secondary dark:text-dark-text-secondary">
-                      <CpuChipIcon className="h-4 w-4 text-primary" />
-                      {i18nService.t('coworkHeroCardMode')}
+                      <SparklesIcon className="h-4 w-4 text-primary" />
+                      {i18nService.t('coworkHeroCardStart')}
                     </div>
                     <div className="mt-2 text-sm font-medium text-text-primary dark:text-dark-text">
-                      {executionModeLabel}
+                      {i18nService.t('coworkHeroCardStartValue')}
                     </div>
                   </div>
                   <div className="rounded-[24px] border border-border/80 bg-surface/80 p-4 shadow-subtle dark:border-dark-border/80 dark:bg-dark-surface/75">
@@ -459,9 +448,9 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
                       {i18nService.t('coworkHeroCardAction')}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-secondary-dark">{i18nService.t('skills')}</span>
-                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-secondary-dark">{i18nService.t('mcpServers')}</span>
-                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-secondary-dark">{i18nService.t('scheduledTasks')}</span>
+                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-secondary-dark">{i18nService.t('coworkHeroActionTagWrite')}</span>
+                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-secondary-dark">{i18nService.t('coworkHeroActionTagOrganize')}</span>
+                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-secondary-dark">{i18nService.t('coworkHeroActionTagCreate')}</span>
                     </div>
                   </div>
                 </div>

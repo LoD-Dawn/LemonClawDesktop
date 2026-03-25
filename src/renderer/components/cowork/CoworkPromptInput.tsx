@@ -110,7 +110,6 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     const [value, setValue] = useState(draftPrompt);
     const [attachments, setAttachments] = useState<CoworkAttachment[]>([]);
     const [showFolderMenu, setShowFolderMenu] = useState(false);
-    const [showFolderRequiredWarning, setShowFolderRequiredWarning] = useState(false);
     const [isDraggingFiles, setIsDraggingFiles] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const folderButtonRef = useRef<HTMLButtonElement>(null);
@@ -188,12 +187,6 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   }, []);
 
   useEffect(() => {
-    if (workingDirectory?.trim()) {
-      setShowFolderRequiredWarning(false);
-    }
-  }, [workingDirectory]);
-
-  useEffect(() => {
     if (value !== draftPrompt) {
       const timer = setTimeout(() => {
         dispatch(setDraftPrompt(value));
@@ -203,14 +196,8 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   }, [value, draftPrompt, dispatch]);
 
   const handleSubmit = useCallback(() => {
-    if (showFolderSelector && !workingDirectory?.trim()) {
-      setShowFolderRequiredWarning(true);
-      return;
-    }
-
     const trimmedValue = value.trim();
     if ((!trimmedValue && attachments.length === 0) || isStreaming || disabled) return;
-    setShowFolderRequiredWarning(false);
 
     // Get active skills prompts and combine them
     const activeSkills = activeSkillIds
@@ -258,7 +245,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     setValue('');
     dispatch(setDraftPrompt(''));
     setAttachments([]);
-  }, [value, isStreaming, disabled, onSubmit, activeSkillIds, skills, attachments, showFolderSelector, workingDirectory, dispatch]);
+  }, [value, isStreaming, disabled, onSubmit, activeSkillIds, skills, attachments, dispatch]);
 
   const handleSelectSkill = useCallback((skill: Skill) => {
     dispatch(toggleActiveSkill(skill.id));
@@ -294,8 +281,8 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none text-sm leading-relaxed min-h-[24px] max-h-[200px]';
 
   const truncatePath = (path: string, maxLength = 30): string => {
-    if (!path) return i18nService.t('noFolderSelected');
-    return getCompactFolderName(path, maxLength) || i18nService.t('noFolderSelected');
+    if (!path) return i18nService.t('coworkWorkingDirectoryEmpty');
+    return getCompactFolderName(path, maxLength) || i18nService.t('coworkWorkingDirectoryEmpty');
   };
 
   const handleFolderSelect = (path: string) => {
@@ -716,9 +703,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
           </>
         )}
       </div>
-      {showFolderRequiredWarning && (
-        <div className="mt-2 text-xs text-red-500 dark:text-red-400">
-          {i18nService.t('coworkSelectFolderFirst')}
+      {showFolderSelector && !workingDirectory?.trim() && size === 'large' && (
+        <div className="mt-2 px-1 text-xs leading-5 text-text-secondary dark:text-dark-text-secondary">
+          {i18nService.t('coworkWorkingDirectoryOptionalHint')}
         </div>
       )}
     </div>
