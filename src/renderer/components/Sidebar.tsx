@@ -172,16 +172,17 @@ const Sidebar: React.FC<SidebarProps> = ({
     handleExitBatchMode();
   }, [selectedIds, handleExitBatchMode]);
 
-  const navButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-[20px] px-3.5 py-2.5 text-[13px] font-medium transition-all duration-200';
-  const navButtonActive = 'bg-gradient-to-r from-primary via-primary to-primary-light text-white shadow-card hover:shadow-card-hover';
-  const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-white/70 dark:hover:bg-dark-surface-hover/80 hover:shadow-subtle';
-  const secondaryNavButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-[18px] px-3 py-2.5 text-[13px] transition-all duration-200';
-  const secondaryNavButtonActive = 'bg-white/80 dark:bg-dark-surface-hover/85 text-text-primary dark:text-dark-text shadow-subtle';
-  const secondaryNavButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:bg-white/72 dark:hover:bg-dark-surface-hover/75 hover:text-text-primary dark:hover:text-dark-text';
-  const sidebarBaseClass = 'relative shrink-0 dark:bg-dark-surface-muted/45 bg-white/28 flex flex-col sidebar-transition overflow-hidden backdrop-blur-xl';
+  const navButtonBase = 'codex-nav-btn';
+  const navButtonActive = 'codex-nav-btn-active';
+  const navButtonInactive = 'codex-nav-btn-idle';
+  const secondaryNavButtonBase = 'codex-nav-btn';
+  const secondaryNavButtonActive = 'codex-nav-btn-active';
+  const secondaryNavButtonInactive = 'codex-nav-btn-idle';
+  const pinnedSessionsCount = sessions.filter((session) => session.pinned).length;
+  const sidebarBaseClass = 'relative shrink-0 flex flex-col sidebar-transition overflow-hidden bg-[#0d1620] text-slate-100';
   const sidebarFrameClass = isEmbedded
-    ? `${isCollapsed ? 'border-r-0' : 'border-r dark:border-dark-border/70 border-border/70'}`
-    : 'border dark:border-dark-border/80 border-border/80 rounded-[28px] shadow-card';
+    ? `${isCollapsed ? 'border-r-0' : 'border-r border-white/10'}`
+    : 'border border-white/10 rounded-[32px] shadow-[0_26px_64px_rgba(0,0,0,0.22)]';
   const languageOptions: Array<{ value: LanguageType; label: string }> = [
     { value: 'zh', label: i18nService.t('chinese') },
     { value: 'en', label: i18nService.t('english') },
@@ -198,13 +199,22 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`${sidebarBaseClass} ${sidebarFrameClass} ${isCollapsed ? 'w-0 -translate-x-2 opacity-0 pointer-events-none' : 'w-64 translate-x-0 opacity-100'
+      className={`${sidebarBaseClass} ${sidebarFrameClass} ${isCollapsed ? 'w-0 -translate-x-2 opacity-0 pointer-events-none' : 'w-[304px] translate-x-0 opacity-100'
         }`}
     >
-      <div className="px-3 pb-1.5 pt-3">
-        <div className="draggable sidebar-header-drag h-8 flex items-center justify-between">
-          <div className={`${isMac ? 'pl-[68px]' : ''}`}>
-            {updateBadge}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="desktop-shell-grid absolute inset-x-0 top-0 h-40 opacity-30" />
+        <div className="absolute left-[-90px] top-[120px] h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(255,210,95,0.14)_0%,rgba(255,210,95,0)_72%)]" />
+        <div className="absolute bottom-[-70px] right-[-50px] h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(120,164,205,0.18)_0%,rgba(120,164,205,0)_72%)]" />
+      </div>
+
+      <div className="relative px-4 pb-3 pt-4">
+        <div className="draggable sidebar-header-drag flex h-10 items-center justify-between">
+          <div className={`min-w-0 ${isMac ? 'pl-[68px]' : ''}`}>
+            <div className="codex-kicker text-white/[0.45]">Personal AI Desk</div>
+            <div className="font-display truncate text-[24px] font-semibold tracking-[-0.06em] text-white">
+              LemonClaw
+            </div>
           </div>
           <button
             type="button"
@@ -215,28 +225,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SidebarToggleIcon className="h-4 w-4" isCollapsed={isCollapsed} />
           </button>
         </div>
-        <div className="brand-soft-panel brand-glow mt-2.5 px-3.5 py-3.5">
-          <div className="soft-pill w-fit">
-            <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
-            LemonClaw
-          </div>
-          <div className="mt-3 space-y-1">
-            <div className="brand-title text-[20px] font-semibold text-text-primary dark:text-dark-text">LemonClaw</div>
-            <p className="text-[11px] leading-5 text-text-secondary dark:text-dark-text-secondary">
-              {i18nService.t('coworkSidebarTagline')}
-            </p>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="soft-pill">AI</span>
-            <span className="soft-pill">{i18nService.t('coworkSidebarAutomation')}</span>
-          </div>
-        </div>
-        <div className="mt-2.5 space-y-2.5">
-          <div className="comfort-card p-2">
-            <div className="px-1.5 pb-1.5 pt-0.5 text-[10px] font-semibold tracking-[0.16em] uppercase text-text-secondary/85 dark:text-dark-text-secondary/85">
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <div className="app-section-label px-2 text-white/[0.32]">
               {i18nService.t('coworkPrimarySectionTitle')}
             </div>
-            <div className="space-y-1">
+            <div className="mt-2 space-y-1.5">
               <button
                 type="button"
                 onClick={onNewChat}
@@ -269,59 +264,79 @@ const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
           </div>
-
-          <div className="comfort-card p-2">
-            <div className="px-1.5 pb-1.5 pt-0.5 text-[10px] font-semibold tracking-[0.16em] uppercase text-text-secondary/80 dark:text-dark-text-secondary/80">
-              {i18nService.t('coworkAdvancedSectionTitle')}
-            </div>
-            <div className="space-y-1">
-              <button
-                type="button"
-                onClick={onShowSkills}
-                className={`${secondaryNavButtonBase} ${activeView === 'skills'
-                  ? secondaryNavButtonActive
-                  : secondaryNavButtonInactive
-                  }`}
-              >
-                <PuzzlePieceIcon className="h-4 w-4" />
-                {i18nService.t('coworkSidebarSkills')}
-              </button>
-              <button
-                type="button"
-                onClick={onShowMcp}
-                className={`${secondaryNavButtonBase} ${activeView === 'mcp'
-                  ? secondaryNavButtonActive
-                  : secondaryNavButtonInactive
-                  }`}
-              >
-                <ConnectorIcon className="h-4 w-4" />
-                {i18nService.t('coworkSidebarConnections')}
-              </button>
-            </div>
+          <div className="flex flex-wrap gap-2 px-1">
+            <span className="soft-pill border-white/10 bg-white/[0.08] text-white/[0.72]">
+              {sessions.length} 条记录
+            </span>
+            <span className="soft-pill border-white/10 bg-white/[0.08] text-white/[0.72]">
+              已固定 {pinnedSessionsCount}
+            </span>
+            {organizationLabel && (
+              <span className="soft-pill border-white/10 bg-white/[0.08] text-white/[0.72]">
+                {organizationLabel}
+              </span>
+            )}
           </div>
         </div>
       </div>
-      <div className="mx-3 mb-2.5 h-px dark:bg-dark-border/70 bg-border-light/90" />
-      <div className="flex-1 overflow-y-auto px-2 pb-3">
-        <div className="sticky top-0 z-[1] mb-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.16em] dark:text-dark-text-secondary/90 text-text-secondary/90 dark:bg-dark-surface-muted/70 bg-white/70 backdrop-blur-md">
-          {i18nService.t('coworkHistory')}
+
+      <div className="relative mx-4 mb-3 h-px bg-white/10" />
+      <div className="relative flex-1 overflow-y-auto px-3 pb-4">
+        <div className="rounded-[28px] border border-white/10 bg-white/5 p-2 backdrop-blur-xl">
+          <div className="sticky top-0 z-[1] mb-1.5 flex items-center justify-between rounded-[20px] bg-[#101925]/90 px-3 py-2 backdrop-blur-xl">
+            <div className="app-section-label text-white/[0.34]">
+              {i18nService.t('coworkHistory')}
+            </div>
+            {!isBatchMode && updateBadge ? <div className="non-draggable">{updateBadge}</div> : null}
+          </div>
+          <CoworkSessionList
+            sessions={sessions}
+            currentSessionId={currentSessionId}
+            isBatchMode={isBatchMode}
+            selectedIds={selectedIds}
+            onSelectSession={handleSelectSession}
+            onDeleteSession={handleDeleteSession}
+            onTogglePin={handleTogglePin}
+            onRenameSession={handleRenameSession}
+            onToggleSelection={handleToggleSelection}
+            onEnterBatchMode={handleEnterBatchMode}
+          />
         </div>
-        <CoworkSessionList
-          sessions={sessions}
-          currentSessionId={currentSessionId}
-          isBatchMode={isBatchMode}
-          selectedIds={selectedIds}
-          onSelectSession={handleSelectSession}
-          onDeleteSession={handleDeleteSession}
-          onTogglePin={handleTogglePin}
-          onRenameSession={handleRenameSession}
-          onToggleSelection={handleToggleSelection}
-          onEnterBatchMode={handleEnterBatchMode}
-        />
       </div>
+      {!isBatchMode && (
+        <div className="relative border-t border-white/10 px-4 py-3">
+          <div className="app-section-label px-1 text-white/[0.32]">
+            {i18nService.t('coworkAdvancedSectionTitle')}
+          </div>
+          <div className="mt-2 space-y-1.5">
+            <button
+              type="button"
+              onClick={onShowSkills}
+              className={`${secondaryNavButtonBase} ${activeView === 'skills'
+                ? secondaryNavButtonActive
+                : secondaryNavButtonInactive
+                }`}
+            >
+              <PuzzlePieceIcon className="h-4 w-4" />
+              {i18nService.t('coworkSidebarSkills')}
+            </button>
+            <button
+              type="button"
+              onClick={onShowMcp}
+              className={`${secondaryNavButtonBase} ${activeView === 'mcp'
+                ? secondaryNavButtonActive
+                : secondaryNavButtonInactive
+                }`}
+            >
+              <ConnectorIcon className="h-4 w-4" />
+              {i18nService.t('coworkSidebarConnections')}
+            </button>
+          </div>
+        </div>
+      )}
       {isBatchMode ? (
-        <div className="px-3 pb-3 pt-2 flex items-center justify-between border-t dark:border-dark-border/80 border-border/80">
-          <label className="flex items-center gap-2 cursor-pointer text-sm dark:text-dark-text-secondary text-text-secondary">
+        <div className="relative flex items-center justify-between border-t border-white/10 px-4 pb-4 pt-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
               checked={selectedIds.size === sessions.length && sessions.length > 0}
@@ -337,7 +352,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               disabled={selectedIds.size === 0}
               className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${selectedIds.size > 0
                 ? 'bg-red-500 hover:bg-red-600 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                : 'bg-white/10 text-white/[0.35] cursor-not-allowed'
                 }`}
             >
               <TrashIcon className="h-3.5 w-3.5" />
@@ -346,41 +361,49 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={handleExitBatchMode}
-              className="px-3 py-1.5 text-sm font-medium rounded-2xl dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
+              className="rounded-2xl px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10"
             >
               {i18nService.t('batchCancel')}
             </button>
           </div>
         </div>
       ) : (
-        <div className="px-3 pb-3 pt-2 border-t dark:border-dark-border/80 border-border/80">
+        <div className="relative border-t border-white/10 px-4 pb-4 pt-3">
           <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"
               onClick={() => setShowSettingsMenu(prev => !prev)}
-              className={`${navButtonBase} ${navButtonInactive} justify-between`}
+              className="flex w-full items-center gap-3 rounded-[24px] border border-white/10 bg-white/5 px-3 py-3 text-left transition-colors duration-150 hover:bg-white/10"
               aria-label={i18nService.t('settings')}
               aria-haspopup="menu"
               aria-expanded={showSettingsMenu}
             >
-              <span className="inline-flex items-center gap-2">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-white/10 text-white">
                 <AdjustmentsHorizontalIcon className="h-4 w-4" />
-                {i18nService.t('settings')}
               </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-white">
+                  {displayUserName || authUser?.name || 'LemonClaw'}
+                </span>
+                <span className="block truncate text-xs text-white/[0.46]">
+                  {i18nService.t('settings')}
+                </span>
+              </span>
+              <ChevronRightIcon className={`h-4 w-4 shrink-0 text-white/[0.42] transition-transform ${showSettingsMenu ? 'rotate-90' : ''}`} />
             </button>
             {showSettingsMenu && (
-              <div className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-[26px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface bg-surface shadow-popover backdrop-blur-xl">
+              <div className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-[24px] border border-white/10 bg-[#13202d] shadow-popover">
                 <div className="px-4 pb-2 pt-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text-secondary text-text-secondary">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70">
                       <UserCircleIcon className="h-4 w-4" />
                     </div>
                     <div className="text-sm font-medium">
-                      <span className="dark:text-dark-text-secondary text-text-secondary">{displayUserName || authUser?.name || "-"}</span>
+                      <span className="text-white/[0.72]">{displayUserName || authUser?.name || "-"}</span>
                     </div>
                   </div>
                 </div>
-                <div className="mx-3 h-px dark:bg-dark-border/80 bg-border/80" />
+                <div className="mx-3 h-px bg-white/10" />
                 <div className="p-1.5" role="menu" aria-label={i18nService.t('settings')}>
                   <button
                     type="button"
@@ -388,7 +411,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       setShowSettingsMenu(false);
                       onShowSettings();
                     }}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
                     role="menuitem"
                   >
                     <AdjustmentsHorizontalIcon className="h-4 w-4 text-current" />
@@ -400,8 +423,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                       onClick={() => setShowLanguageMenu(prev => !prev)}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                         showLanguageMenu
-                          ? 'dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text text-text-primary'
-                          : 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                          ? 'bg-white/10 text-white'
+                          : 'text-white hover:bg-white/10'
                       }`}
                       aria-expanded={showLanguageMenu}
                       aria-haspopup="true"
@@ -409,7 +432,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <GlobeAltIcon className="h-4 w-4" />
                       <span className="flex-1 text-left">{i18nService.t('language')}</span>
-                      <span className="text-xs dark:text-dark-text-secondary text-text-secondary">
+                      <span className="text-xs text-white/[0.52]">
                         {languageOptions.find((option) => option.value === currentLanguage)?.label}
                       </span>
                       <ChevronRightIcon className={`h-4 w-4 transition-transform ${showLanguageMenu ? 'rotate-90' : ''}`} />
@@ -425,8 +448,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                               onClick={() => handleLanguageChange(option.value)}
                               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                                 selected
-                                  ? 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
-                                  : 'dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                                  ? 'text-white hover:bg-white/10'
+                                  : 'text-white/[0.62] hover:bg-white/10'
                               }`}
                               role="menuitemradio"
                               aria-checked={selected}
@@ -441,7 +464,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
                   </div>
-                  <div className="mx-3 my-1 h-px dark:bg-dark-border/80 bg-border/80" />
+                  <div className="mx-3 my-1 h-px bg-white/10" />
                   {onShowLogin && (
                     <button
                       id="btn-logout"
@@ -450,10 +473,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                         setShowSettingsMenu(false);
                         void onShowLogin();
                       }}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
-                      aria-label={i18nService.t('logout')}
-                      role="menuitem"
-                    >
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+                    aria-label={i18nService.t('logout')}
+                    role="menuitem"
+                  >
                       <ArrowRightOnRectangleIcon className="h-4 w-4" />
                       {i18nService.t('logout')}
                     </button>
@@ -510,4 +533,3 @@ const Sidebar: React.FC<SidebarProps> = ({
 };
 
 export default Sidebar;
-

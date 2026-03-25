@@ -27,8 +27,8 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
 
   return (
     <div className="w-full animate-fade-in-up">
-      <div className="mb-4 space-y-2 px-0.5">
-        <span className="soft-pill text-[11px]">
+      <div className="mb-5 space-y-2 px-0.5">
+        <span className="soft-pill border-white/50 bg-white/[0.65] text-[11px] dark:border-dark-border/70 dark:bg-dark-surface/90">
           {action.label}
         </span>
         {action.description && (
@@ -38,7 +38,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {action.prompts.map((prompt) => {
           const isPromptSelected = selectedPromptId === prompt.id;
 
@@ -48,24 +48,24 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
               type="button"
               onClick={() => handlePromptClick(prompt)}
               className={`
-                group comfort-card relative flex flex-col items-start gap-2 px-4 py-4 text-left
+                group relative flex flex-col items-start gap-2.5 rounded-[24px] border px-4 py-4 text-left transition-all duration-200
                 ${
                   isPromptSelected
-                    ? 'bg-primary-muted border-primary/45 dark:bg-primary-lighter/15 dark:border-primary-lighter/40 shadow-card'
-                    : ''
+                    ? 'border-amber-300/[0.45] bg-[linear-gradient(145deg,rgba(255,247,206,0.88),rgba(255,255,255,0.88))] shadow-[0_18px_40px_rgba(255,204,90,0.18)] dark:border-amber-300/[0.35] dark:bg-[linear-gradient(145deg,rgba(58,44,21,0.84),rgba(16,30,46,0.92))]'
+                    : 'border-white/55 bg-white/[0.62] shadow-[0_16px_38px_rgba(44,36,18,0.06)] hover:-translate-y-0.5 hover:bg-white/[0.82] dark:border-dark-border/70 dark:bg-dark-surface/[0.84] dark:hover:bg-dark-surface'
                 }
               `}
             >
               <div className="flex items-center justify-between w-full">
-                <span className={`text-sm font-medium ${isPromptSelected ? 'text-primary dark:text-dark-text' : 'dark:text-dark-text text-text-primary'}`}>
+                <span className={`font-display text-[16px] font-semibold tracking-[-0.03em] ${isPromptSelected ? 'text-text-primary dark:text-dark-text' : 'dark:text-dark-text text-text-primary'}`}>
                   {prompt.label}
                 </span>
                 <ArrowRightIcon
                   className={`
-                    w-3.5 h-3.5 transition-all duration-200
+                    h-3.5 w-3.5 transition-all duration-200
                     ${
                       isPromptSelected
-                        ? 'text-primary dark:text-secondary-dark translate-x-0 opacity-100'
+                        ? 'translate-x-0 opacity-100 text-amber-500 dark:text-amber-300'
                         : 'dark:text-dark-text-secondary text-text-secondary -translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
                     }
                   `}
@@ -73,7 +73,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
               </div>
 
               {prompt.description && (
-                <p className="text-xs leading-6 dark:text-dark-text-secondary text-text-secondary line-clamp-2">
+                <p className="line-clamp-2 text-xs leading-6 dark:text-dark-text-secondary text-text-secondary">
                   {prompt.description}
                 </p>
               )}

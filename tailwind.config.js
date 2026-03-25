@@ -8,52 +8,52 @@ export default {
   theme: {
     extend: {
       colors: {
-        // LemonClaw calm consumer palette
-        page: '#F8F4EA',
-        surface: '#FFFDF8',
-        'surface-hover': '#F4EEDD',
-        'surface-muted': '#F7F1E2',
-        'surface-inset': '#EEE5D1',
-        border: '#E5D9C1',
-        'border-light': '#EEE6D5',
-        'text-primary': '#304233',
-        'text-secondary': '#687364',
-        'text-muted': '#97A08F',
+        // Codex-inspired neutral desktop palette
+        page: '#F5F5F2',
+        surface: '#FCFCFA',
+        'surface-hover': '#F1F1ED',
+        'surface-muted': '#ECECE7',
+        'surface-inset': '#E6E6E0',
+        border: '#E2E2DB',
+        'border-light': '#ECECE6',
+        'text-primary': '#1F1F1B',
+        'text-secondary': '#6E6E65',
+        'text-muted': '#9A9A8F',
 
         // Dark mode colors
-        'dark-bg': '#1A1E18',
-        'dark-surface': '#242920',
-        'dark-surface-hover': '#2D3428',
-        'dark-surface-muted': '#1F241B',
-        'dark-surface-inset': '#171C14',
-        'dark-border': '#3A4336',
-        'dark-border-light': '#2B3328',
-        'dark-text': '#F5F0E3',
-        'dark-text-secondary': '#D4D7C8',
-        'dark-text-muted': '#9DA693',
+        'dark-bg': '#0F1723',
+        'dark-surface': '#16202C',
+        'dark-surface-hover': '#1D2936',
+        'dark-surface-muted': '#121B26',
+        'dark-surface-inset': '#0C141E',
+        'dark-border': '#2E3C4D',
+        'dark-border-light': '#223042',
+        'dark-text': '#E7EEF7',
+        'dark-text-secondary': '#B5C0CE',
+        'dark-text-muted': '#8190A2',
 
         // Primary
         primary: {
-          DEFAULT: '#6E8B54',
-          light: '#84A566',
-          lighter: '#B8CF8E',
-          muted: 'rgba(110, 139, 84, 0.14)',
+          DEFAULT: '#334155',
+          light: '#475569',
+          lighter: '#C5D2E2',
+          muted: 'rgba(51, 65, 85, 0.14)',
         },
         secondary: {
-          DEFAULT: '#D8BF68',
-          dark: '#E8D48E'
+          DEFAULT: '#7DB4CF',
+          dark: '#9CCBE2'
         }
       },
       boxShadow: {
-        subtle: '0 1px 2px rgba(73, 60, 32, 0.06)',
-        card: '0 10px 26px rgba(139, 121, 78, 0.10), 0 2px 8px rgba(139, 121, 78, 0.06)',
-        elevated: '0 18px 50px rgba(139, 121, 78, 0.14), 0 4px 16px rgba(139, 121, 78, 0.08)',
-        modal: '0 22px 60px rgba(69, 57, 30, 0.18), 0 4px 16px rgba(69, 57, 30, 0.08)',
-        popover: '0 18px 44px rgba(69, 57, 30, 0.16), 0 4px 12px rgba(69, 57, 30, 0.08)',
-        focus: '0 18px 42px rgba(110, 139, 84, 0.18)',
-        'focus-dark': '0 18px 42px rgba(184, 207, 142, 0.18)',
-        'card-hover': '0 14px 34px rgba(139, 121, 78, 0.16)',
-        'card-hover-dark': '0 14px 34px rgba(17, 22, 16, 0.34)',
+        subtle: '0 1px 2px rgba(15, 23, 42, 0.03)',
+        card: '0 10px 24px rgba(15, 23, 42, 0.05), 0 2px 6px rgba(15, 23, 42, 0.03)',
+        elevated: '0 18px 40px rgba(15, 23, 42, 0.08), 0 4px 14px rgba(15, 23, 42, 0.04)',
+        modal: '0 24px 60px rgba(15, 23, 42, 0.12), 0 6px 18px rgba(15, 23, 42, 0.05)',
+        popover: '0 16px 36px rgba(15, 23, 42, 0.10), 0 4px 10px rgba(15, 23, 42, 0.04)',
+        focus: '0 14px 32px rgba(51, 65, 85, 0.12)',
+        'focus-dark': '0 18px 42px rgba(125, 180, 207, 0.18)',
+        'card-hover': '0 14px 32px rgba(15, 23, 42, 0.08)',
+        'card-hover-dark': '0 18px 42px rgba(8, 15, 24, 0.34)',
       },
       keyframes: {
         'fade-in': {
@@ -90,16 +90,16 @@ export default {
       typography: {
         DEFAULT: {
           css: {
-            color: '#304233',
+            color: '#1F2937',
             a: {
-              color: '#6E8B54',
+              color: '#334155',
               '&:hover': {
-                color: '#84A566',
+                color: '#475569',
               },
             },
             code: {
-              color: '#304233',
-              backgroundColor: 'rgba(238, 229, 209, 0.65)',
+              color: '#1F2937',
+              backgroundColor: 'rgba(230, 237, 245, 0.82)',
               padding: '0.2em 0.4em',
               borderRadius: '0.25rem',
               fontWeight: '400',
@@ -111,74 +111,74 @@ export default {
               content: '""',
             },
             pre: {
-              backgroundColor: '#F6F0E1',
-              color: '#304233',
+              backgroundColor: '#F3F7FB',
+              color: '#1F2937',
               padding: '1em',
               borderRadius: '0.75rem',
               overflowX: 'auto',
             },
             blockquote: {
-              borderLeftColor: '#6E8B54',
-              color: '#687364',
+              borderLeftColor: '#334155',
+              color: '#64748B',
             },
             h1: {
-              color: '#304233',
+              color: '#1F2937',
             },
             h2: {
-              color: '#304233',
+              color: '#1F2937',
             },
             h3: {
-              color: '#304233',
+              color: '#1F2937',
             },
             h4: {
-              color: '#304233',
+              color: '#1F2937',
             },
             strong: {
-              color: '#304233',
+              color: '#1F2937',
             },
           },
         },
         dark: {
           css: {
-            color: '#F5F0E3',
+            color: '#E7EEF7',
             a: {
-              color: '#B8CF8E',
+              color: '#C5D2E2',
               '&:hover': {
-                color: '#D8BF68',
+                color: '#9CCBE2',
               },
             },
             code: {
-              color: '#F5F0E3',
-              backgroundColor: 'rgba(58, 67, 54, 0.72)',
+              color: '#E7EEF7',
+              backgroundColor: 'rgba(34, 48, 66, 0.78)',
               padding: '0.2em 0.4em',
               borderRadius: '0.25rem',
               fontWeight: '400',
             },
             pre: {
-              backgroundColor: '#1B2118',
-              color: '#F5F0E3',
+              backgroundColor: '#111B27',
+              color: '#E7EEF7',
               padding: '1em',
               borderRadius: '0.75rem',
               overflowX: 'auto',
             },
             blockquote: {
-              borderLeftColor: '#B8CF8E',
-              color: '#D4D7C8',
+              borderLeftColor: '#9CCBE2',
+              color: '#B5C0CE',
             },
             h1: {
-              color: '#F5F0E3',
+              color: '#E7EEF7',
             },
             h2: {
-              color: '#F5F0E3',
+              color: '#E7EEF7',
             },
             h3: {
-              color: '#F5F0E3',
+              color: '#E7EEF7',
             },
             h4: {
-              color: '#F5F0E3',
+              color: '#E7EEF7',
             },
             strong: {
-              color: '#F5F0E3',
+              color: '#E7EEF7',
             },
           },
         },

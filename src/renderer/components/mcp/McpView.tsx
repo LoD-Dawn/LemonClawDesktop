@@ -38,9 +38,14 @@ const McpView: React.FC<McpViewProps> = ({ isSidebarCollapsed, onToggleSidebar, 
               {updateBadge}
             </div>
           )}
-            <h1 className="app-title">
-            {i18nService.t('mcpServers')}
-            </h1>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted dark:text-dark-text-muted">
+                {i18nService.t('coworkSidebarConnections')}
+              </span>
+              <h1 className="app-title">
+                {i18nService.t('coworkSidebarConnections')}
+              </h1>
+            </div>
           </div>
           <WindowTitleBar inline />
         </div>

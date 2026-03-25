@@ -16,8 +16,7 @@ import ComposeIcon from '../icons/ComposeIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
 import { QuickActionBar, PromptPanel } from '../quick-actions';
 import type { SettingsOpenOptions } from '../Settings';
-import type { CoworkSession, CoworkImageAttachment } from '../../types/cowork';
-import { FolderOpenIcon, SparklesIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
+import type { CoworkSession, CoworkImageAttachment, CoworkSessionSummary } from '../../types/cowork';
 
 export interface CoworkViewProps {
   onRequestAppSettings?: (options?: SettingsOpenOptions) => void;
@@ -44,12 +43,14 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     currentSession,
     isStreaming,
     config,
+    sessions,
   } = useSelector((state: RootState) => state.cowork);
 
   const activeSkillIds = useSelector((state: RootState) => state.skill.activeSkillIds);
   const skills = useSelector((state: RootState) => state.skill.skills);
   const quickActions = useSelector((state: RootState) => state.quickAction.actions);
   const selectedActionId = useSelector((state: RootState) => state.quickAction.selectedActionId);
+  const selectedModel = useSelector((state: RootState) => state.model.selectedModel);
 
   const buildApiConfigNotice = (error?: string) => {
     const baseNotice = i18nService.t('coworkModelSettingsRequired');
@@ -303,7 +304,28 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     promptInputRef.current?.focus();
   };
 
-  const workingDirectoryDisplay = config.workingDirectory?.trim() || i18nService.t('coworkHeroCardSpaceEmpty');
+  const workspaceName = config.workingDirectory?.split(/[\\/]/).filter(Boolean).pop() || 'lemon-claw-desktop';
+  const pinnedSessionsCount = React.useMemo(
+    () => sessions.filter((session) => session.pinned).length,
+    [sessions],
+  );
+  const latestSession = React.useMemo(
+    () => sessions.reduce<CoworkSessionSummary | null>((latest, session) => {
+      if (!latest || session.updatedAt > latest.updatedAt) {
+        return session;
+      }
+      return latest;
+    }, null),
+    [sessions],
+  );
+  const recentSessions = React.useMemo(
+    () => [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4),
+    [sessions],
+  );
+
+  const handleOpenRecentSession = async (sessionId: string) => {
+    await coworkService.loadSession(sessionId);
+  };
 
   useEffect(() => {
     const handleNewSession = () => {
@@ -389,125 +411,146 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scroll-smooth">
-        <div className="relative mx-auto flex max-w-5xl flex-col gap-5 px-4 pb-7 pt-5 md:gap-6 md:px-5 md:pb-8 md:pt-6 animate-fade-in-up">
-          <div className="pointer-events-none absolute -top-12 left-4 h-44 w-44 rounded-full bg-[#f4d1a5]/40 blur-3xl" />
-          <div className="pointer-events-none absolute right-8 top-10 h-48 w-48 rounded-full bg-[#b7deca]/38 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-8 right-20 h-28 w-28 rounded-full bg-secondary/16 blur-3xl" />
-
-          <section className="brand-soft-panel brand-glow px-5 py-5 md:px-6 md:py-6">
-            <div className="relative z-[1] space-y-5">
-              <div className="soft-pill w-fit">
-                <SparklesIcon className="h-3.5 w-3.5 text-secondary" />
-                {i18nService.t('coworkHeroEyebrow')}
-              </div>
-
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div className="max-w-[620px] space-y-3.5">
-                  <div className="flex items-start gap-3.5">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#f4d5a7] via-[#eed8b8] to-[#9fcfb6] p-1 shadow-card md:h-16 md:w-16">
-                      <img src="logo.png" alt="LemonClaw logo" className="h-full w-full rounded-[18px] bg-white/60 object-contain p-2 shadow-subtle" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="brand-title max-w-[420px] text-[30px] font-semibold leading-[1.08] tracking-[-0.03em] text-text-primary dark:text-dark-text md:max-w-[520px] md:text-[38px]">
-                        {i18nService.t('coworkHeroTitle')}
-                      </div>
-                      <div className="text-[13px] font-medium text-primary dark:text-secondary-dark">
-                        {i18nService.t('coworkWelcome')}
-                      </div>
-                    </div>
+        <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-10 pt-6 md:px-8 md:pb-12">
+          <div className="absolute inset-x-4 top-6 h-40 rounded-[40px] bg-[radial-gradient(circle_at_top_left,rgba(255,214,98,0.16),transparent_56%)] blur-2xl md:inset-x-8" />
+          <div className="relative flex flex-1 flex-col gap-5 animate-fade-in-up">
+            <section className="editorial-hero-panel p-6 md:p-7">
+              <div className="desktop-shell-grid pointer-events-none absolute inset-x-6 top-0 h-28 opacity-35" />
+              <div className="relative z-[1] space-y-6">
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="desktop-eyebrow">Cowork</span>
+                    {sessions.length > 0 && (
+                      <span className="soft-pill border-white/50 bg-white/[0.55] dark:border-dark-border/70 dark:bg-dark-surface/90">
+                        最近 {sessions.length} 条记录
+                      </span>
+                    )}
                   </div>
-                  <p className="max-w-[52ch] text-sm leading-7 text-text-secondary dark:text-dark-text-secondary md:text-[15px]">
-                    {i18nService.t('coworkHeroDescription')}
-                  </p>
+                  <div className="space-y-3">
+                    <h1 className="font-display max-w-3xl text-[34px] font-semibold leading-[0.92] tracking-[-0.06em] text-text-primary dark:text-dark-text md:text-[46px]">
+                      {latestSession ? '继续最近任务，或者直接开始新的。' : '把要做的事发进来，马上开始。'}
+                    </h1>
+                    <p className="max-w-2xl text-[14px] leading-7 text-text-secondary dark:text-dark-text-secondary md:text-[15px]">
+                      对 C 端用户来说，最重要的不是系统说明，而是能不能快速接上上一次进度，或者立刻发起一个新任务。
+                    </p>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    <span className="soft-pill">{i18nService.t('coworkHeroBenefitPersonal')}</span>
-                    <span className="soft-pill">{i18nService.t('coworkHeroBenefitGentle')}</span>
-                    <span className="soft-pill">{i18nService.t('coworkHeroBenefitReady')}</span>
+                    <span className="soft-pill border-white/50 bg-white/[0.55] text-text-secondary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+                      {workspaceName}
+                    </span>
+                    <span className="soft-pill border-white/50 bg-white/[0.55] text-text-secondary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+                      {selectedModel?.name || '未配置模型'}
+                    </span>
+                    <span className="soft-pill border-white/50 bg-white/[0.55] text-text-secondary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+                      已固定 {pinnedSessionsCount} 条
+                    </span>
                   </div>
                 </div>
 
-                <div className="grid w-full gap-2.5 md:max-w-[320px]">
-                  <div className="soft-stat-card">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-text-secondary dark:text-dark-text-secondary">
-                      <SparklesIcon className="h-4 w-4 text-primary" />
-                      {i18nService.t('coworkHeroCardStart')}
-                    </div>
-                    <div className="mt-2.5 text-[15px] font-semibold leading-6 text-text-primary dark:text-dark-text">
-                      {i18nService.t('coworkHeroCardStartValue')}
-                    </div>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="codex-kicker">直接开始</div>
+                    {sessions.length > 0 && (
+                      <span className="soft-pill border-white/50 bg-white/[0.55] text-text-secondary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+                        已有 {sessions.length} 条任务记录
+                      </span>
+                    )}
                   </div>
-                  <div className="soft-stat-card">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-text-secondary dark:text-dark-text-secondary">
-                      <FolderOpenIcon className="h-4 w-4 text-primary" />
-                      {i18nService.t('coworkHeroCardSpace')}
-                    </div>
-                    <div className="mt-2.5 truncate text-[13px] font-medium leading-5 text-text-primary dark:text-dark-text" title={workingDirectoryDisplay}>
-                      {workingDirectoryDisplay}
-                    </div>
-                  </div>
-                  <div className="soft-stat-card">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] text-text-secondary dark:text-dark-text-secondary">
-                      <Squares2X2Icon className="h-4 w-4 text-primary" />
-                      {i18nService.t('coworkHeroCardAction')}
-                    </div>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <span className="soft-pill">{i18nService.t('coworkHeroActionTagWrite')}</span>
-                      <span className="soft-pill">{i18nService.t('coworkHeroActionTagOrganize')}</span>
-                      <span className="soft-pill">{i18nService.t('coworkHeroActionTagCreate')}</span>
-                    </div>
-                  </div>
+                  <p className="text-sm leading-6 text-text-secondary dark:text-dark-text-secondary">
+                    一句话也能开始；如果信息还不完整，后面再补截图和文件就行。
+                  </p>
+                </div>
+
+                <div className="floating-input-panel px-0 pt-1">
+                  <CoworkPromptInput
+                    ref={promptInputRef}
+                    onSubmit={handleStartSession}
+                    onStop={handleStopSession}
+                    isStreaming={isStreaming}
+                    placeholder={i18nService.t('coworkPlaceholder')}
+                    size="large"
+                    workingDirectory={config.workingDirectory}
+                    onWorkingDirectoryChange={async (dir: string) => {
+                      await coworkService.updateConfig({ workingDirectory: dir });
+                    }}
+                    showFolderSelector={true}
+                    onManageSkills={() => onShowSkills?.()}
+                  />
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <section className="brand-soft-panel px-4 py-4 md:px-5 md:py-4.5">
-            <div className="relative z-[1] space-y-4">
-              <div className="space-y-1 px-1">
-                <h3 className="brand-title text-lg font-semibold text-text-primary dark:text-dark-text">
-                  {i18nService.t('coworkHeroPanelTitle')}
-                </h3>
-                <p className="text-[13px] leading-6 text-text-secondary dark:text-dark-text-secondary">
-                  {i18nService.t('coworkHeroPanelDescription')}
-                </p>
-              </div>
-              <CoworkPromptInput
-                ref={promptInputRef}
-                onSubmit={handleStartSession}
-                onStop={handleStopSession}
-                isStreaming={isStreaming}
-                placeholder={i18nService.t('coworkPlaceholder')}
-                size="large"
-                workingDirectory={config.workingDirectory}
-                onWorkingDirectoryChange={async (dir: string) => {
-                  await coworkService.updateConfig({ workingDirectory: dir });
-                }}
-                showFolderSelector={true}
-                onManageSkills={() => onShowSkills?.()}
-              />
-            </div>
-          </section>
+            {recentSessions.length > 0 && (
+              <section className="space-y-3 px-1">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="codex-kicker">继续最近任务</div>
+                    <p className="text-sm leading-6 text-text-secondary dark:text-dark-text-secondary">
+                      回来以后优先看到最近记录，比看一堆状态说明更有用。
+                    </p>
+                  </div>
+                  <div className="soft-pill border-white/50 bg-white/[0.55] text-text-secondary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+                    最近 {recentSessions.length} 条
+                  </div>
+                </div>
 
-          <section className="brand-soft-panel px-4 py-4 md:px-5 md:py-4.5">
-            <div className="relative z-[1] space-y-4">
-              <div className="space-y-1 px-1">
-                <h3 className="brand-title text-base font-semibold text-text-primary dark:text-dark-text">
-                  {i18nService.t('coworkQuickActionsTitle')}
-                </h3>
-                <p className="text-[13px] leading-6 text-text-secondary dark:text-dark-text-secondary">
-                  {i18nService.t('coworkQuickActionsDescription')}
-                </p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {recentSessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => handleOpenRecentSession(session.id)}
+                      className="codex-card flex items-start justify-between gap-4 px-5 py-4 text-left transition-transform duration-200 hover:-translate-y-0.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-base font-semibold text-text-primary dark:text-dark-text">
+                          {session.title || '未命名任务'}
+                        </div>
+                        <div className="mt-2 text-sm leading-6 text-text-secondary dark:text-dark-text-secondary">
+                          {new Date(session.updatedAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        {session.pinned && (
+                          <span className="soft-pill border-white/50 bg-white/[0.55] text-text-secondary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+                            已固定
+                          </span>
+                        )}
+                        <span className="text-xs uppercase tracking-[0.16em] text-text-muted dark:text-dark-text-muted">
+                          继续
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section className="space-y-3 px-1">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="space-y-2">
+                  <div className="codex-kicker">常用开始方式</div>
+                  <p className="text-sm leading-6 text-text-secondary dark:text-dark-text-secondary">
+                    不知道怎么开口时，先选一个模板，再按你的真实需求继续改。
+                  </p>
+                </div>
+                <div className="soft-pill border-white/50 bg-white/[0.55] text-text-secondary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+                  模板 {quickActions.length} 个
+                </div>
               </div>
+
               {selectedAction ? (
-                <PromptPanel
-                  action={selectedAction}
-                  onPromptSelect={handleQuickActionPromptSelect}
-                />
+                <div className="codex-card px-4 py-4 md:px-5">
+                  <PromptPanel
+                    action={selectedAction}
+                    onPromptSelect={handleQuickActionPromptSelect}
+                  />
+                </div>
               ) : (
                 <QuickActionBar actions={quickActions} onActionSelect={handleActionSelect} />
               )}
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       </div>
     </div>

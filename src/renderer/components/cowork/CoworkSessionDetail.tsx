@@ -627,7 +627,7 @@ const ToolCallGroup: React.FC<{
       )}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-start gap-2.5 text-left group relative z-10 rounded-[22px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface-muted/58 bg-white/72 px-3.5 py-3 transition-colors hover:dark:bg-dark-surface/75 hover:bg-white/88"
+        className="w-full flex items-start gap-2.5 text-left group relative z-10 rounded-[22px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface-muted/[0.58] bg-white/[0.72] px-3.5 py-3 transition-colors hover:dark:bg-dark-surface/[0.75] hover:bg-white/[0.88]"
       >
         <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
           !toolResult
@@ -661,7 +661,7 @@ const ToolCallGroup: React.FC<{
         <ChevronRightIcon className={`h-3.5 w-3.5 mt-0.5 dark:text-dark-text-secondary/75 text-text-secondary/75 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
       </button>
       {isExpanded && (
-        <div className="ml-5 mt-1.5 rounded-[22px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/72 bg-white/88 p-2.5 backdrop-blur-sm">
+        <div className="ml-5 mt-1.5 rounded-[22px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/[0.72] bg-white/[0.88] p-2.5 backdrop-blur-sm">
           {isBashTool ? (
             // Terminal-style display for Bash commands
             <div className="rounded-lg overflow-hidden border dark:border-dark-border border-border">
@@ -949,7 +949,7 @@ const ThinkingBlock: React.FC<{
   }, [isCurrentlyStreaming]);
 
   return (
-    <div className="rounded-[22px] overflow-hidden border border-border/80 bg-white/72 dark:border-dark-border/85 dark:bg-[#111722] backdrop-blur-sm">
+    <div className="rounded-[22px] overflow-hidden border border-border/80 bg-white/[0.72] dark:border-dark-border/85 dark:bg-[#111722] backdrop-blur-sm">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-surface-hover/70 dark:hover:bg-[#1a2230]"
@@ -1624,9 +1624,8 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
   };
 
   return (
-    <div ref={detailRootRef} className="relative flex-1 flex flex-col dark:bg-dark-bg/90 bg-page/60 h-full">
-      <div className="pointer-events-none absolute left-0 top-10 h-44 w-44 rounded-full bg-[#f4d1a5]/30 blur-3xl" />
-      <div className="pointer-events-none absolute right-10 top-24 h-52 w-52 rounded-full bg-[#b8d8c3]/26 blur-3xl" />
+    <div ref={detailRootRef} className="relative flex-1 flex flex-col overflow-hidden dark:bg-dark-bg bg-transparent h-full">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_left,rgba(255,214,98,0.16),transparent_58%)] blur-2xl" />
       {/* Header */}
       <div className="app-topbar">
         <div className="app-topbar-inner">
@@ -1666,12 +1665,17 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
                 }
               }}
               onBlur={handleRenameBlur}
-              className="non-draggable min-w-0 max-w-[300px] rounded-[18px] border dark:border-dark-border border-border dark:bg-dark-bg bg-page/80 px-3 py-1.5 text-sm font-medium dark:text-dark-text text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              className="non-draggable min-w-0 max-w-[340px] rounded-[20px] border border-white/60 bg-white/[0.62] px-3.5 py-2 text-sm font-medium text-text-primary focus:outline-none focus:ring-2 focus:ring-amber-300/[0.45] dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text"
             />
           ) : (
-            <h1 className="soft-pill max-w-[360px] truncate px-3.5 py-1.5 text-sm leading-none font-medium dark:text-dark-text text-text-primary">
-              {currentSession.title || i18nService.t('coworkNewSession')}
-            </h1>
+            <div className="min-w-0">
+              <h1 className="font-display max-w-[420px] truncate text-[26px] font-semibold leading-none tracking-[-0.05em] text-text-primary dark:text-dark-text">
+                {currentSession.title || i18nService.t('coworkNewSession')}
+              </h1>
+              <div className="mt-1 text-sm text-text-secondary dark:text-dark-text-secondary">
+                继续补充你的想法，内容会自动保留。
+              </div>
+            </div>
           )}
           {currentSession.executionMode === 'sandbox' && (
             <span className="soft-pill border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-500 dark:text-emerald-400">
@@ -1691,7 +1695,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           <button
             type="button"
             onClick={handleOpenFolder}
-            className="soft-pill flex items-center gap-1.5 px-2.5 py-1.5 text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+            className="flex items-center gap-1.5 rounded-[18px] border border-white/55 bg-white/[0.60] px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-white/[0.80] hover:text-text-primary dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary dark:hover:bg-dark-surface dark:hover:text-dark-text"
             aria-label={i18nService.t('coworkOpenFolder')}
           >
             <FolderIcon className="h-4 w-4" />
@@ -1719,7 +1723,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       {menuPosition && (
         <div
           ref={menuRef}
-          className="fixed z-50 min-w-[180px] rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-popover popover-enter overflow-hidden"
+          className="fixed z-50 min-w-[180px] rounded-2xl border dark:border-dark-border border-border dark:bg-dark-surface bg-white shadow-popover popover-enter overflow-hidden"
           style={{ top: menuPosition.y, left: menuPosition.x }}
           role="menu"
         >
@@ -1811,10 +1815,10 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       <div
         ref={scrollContainerRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 overflow-y-auto min-h-0 pt-3 scroll-smooth [scrollbar-gutter:stable]"
+        className="relative flex-1 overflow-y-auto min-h-0 pt-5 scroll-smooth [scrollbar-gutter:stable]"
       >
-        <div className="max-w-5xl mx-auto px-2 md:px-4 pb-4">
-          <div className="space-y-1.5">
+        <div className="mx-auto max-w-5xl px-4 pb-8 md:px-6">
+          <div className="space-y-3">
             {renderConversationTurns()}
           </div>
           <div className="h-3" />
@@ -1822,8 +1826,8 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="shrink-0 border-t dark:border-dark-border/75 border-border/75 dark:bg-dark-surface/34 bg-white/34 px-4 pb-4 pt-3 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto">
+      <div className="shrink-0 border-t dark:border-dark-border/75 border-border/75 dark:bg-dark-bg/40 bg-white/30 px-4 pb-6 pt-4 backdrop-blur-xl">
+        <div className="mx-auto max-w-5xl">
           <CoworkPromptInput
             onSubmit={onContinue}
             onStop={onStop}
@@ -1832,7 +1836,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
             disabled={false}
             onManageSkills={onManageSkills}
             size="large"
-            showModelSelector={true}
+            showModelSelector={false}
           />
         </div>
       </div>
@@ -1841,10 +1845,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 };
 
 export default CoworkSessionDetail;
-
-
-
-
 
 
 

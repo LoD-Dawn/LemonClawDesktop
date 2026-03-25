@@ -119,9 +119,14 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
                 <ArrowLeftIcon className="h-5 w-5" />
               </button>
             )}
-            <h1 className="app-title">
-              {i18nService.t('scheduledTasksTitle')}
-            </h1>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted dark:text-dark-text-muted">
+                Automation
+              </span>
+              <h1 className="app-title">
+                {i18nService.t('scheduledTasksTitle')}
+              </h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <WindowTitleBar inline />
@@ -170,7 +175,17 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
       )}
 
       <div className={useInnerScrollLayout ? 'flex-1 min-h-0 overflow-hidden' : 'app-view-scroll'}>
-        <div className={`mx-auto w-full max-w-5xl px-2 md:px-3 py-5 md:py-6 ${useInnerScrollLayout ? 'h-full min-h-0 flex flex-col overflow-hidden' : ''}`}> 
+        <div className={`mx-auto w-full max-w-6xl px-5 py-5 md:px-7 md:py-7 ${useInnerScrollLayout ? 'h-full min-h-0 flex flex-col overflow-hidden' : ''}`}>
+          {showTabs && activeTab === 'tasks' && (
+            <div className="mb-5 space-y-1">
+              <h2 className="text-[18px] font-semibold tracking-tight text-text-primary dark:text-dark-text">
+                自动化
+              </h2>
+              <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
+                把重复性的总结、巡检和发布前检查固定下来，像 Codex 一样把它们挂到工作流里。
+              </p>
+            </div>
+          )}
           {showTabs && activeTab === 'history' ? (
             <AllRunsHistory />
           ) : (

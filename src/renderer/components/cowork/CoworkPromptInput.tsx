@@ -273,11 +273,11 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   };
 
   const containerClass = isLarge
-    ? 'soft-floating-bar relative transition-[box-shadow,border-color,background-color] duration-200 focus-within:shadow-elevated focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/60'
-    : 'soft-floating-bar relative flex items-end gap-2 p-3 transition-[box-shadow,border-color] duration-200 focus-within:shadow-card focus-within:border-primary/50';
+    ? 'codex-input relative transition-[transform,box-shadow,border-color,background-color] duration-200 focus-within:-translate-y-0.5 focus-within:shadow-[0_30px_70px_rgba(44,36,18,0.12)] dark:focus-within:shadow-[0_30px_70px_rgba(0,0,0,0.28)]'
+    : 'codex-input relative flex items-end gap-2 p-3 transition-[transform,box-shadow,border-color] duration-200 focus-within:-translate-y-0.5 focus-within:shadow-[0_24px_58px_rgba(44,36,18,0.10)] dark:focus-within:shadow-[0_24px_58px_rgba(0,0,0,0.26)]';
 
   const textareaClass = isLarge
-    ? `w-full resize-none bg-transparent px-4 pt-4 pb-1.5 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[14px] leading-6 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
+    ? `w-full resize-none bg-transparent px-5 pt-5 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[15px] leading-7 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
     : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none text-sm leading-relaxed min-h-[24px] max-h-[200px]';
 
   const truncatePath = (path: string, maxLength = 30): string => {
@@ -533,7 +533,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
           {attachments.map((attachment) => (
               <div
                 key={attachment.path}
-                className="soft-pill inline-flex max-w-full items-center gap-1.5 px-3 py-1.5 text-xs dark:text-dark-text text-text-primary"
+                className="soft-pill inline-flex max-w-full items-center gap-1.5 border-white/60 bg-white/[0.72] px-3 py-1.5 text-xs text-text-primary shadow-[0_10px_24px_rgba(44,36,18,0.05)] dark:border-dark-border/70 dark:bg-dark-surface/[0.92] dark:text-dark-text"
                 title={attachment.path}
               >
                 {attachment.isImage ? (
@@ -563,7 +563,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
         onDrop={handleDrop}
       >
         {isDraggingFiles && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] bg-primary/10 backdrop-blur-[2px] text-xs font-semibold tracking-[0.14em] text-primary">
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] bg-amber-300/15 backdrop-blur-[4px] text-xs font-semibold tracking-[0.14em] text-amber-600 dark:text-amber-300">
             {i18nService.t('coworkDropFileHint')}
           </div>
         )}
@@ -581,7 +581,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
               className={textareaClass}
               style={{ minHeight: `${minHeight}px` }}
             />
-            <div className="flex items-center justify-between px-4 pb-3.5 pt-1.5">
+            <div className="flex items-center justify-between gap-4 px-4 pb-4 pt-2">
               <div className="flex items-center gap-2 relative flex-wrap">
                 {showFolderSelector && (
                   <>
@@ -590,7 +590,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                         ref={folderButtonRef as React.RefObject<HTMLButtonElement>}
                         type="button"
                         onClick={() => setShowFolderMenu(!showFolderMenu)}
-                        className="soft-pill flex items-center gap-1.5 px-2.5 py-1.5 text-xs dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                        className="soft-pill flex items-center gap-1.5 border-white/60 bg-white/[0.65] px-3 py-1.5 text-xs dark:border-dark-border/70 dark:bg-dark-surface/[0.88] dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface hover:bg-white dark:hover:text-dark-text hover:text-text-primary transition-colors"
                       >
                         <FolderIcon className="h-4 w-4" />
                         <span className="max-w-[140px] truncate text-[11px]">
@@ -616,7 +616,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 <button
                   type="button"
                   onClick={handleAddFile}
-                  className="soft-pill flex items-center justify-center p-1.5 text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                  className="soft-pill flex items-center justify-center border-white/60 bg-white/[0.65] p-2 text-sm dark:border-dark-border/70 dark:bg-dark-surface/[0.88] dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface hover:bg-white dark:hover:text-dark-text hover:text-text-primary transition-colors"
                   title={i18nService.t('coworkAddFile')}
                   aria-label={i18nService.t('coworkAddFile')}
                   disabled={disabled || isStreaming}
@@ -634,7 +634,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                   <button
                     type="button"
                     onClick={handleStopClick}
-                    className="rounded-[18px] bg-red-500 px-3 py-2 text-white transition-all shadow-subtle hover:bg-red-600 hover:shadow-card active:scale-95"
+                    className="rounded-[18px] bg-red-500 px-3.5 py-2.5 text-white shadow-[0_14px_28px_rgba(239,68,68,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-600"
                     aria-label="Stop"
                   >
                     <StopIcon className="h-[18px] w-[18px]" />
@@ -644,7 +644,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                     type="button"
                     onClick={handleSubmit}
                     disabled={!canSubmit}
-                    className="rounded-[18px] bg-gradient-to-r from-primary to-primary-light px-3 py-2 text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-[18px] bg-[#111820] px-3.5 py-2.5 text-white shadow-[0_16px_34px_rgba(17,24,32,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#1a2531] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                     aria-label="Send"
                   >
                     <PaperAirplaneIcon className="h-[18px] w-[18px]" />
@@ -684,7 +684,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
               <button
                 type="button"
                 onClick={handleStopClick}
-                className="flex-shrink-0 p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
+                className="flex-shrink-0 p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all active:scale-95"
                 aria-label="Stop"
               >
                 <StopIcon className="h-4 w-4" />
@@ -694,7 +694,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="flex-shrink-0 p-2 rounded-lg bg-primary hover:bg-primary-light text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-shrink-0 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                 aria-label="Send"
               >
                 <PaperAirplaneIcon className="h-4 w-4" />

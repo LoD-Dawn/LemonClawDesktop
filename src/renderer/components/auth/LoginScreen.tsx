@@ -65,17 +65,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       )}
 
       <div className="flex-1 flex items-center justify-center dark:bg-dark-bg bg-page">
-        <div className="brand-soft-panel brand-glow w-full max-w-md px-8 py-9 flex flex-col items-center gap-6 text-center">
+        <div className="brand-soft-panel brand-glow relative w-full max-w-md px-8 py-9 flex flex-col items-center gap-6 text-center">
+          <div className="pointer-events-none absolute inset-x-10 top-0 h-24 desktop-shell-grid opacity-60" />
           {/* Logo / Icon */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-secondary via-secondary to-primary-light shadow-elevated">
-              <KeyIcon className="w-9 h-9 text-white" />
+          <div className="relative z-[1] flex flex-col items-center gap-3">
+            <div className="desktop-eyebrow">
+              Secure Login
+            </div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-slate-900 text-white shadow-elevated dark:bg-dark-text dark:text-slate-900">
+              <KeyIcon className="w-9 h-9" />
             </div>
             <div className="text-center space-y-1.5">
-              <div className="brand-badge justify-center">
-                <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
-                LemonClaw
-              </div>
               <h1 className="brand-title text-2xl font-semibold dark:text-dark-text text-text-primary">
                 {i18nService.t('loginScreenTitle')}
               </h1>
@@ -86,7 +86,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
 
           {/* 登录按钮 */}
-          <div className="w-full flex flex-col gap-3">
+          <div className="relative z-[1] w-full flex flex-col gap-3">
             {!waitingForCallback ? (
               <button
                 id="btn-open-login"
@@ -94,7 +94,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 disabled={isOpening}
                 className="
                   w-full py-3 px-4 rounded-2xl font-medium text-sm
-                  bg-primary hover:bg-primary-light active:scale-[0.98]
+                  bg-slate-900 hover:bg-slate-800 dark:bg-dark-text dark:text-slate-900 dark:hover:bg-white active:scale-[0.98]
                   text-white shadow-card transition-all duration-150
                   disabled:opacity-60 disabled:cursor-not-allowed
                   flex items-center justify-center gap-2
@@ -115,7 +115,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             ) : (
               /* 等待回跳状态 */
               <div className="w-full py-3 px-4 rounded-2xl text-sm text-center dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary border dark:border-dark-border border-border flex items-center justify-center gap-2">
-                <SpinnerIcon className="w-4 h-4 animate-spin text-primary" />
+                <SpinnerIcon className="w-4 h-4 animate-spin text-slate-700 dark:text-sky-200" />
                 {i18nService.t('loginWaitingForBrowser')}
               </div>
             )}
@@ -133,16 +133,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
           {/* 错误提示 */}
           {error && (
-            <div className="w-full rounded-2xl px-3 py-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs text-center">
+            <div className="relative z-[1] w-full rounded-2xl px-3 py-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs text-center">
               {error}
             </div>
           )}
 
           {/* 说明 */}
-          <p className="text-xs dark:text-dark-text-muted text-text-muted text-center leading-6">
+          <p className="relative z-[1] text-xs dark:text-dark-text-muted text-text-muted text-center leading-6">
             {i18nService.t('loginScreenHint')}
           </p>
-          <p className="text-xs dark:text-dark-text-muted text-text-muted text-center leading-6 -mt-3">
+          <p className="relative z-[1] text-xs dark:text-dark-text-muted text-text-muted text-center leading-6 -mt-3">
             {i18nService.t('loginScreenBrowserHint')}
           </p>
         </div>
@@ -152,6 +152,5 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 };
 
 export default LoginScreen;
-
 
 
