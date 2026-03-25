@@ -274,10 +274,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         }
         onSelect();
       }}
-      className={`group relative p-3 rounded-xl border cursor-pointer transition-all duration-200 ${
+      className={`group relative p-3 rounded-2xl border cursor-pointer transition-all duration-200 ${
         isActive
-          ? 'bg-primary/10 dark:bg-primary/15 border-primary/35 shadow-subtle'
-          : 'border-transparent hover:border-border dark:hover:border-dark-border hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+          ? 'bg-primary/10 dark:bg-primary/15 border-primary/30 shadow-card'
+          : 'border-border/50 dark:border-dark-border/40 bg-surface/55 dark:bg-dark-surface/35 hover:border-border dark:hover:border-dark-border hover:bg-surface/85 dark:hover:bg-dark-surface/60'
       }`}
     >
       {/* Content area */}
@@ -302,7 +302,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
             {showStatusIndicator && (
               <span
                 className={`block w-2 h-2 rounded-full bg-primary flex-shrink-0 ${
-                  showRunningIndicator ? 'shadow-[0_0_6px_rgba(59,130,246,0.5)] animate-pulse' : ''
+                  showRunningIndicator ? 'shadow-[0_0_8px_rgba(110,139,84,0.45)] animate-pulse' : ''
                 }`}
                 title={showRunningIndicator ? i18nService.t(statusLabels[session.status]) : undefined}
               />
@@ -373,7 +373,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
       {menuPosition && (
         <div
           ref={menuRef}
-          className="fixed z-50 min-w-[180px] rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-lg overflow-hidden"
+          className="fixed z-50 min-w-[180px] overflow-hidden rounded-[22px] border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-popover"
           style={{ top: menuPosition.y, left: menuPosition.x }}
           role="menu"
         >

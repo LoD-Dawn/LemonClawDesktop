@@ -286,11 +286,11 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   };
 
   const containerClass = isLarge
-    ? 'relative rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-card transition-[box-shadow,border-color,background-color] duration-200 focus-within:shadow-elevated focus-within:ring-2 focus-within:ring-primary/25 focus-within:border-primary/70'
-    : 'relative flex items-end gap-2 p-3 rounded-xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-subtle transition-[box-shadow,border-color] duration-200 focus-within:shadow-card focus-within:border-primary/60';
+    ? 'relative rounded-[28px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-card transition-[box-shadow,border-color,background-color] duration-200 focus-within:shadow-elevated focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/60'
+    : 'relative flex items-end gap-2 p-3 rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-subtle transition-[box-shadow,border-color] duration-200 focus-within:shadow-card focus-within:border-primary/50';
 
   const textareaClass = isLarge
-    ? `w-full resize-none bg-transparent px-4 pt-3 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[15px] leading-6 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
+    ? `w-full resize-none bg-transparent px-5 pt-4 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[15px] leading-7 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
     : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none text-sm leading-relaxed min-h-[24px] max-h-[200px]';
 
   const truncatePath = (path: string, maxLength = 30): string => {
@@ -546,11 +546,11 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
           {attachments.map((attachment) => (
               <div
                 key={attachment.path}
-                className="inline-flex items-center gap-1.5 rounded-full border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 px-2.5 py-1 text-xs dark:text-dark-text text-text-primary max-w-full shadow-subtle"
+                className="inline-flex items-center gap-1.5 rounded-full border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 px-3 py-1.5 text-xs dark:text-dark-text text-text-primary max-w-full shadow-subtle"
                 title={attachment.path}
               >
                 {attachment.isImage ? (
-                  <PhotoIcon className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
+                  <PhotoIcon className="h-3.5 w-3.5 flex-shrink-0 text-secondary" />
                 ) : (
                   <PaperClipIcon className="h-3.5 w-3.5 flex-shrink-0" />
                 )}
@@ -576,7 +576,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
         onDrop={handleDrop}
       >
         {isDraggingFiles && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] bg-primary/12 backdrop-blur-[1px] text-xs font-semibold tracking-wide text-primary">
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] bg-primary/10 backdrop-blur-[2px] text-xs font-semibold tracking-[0.14em] text-primary">
             {i18nService.t('coworkDropFileHint')}
           </div>
         )}
@@ -594,7 +594,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
               className={textareaClass}
               style={{ minHeight: `${minHeight}px` }}
             />
-            <div className="flex items-center justify-between px-4 pb-2 pt-1.5">
+            <div className="flex items-center justify-between px-5 pb-4 pt-2">
               <div className="flex items-center gap-2 relative">
                 {showFolderSelector && (
                   <>
@@ -603,7 +603,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                         ref={folderButtonRef as React.RefObject<HTMLButtonElement>}
                         type="button"
                         onClick={() => setShowFolderMenu(!showFolderMenu)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                        className="flex items-center gap-1.5 rounded-full border border-border/70 dark:border-dark-border/70 px-3 py-1.5 text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
                       >
                         <FolderIcon className="h-4 w-4" />
                         <span className="max-w-[150px] truncate text-xs">
@@ -629,7 +629,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 <button
                   type="button"
                   onClick={handleAddFile}
-                  className="flex items-center justify-center p-1.5 rounded-lg text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                  className="flex items-center justify-center rounded-full border border-border/70 dark:border-dark-border/70 p-2 text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
                   title={i18nService.t('coworkAddFile')}
                   aria-label={i18nService.t('coworkAddFile')}
                   disabled={disabled || isStreaming}
@@ -647,7 +647,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                   <button
                     type="button"
                     onClick={handleStopClick}
-                    className="p-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
+                    className="rounded-2xl bg-red-500 px-3 py-2 text-white transition-all shadow-subtle hover:bg-red-600 hover:shadow-card active:scale-95"
                     aria-label="Stop"
                   >
                     <StopIcon className="h-5 w-5" />
@@ -657,7 +657,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                     type="button"
                     onClick={handleSubmit}
                     disabled={!canSubmit}
-                    className="p-2 rounded-xl bg-primary hover:bg-primary-light text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="rounded-2xl bg-primary px-3 py-2 text-white transition-all shadow-subtle hover:bg-primary-light hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Send"
                   >
                     <PaperAirplaneIcon className="h-5 w-5" />

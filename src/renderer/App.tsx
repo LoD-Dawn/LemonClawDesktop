@@ -583,7 +583,7 @@ const App: React.FC = () => {
     />
   ) : null;
   const windowsStandaloneTitleBar = isWindows ? (
-    <div className="draggable relative h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
+    <div className="draggable relative mb-3 h-9 shrink-0 rounded-2xl border dark:border-dark-border/70 dark:bg-dark-surface-muted/80 bg-surface/80 border-border/70">
       <WindowTitleBar isOverlayActive={isOverlayActive} />
     </div>
   ) : null;
@@ -593,14 +593,17 @@ const App: React.FC = () => {
       <div className="app-shell h-screen overflow-hidden flex flex-col">
         {windowsStandaloneTitleBar}
         <div className="flex-1 flex items-center justify-center dark:bg-dark-bg bg-page">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-glow-accent animate-pulse">
+          <div className="brand-soft-panel brand-glow flex flex-col items-center space-y-5 px-10 py-9 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-secondary/80 via-secondary to-primary-light text-white shadow-elevated animate-pulse">
               <ChatBubbleLeftRightIcon className="h-8 w-8 text-white" />
             </div>
-            <div className="w-24 h-1 rounded-full bg-primary/20 overflow-hidden">
+            <div className="w-28 h-1 rounded-full bg-primary/15 overflow-hidden">
               <div className="h-full w-1/2 rounded-full bg-primary animate-shimmer" />
             </div>
-            <div className="dark:text-dark-text text-text-primary text-xl font-medium">{i18nService.t('loading')}</div>
+            <div className="space-y-1">
+              <div className="brand-title dark:text-dark-text text-text-primary text-xl font-semibold">LemonClaw</div>
+              <div className="dark:text-dark-text-secondary text-text-secondary text-sm">{i18nService.t('loading')}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -617,14 +620,17 @@ const App: React.FC = () => {
       <div className="app-shell h-screen overflow-hidden flex flex-col">
         {windowsStandaloneTitleBar}
         <div className="flex-1 flex flex-col items-center justify-center dark:bg-dark-bg bg-page">
-          <div className="flex flex-col items-center space-y-6 max-w-md px-6">
-            <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg">
+          <div className="brand-soft-panel brand-glow flex max-w-md flex-col items-center space-y-6 px-8 py-9 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-red-500 text-white shadow-lg">
               <ChatBubbleLeftRightIcon className="h-8 w-8 text-white" />
             </div>
-            <div className="dark:text-dark-text text-text-primary text-xl font-medium text-center">{initError}</div>
+            <div className="space-y-2">
+              <div className="brand-title dark:text-dark-text text-text-primary text-xl font-semibold">LemonClaw</div>
+              <div className="dark:text-dark-text text-text-primary text-base font-medium text-center">{initError}</div>
+            </div>
             <button
               onClick={() => handleShowSettings()}
-              className="px-6 py-2.5 bg-primary hover:bg-primary-light text-white rounded-xl shadow-md transition-colors text-sm font-medium"
+              className="px-6 py-2.5 bg-primary hover:bg-primary-light text-white rounded-2xl shadow-card transition-colors text-sm font-medium"
             >
               {i18nService.t('openSettings')}
             </button>
@@ -648,7 +654,7 @@ const App: React.FC = () => {
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-1xl animate-fade-in">
+        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-none animate-fade-in">
           <Sidebar
             onShowLogin={handleShowLogin}
             onShowSettings={handleShowSettings}
@@ -664,7 +670,7 @@ const App: React.FC = () => {
             updateBadge={!isSidebarCollapsed ? updateBadge : null}
             isEmbedded
           />
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden dark:bg-dark-bg/95 bg-page/95">
+          <div className="flex-1 min-h-0 min-w-0 overflow-hidden dark:bg-dark-bg/95 bg-page/85">
             {mainView === 'skills' ? (
               <SkillsView
                 isSidebarCollapsed={isSidebarCollapsed}

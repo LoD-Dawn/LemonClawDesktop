@@ -172,10 +172,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     handleExitBatchMode();
   }, [selectedIds, handleExitBatchMode]);
 
-  const navButtonBase = 'w-full inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200';
-  const navButtonActive = 'bg-primary text-white shadow-subtle hover:bg-primary-light hover:shadow-card';
-  const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-surface-hover dark:hover:bg-dark-surface-hover';
-  const sidebarBaseClass = 'shrink-0 dark:bg-dark-surface-muted/90 bg-surface/90 flex flex-col sidebar-transition overflow-hidden';
+  const navButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-2xl px-3.5 py-3 text-sm font-medium transition-all duration-200';
+  const navButtonActive = 'bg-primary text-white shadow-card hover:bg-primary-light';
+  const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-surface-hover/80 dark:hover:bg-dark-surface-hover';
+  const sidebarBaseClass = 'shrink-0 dark:bg-dark-surface-muted/80 bg-surface/70 flex flex-col sidebar-transition overflow-hidden';
   const sidebarFrameClass = isEmbedded
     ? `${isCollapsed ? 'border-r-0' : 'border-r dark:border-dark-border/70 border-border/70'}`
     : 'border dark:border-dark-border/80 border-border/80 rounded-2xl shadow-card';
@@ -198,8 +198,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       className={`${sidebarBaseClass} ${sidebarFrameClass} ${isCollapsed ? 'w-0 -translate-x-2 opacity-0 pointer-events-none' : 'w-64 translate-x-0 opacity-100'
         }`}
     >
-      <div className="pt-3 pb-2">
-        <div className="draggable sidebar-header-drag h-8 flex items-center justify-between px-3">
+      <div className="px-3 pb-2 pt-3">
+        <div className="draggable sidebar-header-drag h-8 flex items-center justify-between">
           <div className={`${isMac ? 'pl-[68px]' : ''}`}>
             {updateBadge}
           </div>
@@ -212,7 +212,19 @@ const Sidebar: React.FC<SidebarProps> = ({
             <SidebarToggleIcon className="h-4 w-4" isCollapsed={isCollapsed} />
           </button>
         </div>
-        <div className="mt-3 space-y-1.5 px-3">
+        <div className="brand-soft-panel brand-glow mt-3 px-4 py-4">
+          <div className="brand-badge">
+            <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+            LemonClaw
+          </div>
+          <div className="mt-3 space-y-1">
+            <div className="brand-title text-lg font-semibold text-text-primary dark:text-dark-text">LemonClaw</div>
+            <p className="text-xs leading-5 text-text-secondary dark:text-dark-text-secondary">
+              {i18nService.t('coworkSidebarTagline')}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 space-y-1.5">
           <button
             type="button"
             onClick={onNewChat}
@@ -267,9 +279,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </div>
-      <div className="mx-3 mb-3 h-px dark:bg-dark-border bg-border-light" />
+      <div className="mx-3 mb-3 h-px dark:bg-dark-border/80 bg-border-light" />
       <div className="flex-1 overflow-y-auto px-2.5 pb-4">
-        <div className="sticky top-0 z-[1] px-3 pb-2.5 pt-1 text-xs font-semibold tracking-wide uppercase dark:text-dark-text-secondary/90 text-text-secondary/90 dark:bg-dark-surface-muted/85 bg-surface/85 backdrop-blur-sm">
+        <div className="sticky top-0 z-[1] px-3 pb-2.5 pt-1 text-[11px] font-semibold tracking-[0.18em] dark:text-dark-text-secondary/90 text-text-secondary/90 dark:bg-dark-surface-muted/85 bg-surface/80 backdrop-blur-sm">
           {i18nService.t('coworkHistory')}
         </div>
         <CoworkSessionList
@@ -312,7 +324,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={handleExitBatchMode}
-              className="px-3 py-1.5 text-sm font-medium rounded-xl dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
+              className="px-3 py-1.5 text-sm font-medium rounded-2xl dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
             >
               {i18nService.t('batchCancel')}
             </button>
@@ -333,13 +345,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <AdjustmentsHorizontalIcon className="h-4 w-4" />
                 {i18nService.t('settings')}
               </span>
-
             </button>
             {showSettingsMenu && (
-              <div className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface bg-surface shadow-[0_16px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+              <div className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-[26px] border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface bg-surface shadow-popover backdrop-blur-xl">
                 <div className="px-4 pb-2 pt-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text-secondary text-text-secondary">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text-secondary text-text-secondary">
                       <UserCircleIcon className="h-4 w-4" />
                     </div>
                     <div className="text-sm font-medium">

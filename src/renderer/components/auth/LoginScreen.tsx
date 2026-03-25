@@ -3,6 +3,7 @@ import { ArrowTopRightOnSquareIcon, KeyIcon } from '@heroicons/react/24/outline'
 import type { AuthUser } from '../../types/auth';
 import SpinnerIcon from '../icons/SpinnerIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
+import { i18nService } from '../../services/i18n';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: AuthUser) => void;
@@ -58,22 +59,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <div className="app-shell h-screen overflow-hidden flex flex-col">
       {/* Windows 标题栏占位（匹配主界面风格） */}
       {isWindows && (
-        <div className="draggable relative h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
+        <div className="draggable relative mb-3 h-9 shrink-0 rounded-2xl border border-border/70 dark:border-dark-border/70 dark:bg-dark-surface-muted/80 bg-surface/80">
           <WindowTitleBar className="top-1.5 right-1.5" />
         </div>
       )}
 
       <div className="flex-1 flex items-center justify-center dark:bg-dark-bg bg-page">
-        <div className="w-full max-w-sm px-8 flex flex-col items-center gap-6">
+        <div className="brand-soft-panel brand-glow w-full max-w-md px-8 py-9 flex flex-col items-center gap-6 text-center">
           {/* Logo / Icon */}
           <div className="flex flex-col items-center gap-3">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-glow-accent">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-secondary via-secondary to-primary-light shadow-elevated">
               <KeyIcon className="w-9 h-9 text-white" />
             </div>
-            <div className="text-center">
-              <h1 className="text-xl font-semibold dark:text-dark-text text-text-primary">LemonClaw</h1>
-              <p className="text-sm dark:text-dark-text-secondary text-text-secondary mt-0.5">
-                登录您的账号以继续使用
+            <div className="text-center space-y-1.5">
+              <div className="brand-badge justify-center">
+                <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+                LemonClaw
+              </div>
+              <h1 className="brand-title text-2xl font-semibold dark:text-dark-text text-text-primary">
+                {i18nService.t('loginScreenTitle')}
+              </h1>
+              <p className="text-sm leading-6 dark:text-dark-text-secondary text-text-secondary">
+                {i18nService.t('loginScreenDescription')}
               </p>
             </div>
           </div>
@@ -86,9 +93,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 onClick={handleLogin}
                 disabled={isOpening}
                 className="
-                  w-full py-2.5 px-4 rounded-xl font-medium text-sm
+                  w-full py-3 px-4 rounded-2xl font-medium text-sm
                   bg-primary hover:bg-primary-light active:scale-[0.98]
-                  text-white shadow-md transition-all duration-150
+                  text-white shadow-card transition-all duration-150
                   disabled:opacity-60 disabled:cursor-not-allowed
                   flex items-center justify-center gap-2
                 "
@@ -107,9 +114,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </button>
             ) : (
               /* 等待回跳状态 */
-              <div className="w-full py-2.5 px-4 rounded-xl text-sm text-center dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary border dark:border-dark-border border-border flex items-center justify-center gap-2">
+              <div className="w-full py-3 px-4 rounded-2xl text-sm text-center dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary border dark:border-dark-border border-border flex items-center justify-center gap-2">
                 <SpinnerIcon className="w-4 h-4 animate-spin text-primary" />
-                等待浏览器完成登录…
+                {i18nService.t('loginWaitingForBrowser')}
               </div>
             )}
 
@@ -126,15 +133,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
           {/* 错误提示 */}
           {error && (
-            <div className="w-full rounded-lg px-3 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 text-xs text-center">
+            <div className="w-full rounded-2xl px-3 py-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs text-center">
               {error}
             </div>
           )}
 
           {/* 说明 */}
-          <p className="text-xs dark:text-dark-text-muted text-text-muted text-center leading-relaxed">
-            点击上方按钮将在浏览器中打开登录页面，<br />
-            完成登录后将自动返回应用。
+          <p className="text-xs dark:text-dark-text-muted text-text-muted text-center leading-6">
+            {i18nService.t('loginScreenHint')}
           </p>
         </div>
       </div>

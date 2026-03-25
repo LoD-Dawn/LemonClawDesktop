@@ -28,8 +28,8 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
   return (
     <div className="w-full animate-fade-in-up">
       {/* 标题 */}
-      <div className="mb-2.5 px-0.5">
-        <span className="text-xs font-medium dark:text-dark-text-secondary text-text-secondary">
+      <div className="mb-3 px-0.5">
+        <span className="text-xs font-semibold tracking-[0.16em] uppercase dark:text-dark-text-secondary text-text-secondary">
           {action.label}
         </span>
       </div>
@@ -45,12 +45,12 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
               type="button"
               onClick={() => handlePromptClick(prompt)}
               className={`
-                group relative flex flex-col items-start gap-1.5 px-3.5 py-3 rounded-lg
+                group relative flex flex-col items-start gap-1.5 px-4 py-3.5 rounded-2xl
                 border text-left transition-all duration-200
                 ${
                   isPromptSelected
-                    ? 'bg-primary-muted border-primary/50 dark:bg-primary-lighter/15 dark:border-primary-lighter/40'
-                    : 'dark:bg-dark-surface bg-surface dark:border-dark-border border-border dark:hover:border-dark-border hover:border-border dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
+                    ? 'bg-primary-muted border-primary/45 dark:bg-primary-lighter/15 dark:border-primary-lighter/40 shadow-subtle'
+                    : 'dark:bg-dark-surface/75 bg-surface/75 dark:border-dark-border/80 border-border/80 dark:hover:border-dark-border hover:border-primary/20 dark:hover:bg-dark-surface-hover hover:bg-surface'
                 }
               `}
             >
@@ -64,7 +64,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({ action, onPromptSelect }) => 
                     w-3.5 h-3.5 transition-all duration-200
                     ${
                       isPromptSelected
-                        ? 'text-primary dark:text-[#8EC5FF] translate-x-0 opacity-100'
+                        ? 'text-primary dark:text-secondary-dark translate-x-0 opacity-100'
                         : 'dark:text-dark-text-secondary text-text-secondary -translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
                     }
                   `}
