@@ -71,7 +71,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <KeyIcon className="w-9 h-9 text-white" />
             </div>
             <div className="text-center">
-              <h1 className="text-xl font-semibold dark:text-dark-text text-text-primary">DiClaw</h1>
+              <h1 className="text-xl font-semibold dark:text-dark-text text-text-primary">LemonClaw</h1>
               <p className="text-sm dark:text-dark-text-secondary text-text-secondary mt-0.5">
                 登录您的账号以继续使用
               </p>

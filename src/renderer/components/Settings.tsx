@@ -190,7 +190,7 @@ const normalizeBaseUrl = (baseUrl: string): string => baseUrl.trim().replace(/\/
 const normalizeApiFormat = (value: unknown): 'anthropic' | 'openai' => (
   value === 'openai' ? 'openai' : 'anthropic'
 );
-const ABOUT_CONTACT_EMAIL = 'diclaw.project@rd.netease.com';
+const ABOUT_CONTACT_EMAIL = 'lemonclaw.project@rd.netease.com';
 const ABOUT_USER_MANUAL_URL = 'https://www.wenge.com/about/index.html';
 const ABOUT_SERVICE_TERMS_URL = 'https://www.wenge.com/about/index.html';
 
@@ -1911,7 +1911,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
             {/* Logo & App Name */}
             <img
               src="logo.png"
-              alt="DiClaw"
+              alt="LemonClaw"
               className="w-16 h-16 mb-3 cursor-pointer select-none"
               onClick={() => {
                 const next = logoClickCount + 1;
@@ -1921,7 +1921,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                 }
               }}
             />
-            <h3 className="text-lg font-semibold dark:text-dark-text text-text-primary">DiClaw</h3>
+            <h3 className="text-lg font-semibold dark:text-dark-text text-text-primary">LemonClaw</h3>
             <span className="text-xs dark:text-dark-text-secondary text-text-secondary mt-1">v{appVersion}</span>
 
             {/* Info Card */}

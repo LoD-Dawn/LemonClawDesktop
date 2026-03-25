@@ -524,7 +524,7 @@ export class DingTalkGateway extends EventEmitter {
 
     let body: any;
     if (useMarkdown) {
-      const title = text.split('\n')[0].replace(/^[#*\s\->]+/, '').slice(0, 20) || 'DiClaw';
+      const title = text.split('\n')[0].replace(/^[#*\s\->]+/, '').slice(0, 20) || 'LemonClaw';
       let finalText = text;
       if (options.atUserId) finalText = `${finalText} @${options.atUserId}`;
       body = { msgtype: 'markdown', markdown: { title, text: finalText } };

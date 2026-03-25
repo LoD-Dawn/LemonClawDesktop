@@ -15,7 +15,7 @@ import { getDevProjectRoot } from './libs/devPaths';
 
 // Default working directory for new users
 const getDefaultWorkingDirectory = (): string => {
-  return path.join(os.homedir(), 'diclaw', 'project');
+  return path.join(os.homedir(), 'lemonclaw', 'project');
 };
 
 const TASK_WORKSPACE_CONTAINER_DIR = '.diclaw-tasks';

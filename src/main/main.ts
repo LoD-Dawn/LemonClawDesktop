@@ -15,7 +15,7 @@ import { generateSessionTitle, probeCoworkModelReadiness } from './libs/coworkUt
 import { ensureSandboxReady, getSandboxStatus, onSandboxProgress } from './libs/coworkSandboxRuntime';
 import { startCoworkOpenAICompatProxy, stopCoworkOpenAICompatProxy, setScheduledTaskDeps } from './libs/coworkOpenAICompatProxy';
 import { IMGatewayManager, IMPlatform, IMGatewayConfig } from './im';
-import { ADMIN_API_BASE_URL, APP_NAME } from '../shared/appConstants';
+import { ADMIN_API_BASE_URL, APP_NAME, APP_USER_DATA_DIR_NAME } from '../shared/appConstants';
 import { getSkillServiceManager } from './skillServices';
 import { createTray, destroyTray, updateTrayMenu } from './trayManager';
 import { isAutoLaunched, getAutoLaunchEnabled, setAutoLaunchEnabled } from './autoLaunchManager';
@@ -1037,7 +1037,7 @@ const buildLogExportFileName = (): string => {
   const now = new Date();
   const datePart = `${now.getFullYear()}${padTwoDigits(now.getMonth() + 1)}${padTwoDigits(now.getDate())}`;
   const timePart = `${padTwoDigits(now.getHours())}${padTwoDigits(now.getMinutes())}${padTwoDigits(now.getSeconds())}`;
-  return `diclaw-logs-${datePart}-${timePart}.zip`;
+  return `lemonclaw-logs-${datePart}-${timePart}.zip`;
 };
 
 const truncateIpcString = (value: string, maxChars: number): string => {
@@ -1198,9 +1198,24 @@ const savePngWithDialog = async (
   return { success: true, canceled: false, path: outputPath };
 };
 
-const configureUserDataPath = (): void => {
+const resolvePreferredUserDataPath = (): string => {
   const appDataPath = app.getPath('appData');
   const preferredUserDataPath = path.join(appDataPath, APP_NAME);
+  const legacyUserDataPath = path.join(appDataPath, APP_USER_DATA_DIR_NAME);
+
+  if (fs.existsSync(preferredUserDataPath)) {
+    return preferredUserDataPath;
+  }
+
+  if (fs.existsSync(legacyUserDataPath)) {
+    return legacyUserDataPath;
+  }
+
+  return preferredUserDataPath;
+};
+
+const configureUserDataPath = (): void => {
+  const preferredUserDataPath = resolvePreferredUserDataPath();
   const currentUserDataPath = app.getPath('userData');
 
   if (currentUserDataPath !== preferredUserDataPath) {
@@ -1218,7 +1233,7 @@ const isMac = process.platform === 'darwin';
 const isWindows = process.platform === 'win32';
 const DEV_SERVER_URL = process.env.ELECTRON_START_URL || 'http://localhost:5175';
 const APP_USER_MODEL_ID = 'com.diclaw.app';
-const PREFERRED_USER_DATA_PATH = path.join(app.getPath('appData'), APP_NAME);
+const PREFERRED_USER_DATA_PATH = resolvePreferredUserDataPath();
 
 const normalizeFsPath = (value: string): string => path.resolve(value).replace(/[\\/]+$/, '').toLowerCase();
 
@@ -3769,7 +3784,7 @@ if (!gotTheLock) {
     // We don't trigger permission dialogs at startup to avoid annoying users
 
     // Ensure default working directory exists
-    const defaultProjectDir = path.join(os.homedir(), 'diclaw', 'project');
+    const defaultProjectDir = path.join(os.homedir(), 'lemonclaw', 'project');
     if (!fs.existsSync(defaultProjectDir)) {
       fs.mkdirSync(defaultProjectDir, { recursive: true });
       console.log('Created default project directory:', defaultProjectDir);

@@ -3,9 +3,9 @@
  * Intercepts console.* methods and writes to file + console simultaneously.
  *
  * Log file locations:
- *   macOS:   ~/Library/Logs/DiClaw/main.log
- *   Windows: %USERPROFILE%\AppData\Roaming\DiClaw\logs\main.log
- *   Linux:   ~/.config/DiClaw/logs/main.log
+ *   macOS:   ~/Library/Logs/LemonClaw/main.log
+ *   Windows: %USERPROFILE%\AppData\Roaming\LemonClaw\logs\main.log
+ *   Linux:   ~/.config/LemonClaw/logs/main.log
  */
 
 import log from 'electron-log/main';
@@ -61,7 +61,7 @@ export function initLogger(): void {
 
   // Log startup marker
   log.info('='.repeat(60));
-  log.info(`DiClaw started (${process.platform} ${process.arch})`);
+  log.info(`LemonClaw started (${process.platform} ${process.arch})`);
   log.info('='.repeat(60));
 }
 

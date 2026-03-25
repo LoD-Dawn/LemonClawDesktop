@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
-import { DB_FILENAME } from '../shared/appConstants';
+import { DB_FILENAME, LEGACY_DB_FILENAMES } from '../shared/appConstants';
 
 type ChangePayload<T = unknown> = {
   key: string;
@@ -72,6 +72,12 @@ export class SqliteStore {
   static async create(userDataPath?: string): Promise<SqliteStore> {
     const basePath = userDataPath ?? app.getPath('userData');
     const dbPath = path.join(basePath, DB_FILENAME);
+    const legacyDbPath = fs.existsSync(dbPath)
+      ? null
+      : LEGACY_DB_FILENAMES
+          .map((filename) => path.join(basePath, filename))
+          .find((candidate) => fs.existsSync(candidate)) ?? null;
+    const sourceDbPath = legacyDbPath ?? dbPath;
 
     // Initialize SQL.js with WASM file path (cached promise for reuse)
     if (!SqliteStore.sqlPromise) {
@@ -84,8 +90,8 @@ export class SqliteStore {
 
     // Load existing database or create new one
     let db: Database;
-    if (fs.existsSync(dbPath)) {
-      const buffer = fs.readFileSync(dbPath);
+    if (fs.existsSync(sourceDbPath)) {
+      const buffer = fs.readFileSync(sourceDbPath);
       db = new SQL.Database(buffer);
     } else {
       db = new SQL.Database();
@@ -93,6 +99,9 @@ export class SqliteStore {
 
     const store = new SqliteStore(db, dbPath);
     store.initializeTables(basePath);
+    if (legacyDbPath) {
+      console.info(`Loaded legacy database ${path.basename(legacyDbPath)} and migrated to ${DB_FILENAME}.`);
+    }
     return store;
   }
 

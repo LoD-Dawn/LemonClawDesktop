@@ -730,15 +730,15 @@ const downloadGithubArchive = async (
     archiveUrlCandidates.push(
       {
         url: `https://github.com/${source.owner}/${source.repo}/archive/refs/heads/${encodedRef}.zip`,
-        headers: { 'User-Agent': 'DiClaw Skill Downloader' },
+        headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
       },
       {
         url: `https://github.com/${source.owner}/${source.repo}/archive/refs/tags/${encodedRef}.zip`,
-        headers: { 'User-Agent': 'DiClaw Skill Downloader' },
+        headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
       },
       {
         url: `https://github.com/${source.owner}/${source.repo}/archive/${encodedRef}.zip`,
-        headers: { 'User-Agent': 'DiClaw Skill Downloader' },
+        headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
       }
     );
   }
@@ -747,7 +747,7 @@ const downloadGithubArchive = async (
     url: `https://api.github.com/repos/${source.owner}/${source.repo}/zipball${encodedRef ? `/${encodedRef}` : ''}`,
     headers: {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'DiClaw Skill Downloader',
+      'User-Agent': 'LemonClaw Skill Downloader',
       'X-GitHub-Api-Version': '2022-11-28',
     },
   });
@@ -948,21 +948,21 @@ const downloadZipUrl = async (zipUrl: string, tempRoot: string): Promise<string>
   const cosConfig = getTencentCosConfig();
   let response = await session.defaultSession.fetch(zipUrl, {
     method: 'GET',
-    headers: { 'User-Agent': 'DiClaw Skill Downloader' },
+    headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
   });
 
   if (!response.ok && response.status === 403 && cosConfig && isTencentCosUrl(zipUrl)) {
     const signedUrl = buildTencentCosSignedUrl(zipUrl, cosConfig, { signHost: true });
     response = await session.defaultSession.fetch(signedUrl, {
       method: 'GET',
-      headers: { 'User-Agent': 'DiClaw Skill Downloader' },
+      headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
     });
 
     if (!response.ok && response.status === 403) {
       const hostAgnosticSignedUrl = buildTencentCosSignedUrl(zipUrl, cosConfig, { signHost: false });
       response = await session.defaultSession.fetch(hostAgnosticSignedUrl, {
         method: 'GET',
-        headers: { 'User-Agent': 'DiClaw Skill Downloader' },
+        headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
       });
     }
   }
@@ -1467,14 +1467,14 @@ export class SkillManager {
               const archiveMessage = extractErrorMessage(archiveError);
               if (errno === 'ENOENT' && process.platform === 'win32') {
                 throw new Error(
-                  'Git executable not found. Please install Git for Windows or reinstall DiClaw with bundled PortableGit.'
+                  'Git executable not found. Please install Git for Windows or reinstall LemonClaw with bundled PortableGit.'
                   + ` Archive fallback also failed: ${archiveMessage}`
                 );
               }
               throw new Error(`Git clone failed: ${gitMessage}. Archive fallback failed: ${archiveMessage}`);
             }
           } else if (errno === 'ENOENT' && process.platform === 'win32') {
-            throw new Error('Git executable not found. Please install Git for Windows or reinstall DiClaw with bundled PortableGit.');
+            throw new Error('Git executable not found. Please install Git for Windows or reinstall LemonClaw with bundled PortableGit.');
           } else {
             throw error;
           }

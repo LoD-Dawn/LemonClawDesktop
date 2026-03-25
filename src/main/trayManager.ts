@@ -39,10 +39,10 @@ function getLabels(store: SqliteStore): { showWindow: string; newTask: string; s
     const preferences = getUserPreferences(store);
     const lang = preferences.language === 'en' ? 'en' : 'zh';
     return lang === 'en'
-      ? { showWindow: 'Open DiClaw', newTask: 'New Task', settings: 'Settings', quit: 'Quit' }
-      : { showWindow: '打开 DiClaw', newTask: '新建任务', settings: '设置', quit: '退出' };
+      ? { showWindow: `Open ${APP_NAME}`, newTask: 'New Task', settings: 'Settings', quit: 'Quit' }
+      : { showWindow: `打开 ${APP_NAME}`, newTask: '新建任务', settings: '设置', quit: '退出' };
   } catch {
-    return { showWindow: '打开 DiClaw', newTask: '新建任务', settings: '设置', quit: '退出' };
+    return { showWindow: `打开 ${APP_NAME}`, newTask: '新建任务', settings: '设置', quit: '退出' };
   }
 }
 

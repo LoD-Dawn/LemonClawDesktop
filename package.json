@@ -1,9 +1,9 @@
 {
-  "name": "diclaw",
+  "name": "lemon-claw-desktop",
   "private": true,
   "author": {
-    "name": "DiClaw",
-    "email": "diclaw.project@rd.netease.com"
+    "name": "LemonClaw",
+    "email": "lemonclaw.project@rd.netease.com"
   },
   "license": "MIT",
   "version": "0.2.3",
