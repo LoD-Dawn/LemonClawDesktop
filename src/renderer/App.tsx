@@ -582,7 +582,7 @@ const App: React.FC = () => {
     />
   ) : null;
   const windowsStandaloneTitleBar = isWindows ? (
-    <div className="draggable relative h-10 shrink-0">
+    <div className="draggable pointer-events-auto absolute inset-x-0 top-0 z-20 h-10">
       <WindowTitleBar isOverlayActive className="right-2 top-1 h-8" />
     </div>
   ) : null;
