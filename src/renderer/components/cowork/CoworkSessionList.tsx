@@ -54,10 +54,15 @@ const CoworkSessionList: React.FC<CoworkSessionListProps> = ({
 
   if (sessions.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-sm dark:text-dark-text-secondary text-text-secondary">
-          {i18nService.t('coworkNoSessions')}
-        </p>
+      <div className="px-6 pt-3 pb-4">
+        <div className="text-center select-none">
+          <div className="text-[14px] font-medium tracking-[0.01em] dark:text-dark-text text-text-primary">
+            {i18nService.t('coworkNoSessions')}
+          </div>
+          <p className="mt-1.5 text-[12px] leading-5 dark:text-dark-text-secondary/80 text-text-secondary/90">
+            {i18nService.t('coworkNoSessionsHint')}
+          </p>
+        </div>
       </div>
     );
   }

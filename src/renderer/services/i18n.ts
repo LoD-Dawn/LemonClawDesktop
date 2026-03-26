@@ -238,7 +238,8 @@ const translations: Record<LanguageType, Record<string, string>> = {
     coworkSandbox: '沙箱',
     coworkSettings: 'LemonClaw 设置',
     coworkHistory: '任务记录',
-    coworkNoSessions: '暂无任务记录',
+    coworkNoSessions: '暂无任务',
+    coworkNoSessionsHint: '点击上方按钮开始新任务',
     coworkPinSession: '置顶任务',
     coworkUnpinSession: '取消置顶',
     coworkSessionActions: '更多操作',
@@ -1037,6 +1038,7 @@ const translations: Record<LanguageType, Record<string, string>> = {
     coworkSettings: 'LemonClaw Settings',
     coworkHistory: 'Task History',
     coworkNoSessions: 'No tasks yet',
+    coworkNoSessionsHint: 'Start a new task from the button above',
     coworkPinSession: 'Pin task',
     coworkUnpinSession: 'Unpin task',
     coworkSessionActions: 'More actions',
@@ -1783,4 +1785,3 @@ class I18nService {
 }
 
 export const i18nService = new I18nService(); 
-
