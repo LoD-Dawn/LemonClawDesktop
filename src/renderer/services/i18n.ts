@@ -19,6 +19,7 @@ const translations: Record<LanguageType, Record<string, string>> = {
     // 设置
     settings: '设置',
     general: '通用',
+    usageStatistics: '用量统计',
     model: '模型',
     shortcuts: '快捷键',
     about: '关于',
@@ -816,6 +817,7 @@ const translations: Record<LanguageType, Record<string, string>> = {
     // Settings
     settings: 'Settings',
     general: 'General',
+    usageStatistics: 'Usage Stats',
     model: 'Model',
     shortcuts: 'Shortcuts',
     about: 'About',
@@ -1781,5 +1783,4 @@ class I18nService {
 }
 
 export const i18nService = new I18nService(); 
-
 

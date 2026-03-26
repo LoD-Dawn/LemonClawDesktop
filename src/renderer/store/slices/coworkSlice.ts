@@ -7,6 +7,7 @@ import type {
   CoworkPermissionRequest,
   CoworkSessionStatus,
 } from '../../types/cowork';
+import type { ClawSessionReservation } from '../../../shared/quota';
 
 interface CoworkState {
   sessions: CoworkSessionSummary[];
@@ -136,6 +137,14 @@ const coworkSlice = createSlice({
         state.currentSession.updatedAt = Date.now();
         // Streaming state is tied to the currently opened session only
         state.isStreaming = status === 'running';
+      }
+    },
+
+    updateSessionQuota(state, action: PayloadAction<{ sessionId: string; reservation: ClawSessionReservation | null }>) {
+      const { sessionId, reservation } = action.payload;
+      if (state.currentSession?.id === sessionId) {
+        state.currentSession.quotaReservation = reservation;
+        state.currentSession.updatedAt = Date.now();
       }
     },
 
@@ -269,6 +278,7 @@ export const {
   setDraftPrompt,
   addSession,
   updateSessionStatus,
+  updateSessionQuota,
   deleteSession,
   deleteSessions,
   addMessage,

@@ -50,6 +50,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   const skills = useSelector((state: RootState) => state.skill.skills);
   const quickActions = useSelector((state: RootState) => state.quickAction.actions);
   const selectedActionId = useSelector((state: RootState) => state.quickAction.selectedActionId);
+  const selectedModel = useSelector((state: RootState) => state.model.selectedModel);
 
 
   const buildApiConfigNotice = (error?: string) => {
@@ -190,14 +191,26 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         .join('\n\n') || undefined;
 
       // Start the actual session immediately with fallback title
-      const startedSession = await coworkService.startSession({
+      const { session: startedSession, error: startError } = await coworkService.startSession({
         prompt,
         title: fallbackTitle,
         cwd: config.workingDirectory || undefined,
         systemPrompt: combinedSystemPrompt,
+        providerKey: selectedModel?.providerKey,
+        modelId: selectedModel?.id,
+        modelSource: selectedModel?.source,
         activeSkillIds: sessionSkillIds,
         imageAttachments,
       });
+
+      if (!startedSession) {
+        dispatch(clearCurrentSession());
+        dispatch(setStreaming(false));
+        if (startError) {
+          window.dispatchEvent(new CustomEvent('app:showToast', { detail: startError }));
+        }
+        return;
+      }
 
       // Generate title in the background and update when ready
       if (startedSession) {
@@ -251,13 +264,19 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       .filter(p => p?.trim())
       .join('\n\n') || undefined;
 
-    await coworkService.continueSession({
+    const success = await coworkService.continueSession({
       sessionId: currentSession.id,
       prompt,
       systemPrompt: combinedSystemPrompt,
+      providerKey: selectedModel?.providerKey,
+      modelId: selectedModel?.id,
+      modelSource: selectedModel?.source,
       activeSkillIds: sessionSkillIds.length > 0 ? sessionSkillIds : undefined,
       imageAttachments,
     });
+    if (!success) {
+      window.dispatchEvent(new CustomEvent('app:showToast', { detail: '会话继续失败，请稍后重试' }));
+    }
   };
 
   const handleStopSession = async () => {
@@ -358,7 +377,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   return (
     <div className="flex-1 flex flex-col dark:bg-[#0f1117] bg-[#fafafa] h-full bg-grid-pattern relative">
       {/* Header */}
-      <div className="app-topbar bg-transparent border-none dark:bg-transparent backdrop-blur-none pointer-events-none z-10">
+      <div className="app-topbar bg-transparent border-none dark:bg-transparent backdrop-blur-none z-10">
         <div className="app-topbar-inner">
           <div className="non-draggable h-8 flex items-center pointer-events-auto">
             {isSidebarCollapsed && (
@@ -404,7 +423,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
               {i18nService.t('coworkDescription')}
             </p>
           </div>
-
           {/* Active Tasks (Quick Actions strip) */}
           <div className="w-full mb-3 px-1 animate-fade-in-up">
             <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-hide snap-x items-center">

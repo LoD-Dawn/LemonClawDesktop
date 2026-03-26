@@ -6,11 +6,12 @@ import { themeService } from '../services/theme';
 import { i18nService, LanguageType } from '../services/i18n';
 import { coworkService } from '../services/cowork';
 import ErrorMessage from './ErrorMessage';
-import { XMarkIcon, Cog6ToothIcon, CheckCircleIcon, XCircleIcon, CubeIcon, ChatBubbleLeftIcon, ShieldCheckIcon, EnvelopeIcon, InformationCircleIcon, CommandLineIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, Cog6ToothIcon, CheckCircleIcon, XCircleIcon, CubeIcon, ChatBubbleLeftIcon, ShieldCheckIcon, EnvelopeIcon, InformationCircleIcon, CommandLineIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import BrainIcon from './icons/BrainIcon';
 import PlusCircleIcon from './icons/PlusCircleIcon';
 import { ProviderSettingsPanel } from './settings/ProviderSettingsPanel';
 import { ProviderModelDialog } from './settings/ProviderModelDialog';
+import CoworkQuotaPanel from './cowork/CoworkQuotaPanel';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import type {
@@ -41,7 +42,7 @@ import {
   CustomProviderIcon,
 } from './icons/providers';
 
-type TabType = 'general' | 'model' | 'coworkSandbox' | 'coworkMemory' | 'shortcuts' | 'im' | 'email' | 'about';
+type TabType = 'general' | 'usageStatistics' | 'model' | 'coworkSandbox' | 'coworkMemory' | 'shortcuts' | 'im' | 'email' | 'about';
 
 export type SettingsOpenOptions = {
   initialTab?: TabType;
@@ -1353,6 +1354,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   // 渲染标签页
   const sidebarTabs: { key: TabType; label: string; icon: React.ReactNode }[] = useMemo(() => [
     { key: 'general', label: i18nService.t('general'), icon: <Cog6ToothIcon className="h-5 w-5" /> },
+    { key: 'usageStatistics', label: i18nService.t('usageStatistics'), icon: <ChartBarIcon className="h-5 w-5" /> },
     { key: 'model', label: i18nService.t('model'), icon: <CubeIcon className="h-5 w-5" /> },
     { key: 'im', label: i18nService.t('imBot'), icon: <ChatBubbleLeftIcon className="h-5 w-5" /> },
     { key: 'email', label: i18nService.t('emailTab'), icon: <EnvelopeIcon className="h-5 w-5" /> },
@@ -1571,6 +1573,23 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
 
       case 'email':
         return <EmailSkillConfig />;
+
+      case 'usageStatistics':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium dark:text-dark-text text-text-primary mb-1">
+                {i18nService.t('usageStatistics')}
+              </h4>
+              <p className="text-sm dark:text-claude-darkSecondaryText text-claude-secondaryText">
+                {language === 'zh'
+                  ? '查看当前积分额度、剩余时长和近 7 天使用情况。'
+                  : 'View your current credit balance, remaining time, and usage over the last 7 days.'}
+              </p>
+            </div>
+            <CoworkQuotaPanel title={i18nService.t('usageStatistics')} showSessionReservation={false} />
+          </div>
+        );
 
       case 'coworkSandbox':
         return (

@@ -1846,5 +1846,3 @@ export default CoworkSessionDetail;
 
 
 
-
-

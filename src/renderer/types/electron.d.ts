@@ -2,6 +2,11 @@ import type {
   ResolvedModelConfig,
   UserPreferences,
 } from '../../shared/modelConfig';
+import type {
+  ClawManagedModelSource,
+  ClawQuotaOverview,
+  ClawSessionReservation,
+} from '../../shared/quota';
 
 // 认证相关类型（在 IElectronAPI.auth 中使用）
 interface AuthUser {
@@ -70,6 +75,7 @@ interface CoworkSession {
   systemPrompt: string;
   executionMode: 'auto' | 'local' | 'sandbox';
   activeSkillIds: string[];
+  quotaReservation?: ClawSessionReservation | null;
   messages: CoworkMessage[];
   createdAt: number;
   updatedAt: number;
@@ -368,8 +374,8 @@ interface IElectronAPI {
     onStateChanged: (callback: (state: WindowState) => void) => () => void;
   };
   cowork: {
-    startSession: (options: { prompt: string; cwd?: string; systemPrompt?: string; title?: string; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
-    continueSession: (options: { sessionId: string; prompt: string; systemPrompt?: string; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
+    startSession: (options: { prompt: string; cwd?: string; systemPrompt?: string; title?: string; providerKey?: string; modelId?: string; modelSource?: ClawManagedModelSource; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
+    continueSession: (options: { sessionId: string; prompt: string; systemPrompt?: string; providerKey?: string; modelId?: string; modelSource?: ClawManagedModelSource; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
     stopSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
     deleteSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
     deleteSessions: (sessionIds: string[]) => Promise<{ success: boolean; error?: string }>;
@@ -413,6 +419,7 @@ interface IElectronAPI {
     deleteMemoryEntry: (input: { id: string }) => Promise<{ success: boolean; error?: string }>;
     getMemoryStats: () => Promise<{ success: boolean; stats?: CoworkMemoryStats; error?: string }>;
     getSandboxStatus: () => Promise<CoworkSandboxStatus>;
+    getQuotaOverview: (options?: { range?: string }) => Promise<{ success: boolean; overview?: ClawQuotaOverview; error?: string }>;
     installSandbox: () => Promise<{ success: boolean; status: CoworkSandboxStatus; error?: string }>;
     onSandboxDownloadProgress: (callback: (data: CoworkSandboxProgress) => void) => () => void;
     onStreamMessage: (callback: (data: { sessionId: string; message: CoworkMessage }) => void) => () => void;
@@ -420,6 +427,7 @@ interface IElectronAPI {
     onStreamPermission: (callback: (data: { sessionId: string; request: CoworkPermissionRequest }) => void) => () => void;
     onStreamComplete: (callback: (data: { sessionId: string; claudeSessionId: string | null }) => void) => () => void;
     onStreamError: (callback: (data: { sessionId: string; error: string }) => void) => () => void;
+    onStreamQuota: (callback: (data: { sessionId: string; reservation: ClawSessionReservation | null; overview?: Partial<ClawQuotaOverview> }) => void) => () => void;
   };
   dialog: {
     selectDirectory: () => Promise<{ success: boolean; path: string | null }>;

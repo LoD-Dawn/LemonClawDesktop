@@ -10,7 +10,7 @@ interface SchedulerDeps {
   getCoworkRunner: () => CoworkRunner;
   ensureActiveAuthSession?: () => Promise<
     | { ok: true }
-    | { ok: false; reason: 'no_token' | 'expired' | 'disabled' | 'network_error'; error: string }
+    | { ok: false; reason: 'no_token' | 'expired' | 'disabled' | 'scope_required' | 'network_error'; error: string }
   >;
   getIMGatewayManager?: () => IMGatewayManager | null;
   getSkillsPrompt?: () => Promise<string | null>;

@@ -6,6 +6,8 @@ export interface Model {
   name: string;
   provider?: string; // 模型所属的提供商
   providerKey?: string; // 模型所属的提供商 key（用于唯一标识）
+  source?: 'tenant' | 'local';
+  enabled?: boolean;
   supportsImage?: boolean;
 }
 
@@ -39,6 +41,8 @@ function buildInitialModels(): Model[] {
             name: model.name,
             provider: providerName.charAt(0).toUpperCase() + providerName.slice(1),
             providerKey: providerName,
+            source: providerName === 'ollama' || providerName === 'custom' ? 'local' : 'tenant',
+            enabled: (model as { enabled?: boolean }).enabled !== false,
             supportsImage: model.supportsImage ?? false,
           });
         });
@@ -62,7 +66,8 @@ const initialState: ModelState = {
   selectedModel: availableModels.find(
     model => model.id === defaultConfig.model.defaultModel
       && (!defaultModelProvider || model.providerKey === defaultModelProvider)
-  ) || availableModels[0] || null,
+      && model.enabled !== false
+  ) || availableModels.find((model) => model.enabled !== false) || availableModels[0] || null,
   availableModels: availableModels,
 };
 
@@ -78,15 +83,16 @@ const modelSlice = createSlice({
       // 更新导出的 availableModels
       availableModels = action.payload;
       // 同步选中模型信息，确保名称与最新配置一致
+      const firstEnabledModel = action.payload.find((model) => model.enabled !== false) ?? action.payload[0] ?? null;
       if (action.payload.length > 0) {
         const matchedModel = state.selectedModel
           ? action.payload.find(m => isSameModelIdentity(m, state.selectedModel as Model))
           : null;
-        if (matchedModel) {
+        if (matchedModel && matchedModel.enabled !== false) {
           state.selectedModel = matchedModel;
         } else {
           // 如果当前选中的模型不在新的可用模型列表中，选择第一个可用模型
-          state.selectedModel = action.payload[0];
+          state.selectedModel = firstEnabledModel;
         }
       } else {
         state.selectedModel = null;

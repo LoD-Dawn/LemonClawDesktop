@@ -83,14 +83,18 @@ const App: React.FC = () => {
       name: model.name,
       provider: model.providerLabel,
       providerKey: model.providerKey,
+      source: model.source,
+      enabled: model.enabled !== false,
       supportsImage: model.supportsImage ?? false,
     }));
 
     dispatch(setAvailableModels(models));
     if (models.length > 0) {
       const selected = models.find(
-        model => model.id === resolved.selectedModel && model.providerKey === resolved.selectedProvider
-      ) ?? models[0];
+        model => model.id === resolved.selectedModel
+          && model.providerKey === resolved.selectedProvider
+          && model.enabled !== false
+      ) ?? models.find((model) => model.enabled !== false) ?? models[0];
       dispatch(setSelectedModel(selected));
     } else {
       dispatch(setSelectedModel(null));
@@ -742,4 +746,3 @@ const App: React.FC = () => {
 };
 
 export default App; 
-

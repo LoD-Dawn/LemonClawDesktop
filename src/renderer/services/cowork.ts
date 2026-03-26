@@ -4,6 +4,7 @@ import {
   setCurrentSession,
   addSession,
   updateSessionStatus,
+  updateSessionQuota,
   deleteSession as deleteSessionAction,
   deleteSessions as deleteSessionsAction,
   addMessage,
@@ -16,6 +17,13 @@ import {
   setConfig,
   clearCurrentSession,
 } from '../store/slices/coworkSlice';
+import {
+  mergeQuotaOverview,
+  setQuotaError,
+  setQuotaLoading,
+  setQuotaOverview,
+  setSessionReservation,
+} from '../store/slices/quotaSlice';
 import type {
   CoworkSession,
   CoworkConfigUpdate,
@@ -27,6 +35,7 @@ import type {
   CoworkPermissionResult,
   CoworkStartOptions,
   CoworkContinueOptions,
+  CoworkQuotaOverviewResult,
 } from '../types/cowork';
 
 class CoworkService {
@@ -41,6 +50,11 @@ class CoworkService {
 
     // Load sessions list
     await this.loadSessions();
+
+    // Load quota overview for managed models
+    await this.loadQuotaOverview().catch((error) => {
+      console.warn('Failed to load quota overview during init:', error);
+    });
 
     // Set up stream listeners
     this.setupStreamListeners();
@@ -119,6 +133,17 @@ class CoworkService {
       store.dispatch(updateSessionStatus({ sessionId, status: 'error' }));
     });
     this.streamListenerCleanups.push(errorCleanup);
+
+    const quotaCleanup = cowork.onStreamQuota(({ sessionId, reservation, overview }) => {
+      if (sessionId) {
+        store.dispatch(setSessionReservation({ sessionId, reservation }));
+        store.dispatch(updateSessionQuota({ sessionId, reservation }));
+      }
+      if (overview) {
+        store.dispatch(mergeQuotaOverview(overview));
+      }
+    });
+    this.streamListenerCleanups.push(quotaCleanup);
   }
 
   private cleanupListeners(): void {
@@ -140,27 +165,59 @@ class CoworkService {
     }
   }
 
-  async startSession(options: CoworkStartOptions): Promise<CoworkSession | null> {
+  async loadQuotaOverview(range: string = '7d'): Promise<CoworkQuotaOverviewResult> {
+    const cowork = window.electron?.cowork;
+    if (!cowork?.getQuotaOverview) {
+      return { success: false, error: 'Cowork quota API not available' };
+    }
+
+    store.dispatch(setQuotaLoading(true));
+    const result = await cowork.getQuotaOverview({ range });
+    if (result?.success && result.overview) {
+      store.dispatch(setQuotaOverview(result.overview));
+      store.dispatch(setQuotaLoading(false));
+      return result;
+    }
+
+    const error = result?.error || 'Failed to load quota overview';
+    store.dispatch(setQuotaLoading(false));
+    store.dispatch(setQuotaError(error));
+    return { success: false, error };
+  }
+
+  async startSession(options: CoworkStartOptions): Promise<{ session: CoworkSession | null; error?: string }> {
     const cowork = window.electron?.cowork;
     if (!cowork) {
       console.error('Cowork API not available');
-      return null;
+      return { session: null, error: 'Cowork API not available' };
     }
 
     store.dispatch(setStreaming(true));
+    const selectedModel = store.getState().model.selectedModel;
 
-    const result = await cowork.startSession(options);
+    const result = await cowork.startSession({
+      ...options,
+      providerKey: options.providerKey ?? selectedModel?.providerKey,
+      modelId: options.modelId ?? selectedModel?.id,
+      modelSource: options.modelSource ?? selectedModel?.source,
+    });
     if (result.success && result.session) {
       store.dispatch(addSession(result.session));
+      if (result.session.quotaReservation) {
+        store.dispatch(setSessionReservation({
+          sessionId: result.session.id,
+          reservation: result.session.quotaReservation,
+        }));
+      }
       if (result.session.status !== 'running') {
         store.dispatch(setStreaming(false));
       }
-      return result.session;
+      return { session: result.session };
     }
 
     store.dispatch(setStreaming(false));
     console.error('Failed to start session:', result.error);
-    return null;
+    return { session: null, error: result.error };
   }
 
   async continueSession(options: CoworkContinueOptions): Promise<boolean> {
@@ -172,11 +229,15 @@ class CoworkService {
 
     store.dispatch(setStreaming(true));
     store.dispatch(updateSessionStatus({ sessionId: options.sessionId, status: 'running' }));
+    const selectedModel = store.getState().model.selectedModel;
 
     const result = await cowork.continueSession({
       sessionId: options.sessionId,
       prompt: options.prompt,
       systemPrompt: options.systemPrompt,
+      providerKey: options.providerKey ?? selectedModel?.providerKey,
+      modelId: options.modelId ?? selectedModel?.id,
+      modelSource: options.modelSource ?? selectedModel?.source,
       activeSkillIds: options.activeSkillIds,
       imageAttachments: options.imageAttachments,
     });

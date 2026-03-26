@@ -1,6 +1,7 @@
 export type ProviderModelConfig = {
   id: string;
   name: string;
+  enabled?: boolean;
   supportsImage?: boolean;
 };
 
@@ -51,6 +52,7 @@ export type ResolvedModelItem = {
   providerKey: string;
   providerLabel: string;
   source: 'tenant' | 'local';
+  enabled?: boolean;
   supportsImage?: boolean;
 };
 

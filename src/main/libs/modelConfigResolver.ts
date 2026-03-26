@@ -19,6 +19,7 @@ type LegacyAppConfig = {
     availableModels?: Array<{
       id?: string;
       name?: string;
+      enabled?: boolean;
       supportsImage?: boolean;
     }>;
     defaultModel?: string;
@@ -33,6 +34,7 @@ type LegacyAppConfig = {
     models?: Array<{
       id?: string;
       name?: string;
+      enabled?: boolean;
       supportsImage?: boolean;
     }>;
   }>;
@@ -52,6 +54,7 @@ function normalizeModels(models: LegacyAppConfig['providers'][string]['models'])
       return {
         id,
         name: typeof model.name === 'string' && model.name.trim().length > 0 ? model.name.trim() : id,
+        enabled: model.enabled !== false,
         supportsImage: model.supportsImage ?? false,
       };
     });
@@ -90,6 +93,7 @@ function buildAvailableModels(providers: Record<string, ResolvedProviderConfig>)
         providerKey,
         providerLabel: toProviderLabel(providerKey),
         source: providerConfig.source,
+        enabled: model.enabled !== false,
         supportsImage: model.supportsImage ?? false,
       });
     });
@@ -103,11 +107,13 @@ function pickSelection(
   legacyAppConfig: LegacyAppConfig | null,
   userPreferences: UserPreferences | null
 ): { selectedProvider?: string; selectedModel?: string } {
+  const selectableModels = availableModels.filter((model) => model.enabled !== false);
+  const fallbackModels = selectableModels.length > 0 ? selectableModels : availableModels;
   const preferredProvider = userPreferences?.preferredProvider?.trim();
   const preferredModel = userPreferences?.preferredModel?.trim();
 
   if (preferredModel) {
-    const matchedPreferred = availableModels.find((model) => (
+    const matchedPreferred = selectableModels.find((model) => (
       model.id === preferredModel
       && (!preferredProvider || model.providerKey === preferredProvider)
     ));
@@ -122,7 +128,7 @@ function pickSelection(
   const tenantDefaultProvider = tenantConfig?.defaults.provider?.trim();
   const tenantDefaultModel = tenantConfig?.defaults.model?.trim();
   if (tenantDefaultModel) {
-    const matchedTenantDefault = availableModels.find((model) => (
+    const matchedTenantDefault = selectableModels.find((model) => (
       model.id === tenantDefaultModel
       && (!tenantDefaultProvider || model.providerKey === tenantDefaultProvider)
     ));
@@ -137,7 +143,7 @@ function pickSelection(
   const legacyDefaultProvider = legacyAppConfig?.model?.defaultModelProvider?.trim();
   const legacyDefaultModel = legacyAppConfig?.model?.defaultModel?.trim();
   if (legacyDefaultModel) {
-    const matchedLegacyDefault = availableModels.find((model) => (
+    const matchedLegacyDefault = selectableModels.find((model) => (
       model.id === legacyDefaultModel
       && (!legacyDefaultProvider || model.providerKey === legacyDefaultProvider)
     ));
@@ -150,8 +156,8 @@ function pickSelection(
   }
 
   return {
-    selectedProvider: availableModels[0]?.providerKey,
-    selectedModel: availableModels[0]?.id,
+    selectedProvider: fallbackModels[0]?.providerKey,
+    selectedModel: fallbackModels[0]?.id,
   };
 }
 

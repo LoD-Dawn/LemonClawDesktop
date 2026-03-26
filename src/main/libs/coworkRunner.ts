@@ -5732,6 +5732,26 @@ export class CoworkRunner extends EventEmitter {
     return this.activeSessions.get(sessionId)?.confirmationMode ?? null;
   }
 
+  getPermissionSessionId(requestId: string): string | null {
+    const sandboxPermission = this.sandboxPermissions.get(requestId);
+    if (sandboxPermission) {
+      return sandboxPermission.sessionId;
+    }
+
+    const pendingPermission = this.pendingPermissions.get(requestId);
+    if (pendingPermission) {
+      return pendingPermission.sessionId;
+    }
+
+    for (const [sessionId, activeSession] of this.activeSessions.entries()) {
+      if (activeSession.pendingPermission?.requestId === requestId) {
+        return sessionId;
+      }
+    }
+
+    return null;
+  }
+
   getActiveSessionIds(): string[] {
     return Array.from(this.activeSessions.keys());
   }
@@ -5747,4 +5767,3 @@ export class CoworkRunner extends EventEmitter {
     }
   }
 }
-

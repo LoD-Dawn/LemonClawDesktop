@@ -120,9 +120,9 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.invoke('get-recent-cwds', limit),
   cowork: {
     // Session management
-    startSession: (options: { prompt: string; cwd?: string; systemPrompt?: string; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) =>
+    startSession: (options: { prompt: string; cwd?: string; systemPrompt?: string; title?: string; providerKey?: string; modelId?: string; modelSource?: 'tenant' | 'local'; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) =>
       ipcRenderer.invoke('cowork:session:start', options),
-    continueSession: (options: { sessionId: string; prompt: string; systemPrompt?: string; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) =>
+    continueSession: (options: { sessionId: string; prompt: string; systemPrompt?: string; providerKey?: string; modelId?: string; modelSource?: 'tenant' | 'local'; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) =>
       ipcRenderer.invoke('cowork:session:continue', options),
     stopSession: (sessionId: string) =>
       ipcRenderer.invoke('cowork:session:stop', sessionId),
@@ -190,6 +190,8 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.invoke('cowork:memory:getStats'),
     getSandboxStatus: () =>
       ipcRenderer.invoke('cowork:sandbox:status'),
+    getQuotaOverview: (options?: { range?: string }) =>
+      ipcRenderer.invoke('cowork:quota:getOverview', options),
     installSandbox: () =>
       ipcRenderer.invoke('cowork:sandbox:install'),
     onSandboxDownloadProgress: (callback: (data: any) => void) => {
@@ -222,6 +224,11 @@ contextBridge.exposeInMainWorld('electron', {
       const handler = (_event: any, data: { sessionId: string; error: string }) => callback(data);
       ipcRenderer.on('cowork:stream:error', handler);
       return () => ipcRenderer.removeListener('cowork:stream:error', handler);
+    },
+    onStreamQuota: (callback: (data: any) => void) => {
+      const handler = (_event: any, data: any) => callback(data);
+      ipcRenderer.on('cowork:stream:quota', handler);
+      return () => ipcRenderer.removeListener('cowork:stream:quota', handler);
     },
   },
   dialog: {

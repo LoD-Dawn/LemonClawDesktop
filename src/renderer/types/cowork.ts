@@ -1,3 +1,9 @@
+import type {
+  ClawManagedModelSource,
+  ClawQuotaOverview,
+  ClawSessionReservation,
+} from '../../shared/quota';
+
 // Cowork image attachment for vision-capable models
 export interface CoworkImageAttachment {
   name: string;
@@ -49,6 +55,7 @@ export interface CoworkSession {
   systemPrompt: string;
   executionMode: CoworkExecutionMode;
   activeSkillIds: string[];
+  quotaReservation?: ClawSessionReservation | null;
   messages: CoworkMessage[];
   createdAt: number;
   updatedAt: number;
@@ -168,6 +175,9 @@ export interface CoworkStartOptions {
   cwd?: string;
   systemPrompt?: string;
   title?: string;
+  providerKey?: string;
+  modelId?: string;
+  modelSource?: ClawManagedModelSource;
   activeSkillIds?: string[];
   imageAttachments?: CoworkImageAttachment[];
 }
@@ -177,6 +187,9 @@ export interface CoworkContinueOptions {
   sessionId: string;
   prompt: string;
   systemPrompt?: string;
+  providerKey?: string;
+  modelId?: string;
+  modelSource?: ClawManagedModelSource;
   activeSkillIds?: string[];
   imageAttachments?: CoworkImageAttachment[];
 }
@@ -197,6 +210,12 @@ export interface CoworkSessionListResult {
 export interface CoworkConfigResult {
   success: boolean;
   config?: CoworkConfig;
+  error?: string;
+}
+
+export interface CoworkQuotaOverviewResult {
+  success: boolean;
+  overview?: ClawQuotaOverview;
   error?: string;
 }
 

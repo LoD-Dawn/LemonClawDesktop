@@ -37,6 +37,8 @@ import { AuthStore } from './authStore';
 import { resolveModelConfig } from './libs/modelConfigResolver';
 import { getUserPreferences, updateUserPreferences } from './libs/userPreferencesStore';
 import type { ProviderConfig, ProviderModelConfig, ResolvedModelConfig, TenantConfig, TenantConfigMeta } from '../shared/modelConfig';
+import { CoworkQuotaManager } from './libs/coworkQuotaManager';
+import type { ClawQuotaStreamPayload } from '../shared/quota';
 import crypto from 'crypto';
 
 // 主进程本地类型定义（不依赖渲染层类型文件）
@@ -177,7 +179,7 @@ type NormalizedAuthUser = {
 interface AuthVerifyResult {
   valid: boolean;
   user?: NormalizedAuthUser;
-  reason?: 'no_token' | 'expired' | 'disabled' | 'network_error';
+  reason?: 'no_token' | 'expired' | 'disabled' | 'scope_required' | 'network_error';
 }
 
 type AuthFailureReason = NonNullable<AuthVerifyResult['reason']>;
@@ -190,6 +192,12 @@ type AuthContextFailure = {
   ok: false;
   reason: AuthFailureReason;
   error: string;
+};
+type PrepareSessionFailure = {
+  success: false;
+  code: string;
+  error: string;
+  data?: import('../shared/quota').ClawPrepareFailureData;
 };
 
 type LegacyProviderAppConfig = {
@@ -220,6 +228,44 @@ type LegacyRendererAppConfig = {
 };
 
 type RemoteModelsResponse = {
+  data?: {
+    defaultModel?: string;
+    defaultModelProvider?: string;
+    model?: {
+      defaultModel?: string;
+      defaultModelProvider?: string;
+    };
+    providers?: Record<string, {
+      enabled?: boolean;
+      apiKey?: string;
+      baseUrl?: string;
+      apiFormat?: 'anthropic' | 'openai';
+      codingPlanEnabled?: boolean;
+      models?: Array<{
+        id?: string;
+        model?: string;
+        name?: string;
+        displayName?: string;
+        enabled?: boolean;
+        supportsImage?: boolean;
+      }>;
+    }> | Array<{
+      provider?: string;
+      enabled?: boolean;
+      apiKey?: string;
+      baseUrl?: string;
+      apiFormat?: 'anthropic' | 'openai';
+      codingPlanEnabled?: boolean;
+      models?: Array<{
+        id?: string;
+        model?: string;
+        name?: string;
+        displayName?: string;
+        enabled?: boolean;
+        supportsImage?: boolean;
+      }>;
+    }>;
+  };
   model?: {
     defaultModel?: string;
     defaultModelProvider?: string;
@@ -232,7 +278,25 @@ type RemoteModelsResponse = {
     codingPlanEnabled?: boolean;
     models?: Array<{
       id?: string;
+      model?: string;
       name?: string;
+      displayName?: string;
+      enabled?: boolean;
+      supportsImage?: boolean;
+    }>;
+  }> | Array<{
+    provider?: string;
+    enabled?: boolean;
+    apiKey?: string;
+    baseUrl?: string;
+    apiFormat?: 'anthropic' | 'openai';
+    codingPlanEnabled?: boolean;
+    models?: Array<{
+      id?: string;
+      model?: string;
+      name?: string;
+      displayName?: string;
+      enabled?: boolean;
       supportsImage?: boolean;
     }>;
   }>;
@@ -479,21 +543,73 @@ const refreshAccessToken = async (): Promise<{
   }
 };
 
+type RemoteProviderModelPayload = {
+  id?: string;
+  model?: string;
+  name?: string;
+  displayName?: string;
+  enabled?: boolean;
+  supportsImage?: boolean;
+};
+
+type RemoteProviderPayload = {
+  enabled?: boolean;
+  apiKey?: string;
+  baseUrl?: string;
+  apiFormat?: 'anthropic' | 'openai';
+  codingPlanEnabled?: boolean;
+  models?: RemoteProviderModelPayload[];
+};
+
+type RemoteProviderArrayPayload = RemoteProviderPayload & {
+  provider?: string;
+};
+
+const toRemoteModelsPayload = (
+  payload: RemoteModelsResponse
+): {
+  defaultModel?: string;
+  defaultModelProvider?: string;
+  providers?: RemoteModelsResponse['providers'];
+} => {
+  if (payload?.data && typeof payload.data === 'object') {
+    return {
+      defaultModel: payload.data.defaultModel ?? payload.data.model?.defaultModel,
+      defaultModelProvider: payload.data.defaultModelProvider ?? payload.data.model?.defaultModelProvider,
+      providers: payload.data.providers,
+    };
+  }
+  return {
+    defaultModel: payload.model?.defaultModel,
+    defaultModelProvider: payload.model?.defaultModelProvider,
+    providers: payload.providers,
+  };
+};
+
 const normalizeRemoteProviderModels = (
-  models: RemoteModelsResponse['providers'][string]['models']
+  models: RemoteProviderModelPayload[] | undefined
 ): ProviderModelConfig[] => {
   return (models ?? [])
-    .filter((model): model is NonNullable<typeof model> & { id: string } => typeof model?.id === 'string' && model.id.trim().length > 0)
+    .filter((model): model is RemoteProviderModelPayload => {
+      const modelId = typeof model?.id === 'string' && model.id.trim()
+        ? model.id.trim()
+        : (typeof model?.model === 'string' && model.model.trim() ? model.model.trim() : '');
+      return Boolean(modelId);
+    })
     .map((model) => ({
-      id: model.id.trim(),
-      name: typeof model.name === 'string' && model.name.trim().length > 0 ? model.name.trim() : model.id.trim(),
+      id: (typeof model.id === 'string' && model.id.trim().length > 0 ? model.id.trim() : model.model!.trim()),
+      name:
+        (typeof model.displayName === 'string' && model.displayName.trim().length > 0 ? model.displayName.trim() : '')
+        || (typeof model.name === 'string' && model.name.trim().length > 0 ? model.name.trim() : '')
+        || (typeof model.id === 'string' && model.id.trim().length > 0 ? model.id.trim() : model.model!.trim()),
+      enabled: model.enabled !== false,
       supportsImage: model.supportsImage ?? false,
     }));
 };
 
 const inferRemoteProviderApiFormat = (
   providerKey: string,
-  apiFormat: RemoteModelsResponse['providers'][string]['apiFormat'],
+  apiFormat: RemoteProviderPayload['apiFormat'],
   baseUrl?: string
 ): 'anthropic' | 'openai' => {
   if (apiFormat === 'openai' || apiFormat === 'anthropic') {
@@ -534,18 +650,30 @@ const inferRemoteProviderApiFormat = (
 const normalizeRemoteProviders = (
   providers: RemoteModelsResponse['providers']
 ): Record<string, ProviderConfig> => {
+  const providerEntries: Array<[string, RemoteProviderPayload]> = Array.isArray(providers)
+    ? providers
+        .map((provider): [string, RemoteProviderPayload] | null => {
+          const providerKey = typeof (provider as RemoteProviderArrayPayload)?.provider === 'string'
+            ? (provider as RemoteProviderArrayPayload).provider!.trim()
+            : '';
+          return providerKey ? [providerKey, provider as RemoteProviderPayload] : null;
+        })
+        .filter((entry): entry is [string, RemoteProviderPayload] => entry !== null)
+    : Object.entries(providers ?? {}) as Array<[string, RemoteProviderPayload]>;
+
   return Object.fromEntries(
-    Object.entries(providers ?? {}).map(([providerKey, providerConfig]) => {
+    providerEntries.map(([providerKey, providerConfig]) => {
       const baseUrl = providerConfig.baseUrl?.trim().replace(/\/+$/, '') ?? '';
+      const normalizedModels = normalizeRemoteProviderModels(providerConfig.models);
       return [
         providerKey,
         {
-          enabled: providerConfig.enabled ?? false,
+          enabled: providerConfig.enabled ?? normalizedModels.length > 0,
           apiKey: providerConfig.apiKey ?? '',
           baseUrl,
           apiFormat: inferRemoteProviderApiFormat(providerKey, providerConfig.apiFormat, baseUrl),
           codingPlanEnabled: providerConfig.codingPlanEnabled ?? false,
-          models: normalizeRemoteProviderModels(providerConfig.models),
+          models: normalizedModels,
         } satisfies ProviderConfig,
       ];
     })
@@ -693,23 +821,67 @@ const getResolvedModelConfig = (): ResolvedModelConfig => {
   });
 };
 
+type ExternalAuthErrorPayload = {
+  code: string | null;
+  normalizedCode: string | null;
+  error: string | null;
+  message: string | null;
+};
+
+const readExternalAuthErrorPayload = async (resp: Response): Promise<ExternalAuthErrorPayload> => {
+  try {
+    const json = await resp.clone().json() as {
+      code?: unknown;
+      normalizedCode?: unknown;
+      error?: unknown;
+      message?: unknown;
+    };
+    return {
+      code: typeof json?.code === 'string' ? json.code : null,
+      normalizedCode: typeof json?.normalizedCode === 'string' ? json.normalizedCode : null,
+      error: typeof json?.error === 'string' ? json.error : null,
+      message: typeof json?.message === 'string' ? json.message : null,
+    };
+  } catch {
+    return {
+      code: null,
+      normalizedCode: null,
+      error: null,
+      message: null,
+    };
+  }
+};
+
+const normalizeExternalAuthCode = (payload: ExternalAuthErrorPayload): string | null => {
+  return payload.normalizedCode ?? payload.code;
+};
+
+const mapExternalAuthFailureReason = (payload: ExternalAuthErrorPayload): AuthFailureReason | null => {
+  switch (normalizeExternalAuthCode(payload)) {
+    case 'AUTH_MISSING_TOKEN':
+      return 'no_token';
+    case 'AUTH_USER_INACTIVE':
+      return 'disabled';
+    case 'FORBIDDEN_RESOURCE_SCOPE_REQUIRED':
+      return 'scope_required';
+    case 'UNAUTHORIZED':
+      return payload.code === 'FORBIDDEN_RESOURCE_SCOPE_REQUIRED' ? 'scope_required' : 'expired';
+    case 'AUTH_INVALID':
+    case 'AUTH_INVALID_TOKEN':
+      return 'expired';
+    default:
+      return null;
+  }
+};
+
 const fetchAuthContextWithRefresh = async (): Promise<{
   ok: true;
   accessToken: string;
   user: NormalizedAuthUser;
 } | {
   ok: false;
-  reason: 'no_token' | 'expired' | 'disabled' | 'network_error';
+  reason: 'no_token' | 'expired' | 'disabled' | 'scope_required' | 'network_error';
 }> => {
-  const readAuthErrorCode = async (resp: Response): Promise<string | null> => {
-    try {
-      const json = await resp.clone().json() as { code?: unknown };
-      return typeof json?.code === 'string' ? json.code : null;
-    } catch {
-      return null;
-    }
-  };
-
   const callValidate = async (accessToken: string) => {
   return fetch(`${ADMIN_API_BASE_URL}/api/external/v1/me/validate`, {
       method: 'GET',
@@ -726,11 +898,12 @@ const fetchAuthContextWithRefresh = async (): Promise<{
   try {
     let resp = await callValidate(accessToken);
     if (resp.status === 401) {
-      const authErrorCode = await readAuthErrorCode(resp);
-      if (authErrorCode === 'AUTH_INVALID_TOKEN') {
-        console.warn('[Auth] Validation returned AUTH_INVALID_TOKEN, treating account as disabled');
+      const authErrorPayload = await readExternalAuthErrorPayload(resp);
+      const authFailureReason = mapExternalAuthFailureReason(authErrorPayload);
+      if (authFailureReason === 'no_token' || authFailureReason === 'disabled' || authFailureReason === 'scope_required') {
+        console.warn('[Auth] Validation failed before refresh:', normalizeExternalAuthCode(authErrorPayload));
         getAuthStore().clear();
-        return { ok: false, reason: 'disabled' };
+        return { ok: false, reason: authFailureReason };
       }
 
       console.log('[Auth] access_token expired (401), attempting refresh...');
@@ -747,15 +920,26 @@ const fetchAuthContextWithRefresh = async (): Promise<{
       resp = await callValidate(accessToken);
 
       if (!resp.ok) {
-        const refreshedAuthErrorCode = await readAuthErrorCode(resp);
-        if (resp.status === 401 && refreshedAuthErrorCode === 'AUTH_INVALID_TOKEN') {
-          console.warn('[Auth] Validation after refresh returned AUTH_INVALID_TOKEN, treating account as disabled');
+        const refreshedAuthErrorPayload = await readExternalAuthErrorPayload(resp);
+        const refreshedAuthFailureReason = mapExternalAuthFailureReason(refreshedAuthErrorPayload);
+        if (refreshedAuthFailureReason) {
+          console.warn('[Auth] Validation after refresh failed:', normalizeExternalAuthCode(refreshedAuthErrorPayload));
           getAuthStore().clear();
-          return { ok: false, reason: 'disabled' };
+          return { ok: false, reason: refreshedAuthFailureReason };
         }
         console.warn('[Auth] Validation failed after token refresh, status:', resp.status);
         getAuthStore().clear();
         return { ok: false, reason: 'expired' };
+      }
+    }
+
+    if (resp.status === 403) {
+      const authErrorPayload = await readExternalAuthErrorPayload(resp);
+      const authFailureReason = mapExternalAuthFailureReason(authErrorPayload);
+      if (authFailureReason) {
+        console.warn('[Auth] Validation forbidden:', normalizeExternalAuthCode(authErrorPayload));
+        getAuthStore().clear();
+        return { ok: false, reason: authFailureReason };
       }
     }
 
@@ -786,6 +970,8 @@ const getAuthFailureMessage = (reason: AuthFailureReason): string => {
   switch (reason) {
     case 'disabled':
       return '账号已无访问权限，请重新登录';
+    case 'scope_required':
+      return '当前登录缺少所需权限，请重新登录或检查应用授权范围';
     case 'expired':
       return '登录已过期，请重新登录';
     case 'no_token':
@@ -862,42 +1048,69 @@ const syncTenantConfig = async (): Promise<{ success: boolean; error?: string }>
   });
 
   if (!resp.ok) {
-    const errorBody = await resp.text().catch(() => '');
+    const authErrorPayload = await readExternalAuthErrorPayload(resp);
+    const errorBody = (authErrorPayload.message || authErrorPayload.error)
+      ?? await resp.text().catch(() => '');
     console.warn(
       '[Auth] Failed to fetch remote model config:',
       JSON.stringify({
         status: resp.status,
         statusText: resp.statusText,
+        code: normalizeExternalAuthCode(authErrorPayload),
         tenantLabel,
         bodyPreview: errorBody.slice(0, 300),
       })
     );
+    const errorMessage = errorBody || `Failed to fetch remote model config: ${resp.status} ${resp.statusText}`;
     getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
       ...metaBefore,
       lastAttemptAt: Date.now(),
-      lastError: `Failed to fetch remote model config: ${resp.status} ${resp.statusText}`,
+      lastError: errorMessage,
       stale: !!getTenantConfig(),
     });
-    return { success: false, error: `Failed to fetch remote model config: ${resp.status} ${resp.statusText}` };
+    return { success: false, error: errorMessage };
   }
 
   const remoteConfig = await resp.json() as RemoteModelsResponse;
+  const remoteConfigEnvelope = remoteConfig as RemoteModelsResponse & {
+    code?: string;
+    normalizedCode?: string;
+    error?: string;
+    message?: string;
+  };
+  const remoteConfigCode = typeof remoteConfigEnvelope.normalizedCode === 'string'
+    ? remoteConfigEnvelope.normalizedCode
+    : typeof remoteConfigEnvelope.code === 'string'
+      ? remoteConfigEnvelope.code
+      : 'OK';
+  if (remoteConfigCode !== 'OK') {
+    const errorMessage = remoteConfigEnvelope.message || remoteConfigEnvelope.error || 'Failed to fetch remote model config';
+    getStore().set<TenantConfigMeta>(TENANT_CONFIG_META_KEY, {
+      ...metaBefore,
+      lastAttemptAt: Date.now(),
+      lastError: errorMessage,
+      stale: !!getTenantConfig(),
+    });
+    return { success: false, error: errorMessage };
+  }
+  const remotePayload = toRemoteModelsPayload(remoteConfig);
+  const normalizedProviders = normalizeRemoteProviders(remotePayload.providers);
   console.log(
     '[Auth] Remote model config fetched:',
     JSON.stringify({
       tenantLabel,
-      defaultModel: remoteConfig.model?.defaultModel ?? null,
-      defaultModelProvider: remoteConfig.model?.defaultModelProvider ?? null,
-      providers: Object.keys(remoteConfig.providers ?? {}),
+      defaultModel: remotePayload.defaultModel ?? null,
+      defaultModelProvider: remotePayload.defaultModelProvider ?? null,
+      providers: Object.keys(normalizedProviders),
     })
   );
   const tenantConfig: TenantConfig = {
     tenantLabel,
     fetchedAt: Date.now(),
-    providers: normalizeRemoteProviders(remoteConfig.providers),
+    providers: normalizedProviders,
     defaults: {
-      provider: remoteConfig.model?.defaultModelProvider?.trim() || undefined,
-      model: remoteConfig.model?.defaultModel?.trim() || undefined,
+      provider: remotePayload.defaultModelProvider?.trim() || undefined,
+      model: remotePayload.defaultModel?.trim() || undefined,
     },
   };
 
@@ -1465,6 +1678,7 @@ process.on('exit', (code) => {
 let store: SqliteStore | null = null;
 let coworkStore: CoworkStore | null = null;
 let coworkRunner: CoworkRunner | null = null;
+let coworkQuotaManager: CoworkQuotaManager | null = null;
 let skillManager: SkillManager | null = null;
 let mcpStore: McpStore | null = null;
 let imGatewayManager: IMGatewayManager | null = null;
@@ -1504,6 +1718,73 @@ const getCoworkStore = () => {
     }
   }
   return coworkStore;
+};
+
+const broadcastCoworkQuotaUpdate = (payload: ClawQuotaStreamPayload): void => {
+  const windows = BrowserWindow.getAllWindows();
+  windows.forEach((win) => {
+    if (!win.isDestroyed()) {
+      try {
+        win.webContents.send('cowork:stream:quota', payload);
+      } catch (error) {
+        console.error('Failed to forward cowork quota update:', error);
+      }
+    }
+  });
+};
+
+const getCoworkQuotaManager = () => {
+  if (!coworkQuotaManager) {
+    coworkQuotaManager = new CoworkQuotaManager({
+      store: getStore(),
+      ensureAuth: async () => {
+        const auth = await ensureActiveAuthSession();
+        if (auth.ok) {
+          return { ok: true as const, accessToken: auth.accessToken };
+        }
+        const failedAuth = auth as AuthContextFailure;
+        return {
+          ok: false as const,
+          reason: failedAuth.reason,
+          error: failedAuth.error,
+        };
+      },
+      onShouldStop: (sessionId, message) => {
+        try {
+          const runner = getCoworkRunner();
+          runner.stopSession(sessionId);
+        } catch (error) {
+          console.warn('[Quota] Failed to stop session after quota exhaustion:', error);
+        }
+
+        const session = getCoworkStore().getSession(sessionId);
+        if (session?.status !== 'error') {
+          getCoworkStore().updateSession(sessionId, { status: 'error' });
+          const systemMessage = getCoworkStore().addMessage(sessionId, {
+            type: 'system',
+            content: `Error: ${message}`,
+            metadata: { error: message },
+          });
+          const safeMessage = sanitizeCoworkMessageForIpc(systemMessage);
+          const windows = BrowserWindow.getAllWindows();
+          windows.forEach((win) => {
+            if (!win.isDestroyed()) {
+              win.webContents.send('cowork:stream:message', { sessionId, message: safeMessage });
+              win.webContents.send('cowork:stream:error', { sessionId, error: message });
+            }
+          });
+        }
+
+        void getCoworkQuotaManager().finishSession(sessionId, 'quota_exhausted', 'QUOTA_EXHAUSTED');
+      },
+    });
+
+    coworkQuotaManager.on('quotaUpdate', (payload: ClawQuotaStreamPayload) => {
+      broadcastCoworkQuotaUpdate(payload);
+    });
+  }
+
+  return coworkQuotaManager;
 };
 
 const getCoworkRunner = () => {
@@ -1569,6 +1850,7 @@ const getCoworkRunner = () => {
     });
 
     coworkRunner.on('permissionRequest', (sessionId: string, request: any) => {
+      getCoworkQuotaManager().setSessionHeartbeatStatus(sessionId, 'waiting_user');
       if (coworkRunner?.getSessionConfirmationMode(sessionId) === 'text') {
         return;
       }
@@ -1592,6 +1874,7 @@ const getCoworkRunner = () => {
           win.webContents.send('cowork:stream:complete', { sessionId, claudeSessionId });
         }
       });
+      void getCoworkQuotaManager().finishSession(sessionId, 'completed');
     });
 
     coworkRunner.on('error', (sessionId: string, error: string) => {
@@ -1601,6 +1884,7 @@ const getCoworkRunner = () => {
           win.webContents.send('cowork:stream:error', { sessionId, error });
         }
       });
+      void getCoworkQuotaManager().finishSession(sessionId, 'error', error);
     });
   }
   return coworkRunner;
@@ -2385,6 +2669,9 @@ if (!gotTheLock) {
     cwd?: string;
     systemPrompt?: string;
     title?: string;
+    providerKey?: string;
+    modelId?: string;
+    modelSource?: 'tenant' | 'local';
     activeSkillIds?: string[];
     imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
   }) => {
@@ -2411,6 +2698,14 @@ if (!gotTheLock) {
       const fallbackTitle = options.prompt.split('\n')[0].slice(0, 50) || 'New Session';
       const title = options.title?.trim() || fallbackTitle;
       const taskWorkingDirectory = resolveTaskWorkingDirectory(selectedWorkspaceRoot);
+      const resolvedModelConfig = getResolvedModelConfig();
+      const resolvedSelection = resolvedModelConfig.availableModels.find((model) => (
+        model.id === (options.modelId?.trim() || resolvedModelConfig.selectedModel)
+        && model.providerKey === (options.providerKey?.trim() || resolvedModelConfig.selectedProvider)
+      ));
+      const providerKey = options.providerKey?.trim() || resolvedSelection?.providerKey || resolvedModelConfig.selectedProvider || '';
+      const modelId = options.modelId?.trim() || resolvedSelection?.id || resolvedModelConfig.selectedModel || '';
+      const modelSource = options.modelSource || resolvedSelection?.source || 'tenant';
 
       const session = coworkStoreInstance.createSession(
         title,
@@ -2419,6 +2714,42 @@ if (!gotTheLock) {
         config.executionMode || 'local',
         options.activeSkillIds || []
       );
+
+      if (modelSource !== 'local') {
+        if (!providerKey || !modelId) {
+          coworkStoreInstance.deleteSession(session.id);
+          return {
+            success: false,
+            error: '当前未选择可计费模型，请重新选择模型后重试。',
+          };
+        }
+        if (resolvedSelection && resolvedSelection.enabled === false) {
+          coworkStoreInstance.deleteSession(session.id);
+          return {
+            success: false,
+            error: '当前模型暂不可用，请重新选择模型后重试。',
+          };
+        }
+
+        const prepareResult = await getCoworkQuotaManager().prepareSession({
+          sessionId: session.id,
+          provider: providerKey,
+          model: modelId,
+          entry: 'cowork_start',
+          workspacePath: selectedWorkspaceRoot,
+          estimatedSeconds: 900,
+        });
+
+        if (!prepareResult.success) {
+          const failedPrepare = prepareResult as PrepareSessionFailure;
+          coworkStoreInstance.deleteSession(session.id);
+          return {
+            success: false,
+            error: failedPrepare.error,
+          };
+        }
+      }
+
       // Build metadata, include imageAttachments if present
       const messageMetadata: Record<string, unknown> = {};
       if (options.activeSkillIds?.length) {
@@ -2435,6 +2766,9 @@ if (!gotTheLock) {
 
       const probe = await probeCoworkModelReadiness();
       if (probe.ok === false) {
+        if (modelSource !== 'local') {
+          void getCoworkQuotaManager().finishSession(session.id, 'error', 'MODEL_NOT_READY');
+        }
         coworkStoreInstance.updateSession(session.id, { status: 'error' });
         coworkStoreInstance.addMessage(session.id, {
           type: 'system',
@@ -2453,6 +2787,9 @@ if (!gotTheLock) {
       // Update session status to 'running' before starting async task
       // This ensures the frontend receives the correct status immediately
       coworkStoreInstance.updateSession(session.id, { status: 'running' });
+      if (modelSource !== 'local') {
+        getCoworkQuotaManager().setSessionHeartbeatStatus(session.id, 'running');
+      }
 
       // Start the session asynchronously (skip initial user message since we already added it)
       runner.startSession(session.id, options.prompt, {
@@ -2469,7 +2806,13 @@ if (!gotTheLock) {
         ...session,
         status: 'running' as const,
       };
-      return { success: true, session: sessionWithMessages };
+      return {
+        success: true,
+        session: {
+          ...sessionWithMessages,
+          quotaReservation: getCoworkQuotaManager().getSessionReservation(session.id),
+        },
+      };
     } catch (error) {
       return {
         success: false,
@@ -2482,6 +2825,9 @@ if (!gotTheLock) {
     sessionId: string;
     prompt: string;
     systemPrompt?: string;
+    providerKey?: string;
+    modelId?: string;
+    modelSource?: 'tenant' | 'local';
     activeSkillIds?: string[];
     imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
   }) => {
@@ -2498,6 +2844,39 @@ if (!gotTheLock) {
         imageAttachmentsCount: options.imageAttachments?.length ?? 0,
         imageAttachmentsNames: options.imageAttachments?.map(a => a.name),
       });
+      const resolvedModelConfig = getResolvedModelConfig();
+      const resolvedSelection = resolvedModelConfig.availableModels.find((model) => (
+        model.id === (options.modelId?.trim() || resolvedModelConfig.selectedModel)
+        && model.providerKey === (options.providerKey?.trim() || resolvedModelConfig.selectedProvider)
+      ));
+      const providerKey = options.providerKey?.trim() || resolvedSelection?.providerKey || resolvedModelConfig.selectedProvider || '';
+      const modelId = options.modelId?.trim() || resolvedSelection?.id || resolvedModelConfig.selectedModel || '';
+      const modelSource = options.modelSource || resolvedSelection?.source || 'tenant';
+      if (modelSource !== 'local' && !getCoworkQuotaManager().hasOpenReservation(options.sessionId)) {
+        if (!providerKey || !modelId) {
+          return { success: false, error: '当前未选择可计费模型，请重新选择模型后重试。' };
+        }
+        if (resolvedSelection && resolvedSelection.enabled === false) {
+          return { success: false, error: '当前模型暂不可用，请重新选择模型后重试。' };
+        }
+        const prepareResult = await getCoworkQuotaManager().prepareSession({
+          sessionId: options.sessionId,
+          provider: providerKey,
+          model: modelId,
+          entry: 'cowork_continue',
+          workspacePath: getCoworkStore().getSession(options.sessionId)?.cwd,
+          estimatedSeconds: 900,
+          clientSessionId: `${options.sessionId}:${Date.now()}`,
+        });
+        if (!prepareResult.success) {
+          const failedPrepare = prepareResult as PrepareSessionFailure;
+          return { success: false, error: failedPrepare.error };
+        }
+      }
+
+      if (modelSource !== 'local') {
+        getCoworkQuotaManager().setSessionHeartbeatStatus(options.sessionId, 'running');
+      }
       const runner = getCoworkRunner();
       runner.continueSession(options.sessionId, options.prompt, {
         systemPrompt: options.systemPrompt,
@@ -2508,7 +2887,13 @@ if (!gotTheLock) {
       });
 
       const session = getCoworkStore().getSession(options.sessionId);
-      return { success: true, session };
+      return {
+        success: true,
+        session: session ? {
+          ...session,
+          quotaReservation: getCoworkQuotaManager().getSessionReservation(options.sessionId),
+        } : undefined,
+      };
     } catch (error) {
       return {
         success: false,
@@ -2521,6 +2906,7 @@ if (!gotTheLock) {
     try {
       const runner = getCoworkRunner();
       runner.stopSession(sessionId);
+      void getCoworkQuotaManager().finishSession(sessionId, 'stopped_by_user');
       return { success: true };
     } catch (error) {
       return {
@@ -2589,7 +2975,13 @@ if (!gotTheLock) {
   ipcMain.handle('cowork:session:get', async (_event, sessionId: string) => {
     try {
       const session = getCoworkStore().getSession(sessionId);
-      return { success: true, session };
+      return {
+        success: true,
+        session: session ? {
+          ...session,
+          quotaReservation: getCoworkQuotaManager().getSessionReservation(sessionId),
+        } : null,
+      };
     } catch (error) {
       return {
         success: false,
@@ -2696,7 +3088,11 @@ if (!gotTheLock) {
   }) => {
     try {
       const runner = getCoworkRunner();
+      const sessionId = runner.getPermissionSessionId(options.requestId);
       runner.respondToPermission(options.requestId, options.result);
+      if (sessionId) {
+        getCoworkQuotaManager().setSessionHeartbeatStatus(sessionId, 'running');
+      }
       return { success: true };
     } catch (error) {
       return {
@@ -2720,6 +3116,17 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:sandbox:status', async () => {
     return getSandboxStatus();
+  });
+  ipcMain.handle('cowork:quota:getOverview', async (_event, options?: { range?: string }) => {
+    try {
+      const overview = await getCoworkQuotaManager().getOverview(options?.range || '7d');
+      return { success: true, overview };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to load quota overview',
+      };
+    }
   });
   ipcMain.handle('cowork:memory:listEntries', async (_event, input: {
     query?: string;
@@ -3709,6 +4116,11 @@ if (!gotTheLock) {
       console.log('[Main] Stopping cowork sessions...');
       coworkRunner.stopAllSessions();
     }
+    if (coworkQuotaManager) {
+      await coworkQuotaManager.finishAllOpenReservations('network_lost').catch((error) => {
+        console.error('[Quota] Failed to finish open reservations during cleanup:', error);
+      });
+    }
 
     await stopCoworkOpenAICompatProxy().catch((error) => {
       console.error('Failed to stop OpenAI compatibility proxy:', error);
@@ -3805,6 +4217,9 @@ if (!gotTheLock) {
     // Inject store getter into claudeSettings
     setStoreGetter(() => store);
     console.log('[Main] initApp: setStoreGetter done');
+    void getCoworkQuotaManager().recoverOpenReservations().catch((error) => {
+      console.error('[Quota] Failed to recover open reservations:', error);
+    });
     const manager = getSkillManager();
     console.log('[Main] initApp: getSkillManager done');
 
