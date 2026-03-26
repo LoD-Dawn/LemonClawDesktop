@@ -286,12 +286,12 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   };
 
   const containerClass = isLarge
-    ? 'relative rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-card transition-[box-shadow,border-color,background-color] duration-200 focus-within:shadow-elevated focus-within:ring-2 focus-within:ring-primary/25 focus-within:border-primary/70'
-    : 'relative flex items-end gap-2 p-3 rounded-xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-subtle transition-[box-shadow,border-color] duration-200 focus-within:shadow-card focus-within:border-primary/60';
+    ? 'relative rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-sm transition-[box-shadow,border-color,background-color] duration-200'
+    : 'relative flex items-end gap-2 p-3 rounded-xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-sm transition-[box-shadow,border-color] duration-200';
 
   const textareaClass = isLarge
-    ? `w-full resize-none bg-transparent px-4 pt-3 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[15px] leading-6 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
-    : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none text-sm leading-relaxed min-h-[24px] max-h-[200px]';
+    ? `w-full resize-none bg-transparent px-4 pt-3 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none focus:ring-0 text-[15px] leading-6 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
+    : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none focus:ring-0 text-sm leading-relaxed min-h-[24px] max-h-[200px]';
 
   const truncatePath = (path: string, maxLength = 30): string => {
     if (!path) return i18nService.t('noFolderSelected');

@@ -400,23 +400,21 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
           </div>
 
           {/* Prompt Input Area - Large version with folder selector */}
-          <div className="relative">
-            <div className="rounded-2xl border dark:border-dark-border/60 border-black/10 dark:bg-dark-surface/90 bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
-              <CoworkPromptInput
-                ref={promptInputRef}
-                onSubmit={handleStartSession}
-                onStop={handleStopSession}
-                isStreaming={isStreaming}
-                placeholder={i18nService.t('coworkPlaceholder')}
-                size="large"
-                workingDirectory={config.workingDirectory}
-                onWorkingDirectoryChange={async (dir: string) => {
-                  await coworkService.updateConfig({ workingDirectory: dir });
-                }}
-                showFolderSelector={true}
-                onManageSkills={() => onShowSkills?.()}
-              />
-            </div>
+          <div className="relative z-20">
+            <CoworkPromptInput
+              ref={promptInputRef}
+              onSubmit={handleStartSession}
+              onStop={handleStopSession}
+              isStreaming={isStreaming}
+              placeholder={i18nService.t('coworkPlaceholder')}
+              size="large"
+              workingDirectory={config.workingDirectory}
+              onWorkingDirectoryChange={async (dir: string) => {
+                await coworkService.updateConfig({ workingDirectory: dir });
+              }}
+              showFolderSelector={true}
+              onManageSkills={() => onShowSkills?.()}
+            />
           </div>
 
           {/* Active Tasks (Quick Actions mock) */}
