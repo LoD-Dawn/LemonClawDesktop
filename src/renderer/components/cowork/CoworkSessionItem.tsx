@@ -274,18 +274,12 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         }
         onSelect();
       }}
-      className={`group relative cursor-pointer overflow-hidden rounded-[22px] border px-3.5 py-3.5 transition-all duration-200 ${
+      className={`group relative p-3 rounded-xl border cursor-pointer transition-all duration-200 ${
         isActive
-          ? 'border-white/[0.16] bg-white/[0.11] shadow-[0_18px_34px_rgba(0,0,0,0.16)]'
-          : 'border-transparent bg-transparent hover:border-white/10 hover:bg-white/[0.06]'
+          ? 'bg-primary/10 dark:bg-primary/15 border-primary/35 shadow-subtle'
+          : 'border-transparent hover:border-border dark:hover:border-dark-border hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
       }`}
     >
-      <div className={`pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full transition-colors ${
-        isActive
-          ? 'bg-gradient-to-b from-amber-300 via-amber-200 to-transparent'
-          : 'bg-transparent group-hover:from-sky-300/70 group-hover:via-white/40 group-hover:to-transparent'
-      }`}
-      />
       {/* Content area */}
       <div className="flex items-start">
         {isBatchMode && (
@@ -303,13 +297,13 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className={`mb-1.5 flex items-center ${showStatusIndicator ? 'gap-1.5' : 'gap-0'}`}>
+          <div className={`flex items-center mb-1 ${showStatusIndicator ? 'gap-2' : 'gap-0'}`}>
             {/* Status indicator */}
             {showStatusIndicator && (
               <span
-                className={`block h-2 w-2 flex-shrink-0 rounded-full ${
-                  showRunningIndicator ? 'animate-pulse' : ''
-                } ${showRunningIndicator ? 'bg-amber-300' : 'bg-sky-300'}`}
+                className={`block w-2 h-2 rounded-full bg-primary flex-shrink-0 ${
+                  showRunningIndicator ? 'shadow-[0_0_6px_rgba(59,130,246,0.5)] animate-pulse' : ''
+                }`}
                 title={showRunningIndicator ? i18nService.t(statusLabels[session.status]) : undefined}
               />
             )}
@@ -328,19 +322,19 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
                   }
                 }}
                 onBlur={handleRenameBlur}
-                className="flex-1 min-w-0 rounded-xl border border-white/10 bg-[#111c28] px-2.5 py-1.5 text-[13px] font-medium text-white focus:outline-none focus:ring-2 focus:ring-amber-300/40"
+                className="flex-1 min-w-0 rounded-lg border dark:border-dark-border border-border dark:bg-dark-bg bg-page px-2 py-1 text-sm font-medium dark:text-dark-text text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             ) : (
-              <h3 className="truncate pr-8 text-[13px] font-medium leading-5 text-white">
+              <h3 className="text-sm font-medium dark:text-dark-text text-text-primary truncate">
                 {session.title}
               </h3>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-white/[0.58]">
-            <span className="inline-flex whitespace-nowrap rounded-full border border-white/10 bg-white/[0.08] px-2 py-0.5 text-[10px] text-white/[0.58]" title={relativeTime.full}>
+          <div className="flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">
+            <span className="whitespace-nowrap" title={relativeTime.full}>
               {relativeTime.compact}
             </span>
-            <span className="text-[10px] whitespace-nowrap text-white/[0.38]">
+            <span className="text-[10px] uppercase tracking-wider whitespace-nowrap">
               {i18nService.t(statusLabels[session.status])}
             </span>
           </div>
@@ -361,7 +355,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
         <button
           ref={actionButtonRef}
           onClick={openMenu}
-          className="app-icon-btn-soft bg-transparent p-1 text-white/[0.65]"
+          className="app-icon-btn-soft p-1.5 bg-surface/80 dark:bg-dark-surface/80"
           aria-label={actionLabel}
         >
           {session.pinned ? (
@@ -376,10 +370,10 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
       </div>
       )}
 
-      {menuPosition && typeof document !== 'undefined' && createPortal(
+      {menuPosition && (
         <div
           ref={menuRef}
-          className="fixed z-[9999] min-w-[180px] overflow-hidden rounded-2xl border border-white/10 bg-[#13202d] shadow-popover popover-enter"
+          className="fixed z-50 min-w-[180px] rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-lg overflow-hidden"
           style={{ top: menuPosition.y, left: menuPosition.x }}
           role="menu"
         >
@@ -391,7 +385,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
               className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                 item.tone === 'danger'
                   ? 'text-red-500 hover:bg-red-500/10'
-                  : 'text-white hover:bg-white/10'
+                  : 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
               }`}
             >
               {item.key === 'batch' && <ListChecksIcon className="h-4 w-4" />}
@@ -407,8 +401,7 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
               {item.label}
             </button>
           ))}
-        </div>,
-        document.body
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -459,3 +452,5 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
 };
 
 export default CoworkSessionItem;
+
+

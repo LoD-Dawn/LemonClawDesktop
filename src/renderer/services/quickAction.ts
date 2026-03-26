@@ -69,7 +69,6 @@ class QuickActionService {
       return {
         ...action,
         label: actionI18n?.label || action.id,
-        description: actionI18n?.description,
         prompts: action.prompts.map(prompt => {
           const promptI18n = actionI18n?.prompts?.[prompt.id];
 

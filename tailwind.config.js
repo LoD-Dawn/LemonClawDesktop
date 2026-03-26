@@ -8,52 +8,52 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Codex-inspired neutral desktop palette
-        page: '#F5F5F2',
-        surface: '#FCFCFA',
-        'surface-hover': '#F1F1ED',
-        'surface-muted': '#ECECE7',
-        'surface-inset': '#E6E6E0',
-        border: '#E2E2DB',
-        'border-light': '#ECECE6',
-        'text-primary': '#1F1F1B',
-        'text-secondary': '#6E6E65',
-        'text-muted': '#9A9A8F',
+        // Ink Blue Enterprise color palette
+        page: '#F5F5F7',              // Light page bg
+        surface: '#FFFFFF',          // Cards, inputs
+        'surface-hover': '#EBEBED',     // Hover state
+        'surface-muted': '#F3F4F6',     // Subtle area distinction
+        'surface-inset': '#EBEDF0',     // Inset areas
+        border: '#E8E8EB',           // Default border
+        'border-light': '#EBEDF0',      // Subtle dividers
+        'text-primary': '#1F2329',             // Primary text
+        'text-secondary': '#646A73',    // Secondary text
+        'text-muted': '#8F959E',        // Muted text
 
         // Dark mode colors
-        'dark-bg': '#0F1723',
-        'dark-surface': '#16202C',
-        'dark-surface-hover': '#1D2936',
-        'dark-surface-muted': '#121B26',
-        'dark-surface-inset': '#0C141E',
-        'dark-border': '#2E3C4D',
-        'dark-border-light': '#223042',
-        'dark-text': '#E7EEF7',
-        'dark-text-secondary': '#B5C0CE',
-        'dark-text-muted': '#8190A2',
+        'dark-bg': '#0F1117',           // Dark background
+        'dark-surface': '#181D27',      // Dark cards
+        'dark-surface-hover': '#212735', // Dark hover
+        'dark-surface-muted': '#131823', // Subtle dark area
+        'dark-surface-inset': '#0B1018', // Dark inset areas
+        'dark-border': '#313949',       // Dark borders
+        'dark-border-light': '#232B38',  // Subtle dark dividers
+        'dark-text': '#F3F6FB',         // Dark primary text
+        'dark-text-secondary': '#C2CAD6', // Dark secondary text
+        'dark-text-muted': '#9AA6B8',   // Dark muted text
 
-        // Primary
+        // Primary (Ink Blue)
         primary: {
-          DEFAULT: '#334155',
-          light: '#475569',
-          lighter: '#C5D2E2',
-          muted: 'rgba(51, 65, 85, 0.14)',
+          DEFAULT: '#0D2847', // Deep Ink Blue
+          light: '#134E6F',   // Hover in light
+          lighter: '#1E5F7A', // Focus ring
+          muted: 'rgba(13, 40, 71, 0.10)',
         },
         secondary: {
-          DEFAULT: '#7DB4CF',
-          dark: '#9CCBE2'
+          DEFAULT: '#646A73',
+          dark: '#9CA3AF'
         }
       },
       boxShadow: {
-        subtle: '0 1px 2px rgba(15, 23, 42, 0.03)',
-        card: '0 10px 24px rgba(15, 23, 42, 0.05), 0 2px 6px rgba(15, 23, 42, 0.03)',
-        elevated: '0 18px 40px rgba(15, 23, 42, 0.08), 0 4px 14px rgba(15, 23, 42, 0.04)',
-        modal: '0 24px 60px rgba(15, 23, 42, 0.12), 0 6px 18px rgba(15, 23, 42, 0.05)',
-        popover: '0 16px 36px rgba(15, 23, 42, 0.10), 0 4px 10px rgba(15, 23, 42, 0.04)',
-        focus: '0 14px 32px rgba(51, 65, 85, 0.12)',
-        'focus-dark': '0 18px 42px rgba(125, 180, 207, 0.18)',
-        'card-hover': '0 14px 32px rgba(15, 23, 42, 0.08)',
-        'card-hover-dark': '0 18px 42px rgba(8, 15, 24, 0.34)',
+        subtle: '0 1px 2px rgba(0,0,0,0.05)',
+        card: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+        elevated: '0 4px 12px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.04)',
+        modal: '0 8px 30px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)',
+        popover: '0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.05)',
+        focus: '0 8px 32px rgba(13, 40, 71, 0.18)',
+        'focus-dark': '0 8px 32px rgba(91, 163, 224, 0.25)',
+        'card-hover': '0 2px 12px rgba(13, 40, 71, 0.12)',
+        'card-hover-dark': '0 2px 12px rgba(91, 163, 224, 0.2)',
       },
       keyframes: {
         'fade-in': {
@@ -90,16 +90,16 @@ export default {
       typography: {
         DEFAULT: {
           css: {
-            color: '#1F2937',
+            color: '#1F2329',
             a: {
-              color: '#334155',
+              color: '#0D2847',
               '&:hover': {
-                color: '#475569',
+                color: '#134E6F',
               },
             },
             code: {
-              color: '#1F2937',
-              backgroundColor: 'rgba(230, 237, 245, 0.82)',
+              color: '#1F2329',
+              backgroundColor: 'rgba(235, 237, 240, 0.5)',
               padding: '0.2em 0.4em',
               borderRadius: '0.25rem',
               fontWeight: '400',
@@ -111,74 +111,74 @@ export default {
               content: '""',
             },
             pre: {
-              backgroundColor: '#F3F7FB',
-              color: '#1F2937',
+              backgroundColor: '#F5F5F7',
+              color: '#1F2329',
               padding: '1em',
               borderRadius: '0.75rem',
               overflowX: 'auto',
             },
             blockquote: {
-              borderLeftColor: '#334155',
-              color: '#64748B',
+              borderLeftColor: '#0D2847',
+              color: '#646A73',
             },
             h1: {
-              color: '#1F2937',
+              color: '#1F2329',
             },
             h2: {
-              color: '#1F2937',
+              color: '#1F2329',
             },
             h3: {
-              color: '#1F2937',
+              color: '#1F2329',
             },
             h4: {
-              color: '#1F2937',
+              color: '#1F2329',
             },
             strong: {
-              color: '#1F2937',
+              color: '#1F2329',
             },
           },
         },
         dark: {
           css: {
-            color: '#E7EEF7',
+            color: '#F3F6FB',
             a: {
-              color: '#C5D2E2',
+              color: '#7CC2FF',
               '&:hover': {
-                color: '#9CCBE2',
+                color: '#A6D8FF',
               },
             },
             code: {
-              color: '#E7EEF7',
-              backgroundColor: 'rgba(34, 48, 66, 0.78)',
+              color: '#F3F6FB',
+              backgroundColor: 'rgba(49, 57, 73, 0.6)',
               padding: '0.2em 0.4em',
               borderRadius: '0.25rem',
               fontWeight: '400',
             },
             pre: {
-              backgroundColor: '#111B27',
-              color: '#E7EEF7',
+              backgroundColor: '#121722',
+              color: '#F3F6FB',
               padding: '1em',
               borderRadius: '0.75rem',
               overflowX: 'auto',
             },
             blockquote: {
-              borderLeftColor: '#9CCBE2',
-              color: '#B5C0CE',
+              borderLeftColor: '#3B82F6',
+              color: '#C2CAD6',
             },
             h1: {
-              color: '#E7EEF7',
+              color: '#F3F6FB',
             },
             h2: {
-              color: '#E7EEF7',
+              color: '#F3F6FB',
             },
             h3: {
-              color: '#E7EEF7',
+              color: '#F3F6FB',
             },
             h4: {
-              color: '#E7EEF7',
+              color: '#F3F6FB',
             },
             strong: {
-              color: '#E7EEF7',
+              color: '#F3F6FB',
             },
           },
         },

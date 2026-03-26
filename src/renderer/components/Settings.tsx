@@ -2043,24 +2043,28 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-page dark:bg-dark-bg">
-      <div className="flex h-full w-full">
-        <div className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-r border-border bg-[#f7f7f4] dark:border-dark-border dark:bg-dark-surface-muted">
-          <div className="px-6 pb-4 pt-8">
-            <h2 className="text-[18px] font-semibold tracking-tight text-text-primary dark:text-dark-text">
-              {i18nService.t('settings')}
-            </h2>
+    <div
+      className="fixed inset-0 z-50 modal-backdrop flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex w-[900px] h-[80vh] rounded-2xl dark:border-dark-border border-border border shadow-modal overflow-hidden modal-content"
+        onClick={handleSettingsClick}
+      >
+        {/* Left sidebar */}
+        <div className="w-[220px] shrink-0 flex flex-col dark:bg-dark-surface-muted bg-surface-muted border-r dark:border-dark-border border-border rounded-l-2xl overflow-y-auto">
+          <div className="px-5 pt-5 pb-3">
+            <h2 className="text-lg font-semibold dark:text-dark-text text-text-primary">{i18nService.t('settings')}</h2>
           </div>
-          <nav className="flex flex-col gap-1 px-3 pb-6">
+          <nav className="flex flex-col gap-0.5 px-3 pb-4">
             {sidebarTabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-colors ${
-                  activeTab === tab.key
-                    ? 'bg-white text-text-primary shadow-subtle dark:bg-dark-surface dark:text-dark-text'
-                    : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary dark:text-dark-text-secondary dark:hover:bg-dark-surface-hover dark:hover:text-dark-text'
-                }`}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm font-medium transition-colors text-left ${activeTab === tab.key
+                  ? 'border-primary/25 bg-primary/10 text-primary dark:border-primary-lighter/35 dark:bg-primary-lighter/15 dark:text-dark-text'
+                  : 'border-transparent dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover'
+                  }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -2069,77 +2073,73 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
           </nav>
         </div>
 
-        <div className="relative flex-1 min-w-0 overflow-hidden bg-white dark:bg-dark-bg">
-          <div className="flex h-full flex-col" onClick={handleSettingsClick}>
-            <div className="flex items-center justify-between border-b border-border px-8 py-6 dark:border-dark-border">
-              <div className="space-y-1">
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-text-muted dark:text-dark-text-muted">
-                  Preferences
-                </div>
-                <h3 className="text-[28px] font-semibold tracking-tight text-text-primary dark:text-dark-text">
-                  {activeTabLabel}
-                </h3>
-              </div>
-              <button
-                onClick={onClose}
-                className="dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary p-2 dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-xl transition-colors"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            {noticeMessage && (
-              <div className="px-8 pt-5">
-                <ErrorMessage
-                  message={noticeMessage}
-                  onClose={() => setNoticeMessage(null)}
-                />
-              </div>
-            )}
-
-            {error && (
-              <div className="px-8 pt-5">
-                <ErrorMessage
-                  message={error}
-                  onClose={() => setError(null)}
-                />
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-              <div
-                ref={contentRef}
-                className="flex-1 overflow-y-auto px-8 py-6"
-                style={{ scrollbarGutter: 'stable' }}
-              >
-                {renderTabContent()}
-              </div>
-
-              <div className="flex justify-end gap-3 border-t border-border bg-white px-8 py-5 dark:border-dark-border dark:bg-dark-bg">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="app-secondary-btn px-4 py-2 text-sm font-medium"
-                >
-                  {i18nService.t('cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="app-primary-btn px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isSaving ? i18nService.t('saving') : i18nService.t('save')}
-                </button>
-              </div>
-            </form>
-
+        {/* Right content */}
+        <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden dark:bg-dark-bg bg-page rounded-r-2xl">
+          {/* Content header */}
+          <div className="flex justify-between items-center px-6 pt-5 pb-3 shrink-0">
+            <h3 className="text-lg font-semibold dark:text-dark-text text-text-primary">{activeTabLabel}</h3>
+            <button
+              onClick={onClose}
+              className="dark:text-dark-text-secondary text-text-secondary dark:hover:text-dark-text hover:text-text-primary p-1.5 dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-lg transition-colors"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
           </div>
 
-          {isTestResultModalOpen && testResult && (
+          {noticeMessage && (
+            <div className="px-6">
+              <ErrorMessage
+                message={noticeMessage}
+                onClose={() => setNoticeMessage(null)}
+              />
+            </div>
+          )}
+
+          {error && (
+            <div className="px-6">
+              <ErrorMessage
+                message={error}
+                onClose={() => setError(null)}
+              />
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            {/* Tab content */}
             <div
-              className="absolute inset-0 z-30 flex items-center justify-center bg-black/35 px-4"
-              onClick={() => setIsTestResultModalOpen(false)}
+              ref={contentRef}
+              className="px-6 py-4 flex-1 overflow-y-auto"
+              style={{ scrollbarGutter: 'stable' }}
             >
+              {renderTabContent()}
+            </div>
+
+            {/* Footer buttons */}
+            <div className="flex justify-end space-x-4 p-4 dark:border-dark-border border-border border-t dark:bg-dark-bg bg-page shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover rounded-xl transition-colors text-sm font-medium border dark:border-dark-border border-border active:scale-[0.98]"
+              >
+                {i18nService.t('cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-4 py-2 bg-primary hover:bg-primary-light text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
+                {isSaving ? i18nService.t('saving') : i18nService.t('save')}
+              </button>
+            </div>
+          </form>
+
+        </div>
+
+        {isTestResultModalOpen && testResult && (
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
+            onClick={() => setIsTestResultModalOpen(false)}
+          >
             <div
               role="dialog"
               aria-modal="true"
@@ -2187,45 +2187,46 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                 </button>
               </div>
             </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          <ProviderModelDialog
-            open={isAddingModel || isEditingModel}
-            isEditing={isEditingModel}
-            activeProvider={activeProvider}
-            modelName={newModelName}
-            modelId={newModelId}
-            supportsImage={newModelSupportsImage}
-            error={modelFormError}
-            onClose={handleCancelModelEdit}
-            onSave={handleSaveNewModel}
-            onModelNameChange={(value) => {
-              if (activeProvider === 'ollama') {
-                setNewModelName(value || newModelId);
-              } else {
-                setNewModelName(value);
-              }
-              if (modelFormError) {
-                setModelFormError(null);
-              }
-            }}
-            onModelIdChange={(value) => {
-              setNewModelId(value);
-              if (activeProvider === 'ollama' && (!newModelName || newModelName === newModelId)) {
-                setNewModelName(value);
-              }
-              if (modelFormError) {
-                setModelFormError(null);
-              }
-            }}
-            onSupportsImageChange={setNewModelSupportsImage}
-          />
-          {showMemoryModal && (
-            <div
-              className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4"
-              onClick={resetCoworkMemoryEditor}
-            >
+        <ProviderModelDialog
+          open={isAddingModel || isEditingModel}
+          isEditing={isEditingModel}
+          activeProvider={activeProvider}
+          modelName={newModelName}
+          modelId={newModelId}
+          supportsImage={newModelSupportsImage}
+          error={modelFormError}
+          onClose={handleCancelModelEdit}
+          onSave={handleSaveNewModel}
+          onModelNameChange={(value) => {
+            if (activeProvider === 'ollama') {
+              setNewModelName(value || newModelId);
+            } else {
+              setNewModelName(value);
+            }
+            if (modelFormError) {
+              setModelFormError(null);
+            }
+          }}
+          onModelIdChange={(value) => {
+            setNewModelId(value);
+            if (activeProvider === 'ollama' && (!newModelName || newModelName === newModelId)) {
+              setNewModelName(value);
+            }
+            if (modelFormError) {
+              setModelFormError(null);
+            }
+          }}
+          onSupportsImageChange={setNewModelSupportsImage}
+        />
+        {/* Memory Modal */}
+        {showMemoryModal && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
+            onClick={resetCoworkMemoryEditor}
+          >
             <div
               className="dark:bg-dark-surface bg-surface dark:border-dark-border border-border border rounded-2xl shadow-xl w-full max-w-md"
               onClick={(e) => e.stopPropagation()}
@@ -2269,9 +2270,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, onUpda
                 </button>
               </div>
             </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

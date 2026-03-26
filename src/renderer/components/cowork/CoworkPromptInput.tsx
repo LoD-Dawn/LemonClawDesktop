@@ -110,6 +110,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     const [value, setValue] = useState(draftPrompt);
     const [attachments, setAttachments] = useState<CoworkAttachment[]>([]);
     const [showFolderMenu, setShowFolderMenu] = useState(false);
+    const [showFolderRequiredWarning, setShowFolderRequiredWarning] = useState(false);
     const [isDraggingFiles, setIsDraggingFiles] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const folderButtonRef = useRef<HTMLButtonElement>(null);
@@ -137,7 +138,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   const skills = useSelector((state: RootState) => state.skill.skills);
 
   const isLarge = size === 'large';
-  const minHeight = isLarge ? 56 : 24;
+  const minHeight = isLarge ? 60 : 24;
   const maxHeight = isLarge ? 200 : 200;
 
   // Load skills on mount
@@ -187,6 +188,12 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   }, []);
 
   useEffect(() => {
+    if (workingDirectory?.trim()) {
+      setShowFolderRequiredWarning(false);
+    }
+  }, [workingDirectory]);
+
+  useEffect(() => {
     if (value !== draftPrompt) {
       const timer = setTimeout(() => {
         dispatch(setDraftPrompt(value));
@@ -196,8 +203,14 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   }, [value, draftPrompt, dispatch]);
 
   const handleSubmit = useCallback(() => {
+    if (showFolderSelector && !workingDirectory?.trim()) {
+      setShowFolderRequiredWarning(true);
+      return;
+    }
+
     const trimmedValue = value.trim();
     if ((!trimmedValue && attachments.length === 0) || isStreaming || disabled) return;
+    setShowFolderRequiredWarning(false);
 
     // Get active skills prompts and combine them
     const activeSkills = activeSkillIds
@@ -245,7 +258,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     setValue('');
     dispatch(setDraftPrompt(''));
     setAttachments([]);
-  }, [value, isStreaming, disabled, onSubmit, activeSkillIds, skills, attachments, dispatch]);
+  }, [value, isStreaming, disabled, onSubmit, activeSkillIds, skills, attachments, showFolderSelector, workingDirectory, dispatch]);
 
   const handleSelectSkill = useCallback((skill: Skill) => {
     dispatch(toggleActiveSkill(skill.id));
@@ -273,16 +286,16 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   };
 
   const containerClass = isLarge
-    ? 'codex-input relative transition-[transform,box-shadow,border-color,background-color] duration-200 focus-within:-translate-y-0.5 focus-within:shadow-[0_30px_70px_rgba(44,36,18,0.12)] dark:focus-within:shadow-[0_30px_70px_rgba(0,0,0,0.28)]'
-    : 'codex-input relative flex items-end gap-2 p-3 transition-[transform,box-shadow,border-color] duration-200 focus-within:-translate-y-0.5 focus-within:shadow-[0_24px_58px_rgba(44,36,18,0.10)] dark:focus-within:shadow-[0_24px_58px_rgba(0,0,0,0.26)]';
+    ? 'relative rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-card transition-[box-shadow,border-color,background-color] duration-200 focus-within:shadow-elevated focus-within:ring-2 focus-within:ring-primary/25 focus-within:border-primary/70'
+    : 'relative flex items-end gap-2 p-3 rounded-xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-subtle transition-[box-shadow,border-color] duration-200 focus-within:shadow-card focus-within:border-primary/60';
 
   const textareaClass = isLarge
-    ? `w-full resize-none bg-transparent px-5 pt-5 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[15px] leading-7 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
+    ? `w-full resize-none bg-transparent px-4 pt-3 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[15px] leading-6 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
     : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none text-sm leading-relaxed min-h-[24px] max-h-[200px]';
 
   const truncatePath = (path: string, maxLength = 30): string => {
-    if (!path) return i18nService.t('coworkWorkingDirectoryEmpty');
-    return getCompactFolderName(path, maxLength) || i18nService.t('coworkWorkingDirectoryEmpty');
+    if (!path) return i18nService.t('noFolderSelected');
+    return getCompactFolderName(path, maxLength) || i18nService.t('noFolderSelected');
   };
 
   const handleFolderSelect = (path: string) => {
@@ -529,15 +542,15 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   return (
     <div className="relative">
       {attachments.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-2 flex flex-wrap gap-2">
           {attachments.map((attachment) => (
               <div
                 key={attachment.path}
-                className="soft-pill inline-flex max-w-full items-center gap-1.5 border-white/60 bg-white/[0.72] px-3 py-1.5 text-xs text-text-primary shadow-[0_10px_24px_rgba(44,36,18,0.05)] dark:border-dark-border/70 dark:bg-dark-surface/[0.92] dark:text-dark-text"
+                className="inline-flex items-center gap-1.5 rounded-full border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 px-2.5 py-1 text-xs dark:text-dark-text text-text-primary max-w-full shadow-subtle"
                 title={attachment.path}
               >
                 {attachment.isImage ? (
-                  <PhotoIcon className="h-3.5 w-3.5 flex-shrink-0 text-secondary" />
+                  <PhotoIcon className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
                 ) : (
                   <PaperClipIcon className="h-3.5 w-3.5 flex-shrink-0" />
                 )}
@@ -563,7 +576,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
         onDrop={handleDrop}
       >
         {isDraggingFiles && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] bg-amber-300/15 backdrop-blur-[4px] text-xs font-semibold tracking-[0.14em] text-amber-600 dark:text-amber-300">
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] bg-primary/12 backdrop-blur-[1px] text-xs font-semibold tracking-wide text-primary">
             {i18nService.t('coworkDropFileHint')}
           </div>
         )}
@@ -581,8 +594,8 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
               className={textareaClass}
               style={{ minHeight: `${minHeight}px` }}
             />
-            <div className="flex items-center justify-between gap-4 px-4 pb-4 pt-2">
-              <div className="flex items-center gap-2 relative flex-wrap">
+            <div className="flex items-center justify-between px-4 pb-2 pt-1.5">
+              <div className="flex items-center gap-2 relative">
                 {showFolderSelector && (
                   <>
                     <div className="relative group">
@@ -590,10 +603,10 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                         ref={folderButtonRef as React.RefObject<HTMLButtonElement>}
                         type="button"
                         onClick={() => setShowFolderMenu(!showFolderMenu)}
-                        className="soft-pill flex items-center gap-1.5 border-white/60 bg-white/[0.65] px-3 py-1.5 text-xs dark:border-dark-border/70 dark:bg-dark-surface/[0.88] dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface hover:bg-white dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
                       >
                         <FolderIcon className="h-4 w-4" />
-                        <span className="max-w-[140px] truncate text-[11px]">
+                        <span className="max-w-[150px] truncate text-xs">
                           {truncatePath(workingDirectory)}
                         </span>
                       </button>
@@ -616,7 +629,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 <button
                   type="button"
                   onClick={handleAddFile}
-                  className="soft-pill flex items-center justify-center border-white/60 bg-white/[0.65] p-2 text-sm dark:border-dark-border/70 dark:bg-dark-surface/[0.88] dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface hover:bg-white dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                  className="flex items-center justify-center p-1.5 rounded-lg text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
                   title={i18nService.t('coworkAddFile')}
                   aria-label={i18nService.t('coworkAddFile')}
                   disabled={disabled || isStreaming}
@@ -634,20 +647,20 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                   <button
                     type="button"
                     onClick={handleStopClick}
-                    className="rounded-[18px] bg-red-500 px-3.5 py-2.5 text-white shadow-[0_14px_28px_rgba(239,68,68,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-600"
+                    className="p-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
                     aria-label="Stop"
                   >
-                    <StopIcon className="h-[18px] w-[18px]" />
+                    <StopIcon className="h-5 w-5" />
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={handleSubmit}
                     disabled={!canSubmit}
-                    className="rounded-[18px] bg-[#111820] px-3.5 py-2.5 text-white shadow-[0_16px_34px_rgba(17,24,32,0.24)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#1a2531] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                    className="p-2 rounded-xl bg-primary hover:bg-primary-light text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Send"
                   >
-                    <PaperAirplaneIcon className="h-[18px] w-[18px]" />
+                    <PaperAirplaneIcon className="h-5 w-5" />
                   </button>
                 )}
               </div>
@@ -684,7 +697,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
               <button
                 type="button"
                 onClick={handleStopClick}
-                className="flex-shrink-0 p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all active:scale-95"
+                className="flex-shrink-0 p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
                 aria-label="Stop"
               >
                 <StopIcon className="h-4 w-4" />
@@ -694,7 +707,7 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="flex-shrink-0 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                className="flex-shrink-0 p-2 rounded-lg bg-primary hover:bg-primary-light text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Send"
               >
                 <PaperAirplaneIcon className="h-4 w-4" />
@@ -703,9 +716,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
           </>
         )}
       </div>
-      {showFolderSelector && !workingDirectory?.trim() && size === 'large' && (
-        <div className="mt-2 px-1 text-xs leading-5 text-text-secondary dark:text-dark-text-secondary">
-          {i18nService.t('coworkWorkingDirectoryOptionalHint')}
+      {showFolderRequiredWarning && (
+        <div className="mt-2 text-xs text-red-500 dark:text-red-400">
+          {i18nService.t('coworkSelectFolderFirst')}
         </div>
       )}
     </div>

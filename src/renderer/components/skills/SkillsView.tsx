@@ -38,14 +38,9 @@ const SkillsView: React.FC<SkillsViewProps> = ({ isSidebarCollapsed, onToggleSid
               {updateBadge}
             </div>
           )}
-            <div className="flex flex-col">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted dark:text-dark-text-muted">
-                {i18nService.t('coworkSidebarSkills')}
-              </span>
-              <h1 className="app-title">
-                {i18nService.t('coworkSidebarSkills')}
-              </h1>
-            </div>
+            <h1 className="app-title">
+            {i18nService.t('skills')}
+            </h1>
           </div>
           <WindowTitleBar inline />
         </div>

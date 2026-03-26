@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import { CheckIcon } from '@heroicons/react/24/outline';
 import SearchIcon from '../icons/SearchIcon';
@@ -27,7 +26,6 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [maxListHeight, setMaxListHeight] = useState(256); // default max-h-64 = 256px
-  const [popoverPosition, setPopoverPosition] = useState<{ left: number; bottom: number } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const skills = useSelector((state: RootState) => state.skill.skills);
@@ -41,48 +39,25 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
       skillService.getLocalizedSkillDescription(s.id, s.name, s.description).toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  // Calculate available height and floating position when popover opens
+  // Calculate available height and focus search input when popover opens
   useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery('');
-      setPopoverPosition(null);
-      return;
-    }
-
-    const updatePosition = () => {
-      if (!anchorRef.current) return;
-      const anchorRect = anchorRef.current.getBoundingClientRect();
-      const popoverWidth = 288;
-      const viewportPadding = 12;
-      const availableHeight = anchorRect.top - 120 - 60;
-      const left = Math.min(
-        Math.max(viewportPadding, anchorRect.left),
-        window.innerWidth - popoverWidth - viewportPadding
-      );
-      const bottom = Math.max(viewportPadding, window.innerHeight - anchorRect.top + 8);
-
-      // Clamp between 120px (minimum usable) and 256px (default max)
-      setMaxListHeight(Math.max(120, Math.min(256, availableHeight)));
-      setPopoverPosition({ left, bottom });
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [isOpen, anchorRef]);
-
-  useEffect(() => {
-    if (isOpen && searchInputRef.current) {
+    if (isOpen) {
+      // Calculate available space above the anchor
+      if (anchorRef.current) {
+        const anchorRect = anchorRef.current.getBoundingClientRect();
+        // Available height = distance from top of viewport to anchor, minus padding for search bar (~120px) and some margin (~60px)
+        const availableHeight = anchorRect.top - 120 - 60;
+        // Clamp between 120px (minimum usable) and 256px (default max)
+        setMaxListHeight(Math.max(120, Math.min(256, availableHeight)));
+      }
       if (searchInputRef.current) {
         setTimeout(() => searchInputRef.current?.focus(), 0);
       }
     }
-  }, [isOpen]);
+    if (!isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen, anchorRef]);
 
   // Handle click outside
   useEffect(() => {
@@ -126,13 +101,12 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
     onClose();
   };
 
-  if (!isOpen || !popoverPosition || typeof document === 'undefined') return null;
+  if (!isOpen) return null;
 
-  return createPortal(
+  return (
     <div
       ref={popoverRef}
-      className="fixed z-[9999] w-72 rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-xl"
-      style={{ left: popoverPosition.left, bottom: popoverPosition.bottom }}
+      className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-xl z-50"
     >
       {/* Search input */}
       <div className="p-3 border-b dark:border-dark-border border-border">
@@ -214,8 +188,7 @@ const SkillsPopover: React.FC<SkillsPopoverProps> = ({
           <Cog6ToothIcon className="h-4 w-4 dark:text-dark-text-secondary text-text-secondary" />
         </button>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 };
 

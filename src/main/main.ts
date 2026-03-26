@@ -1267,7 +1267,8 @@ const reloadOnChildProcessGone =
 const TITLEBAR_HEIGHT = 48;
 const TITLEBAR_COLORS = {
   dark: { color: '#0F1117', symbolColor: '#E4E5E9' },
-  light: { color: '#F8F4EA', symbolColor: '#304233' },
+  // Align light title bar with app light surface-muted tone to reduce visual contrast.
+  light: { color: '#F3F4F6', symbolColor: '#1A1D23' },
 } as const;
 
 const safeDecodeURIComponent = (value: string): string => {
@@ -1806,7 +1807,7 @@ const updateTitleBarOverlay = () => {
   // Also update the window background color to match the theme
   const preferredTheme = getPreferredTheme();
   const theme = resolveThemeFromConfig(preferredTheme ? { theme: preferredTheme } : getStore().get<AppConfigSettings>('app_config'));
-  mainWindow.setBackgroundColor(theme === 'dark' ? '#0F1117' : '#F8F4EA');
+  mainWindow.setBackgroundColor(theme === 'dark' ? '#0F1117' : '#F8F9FB');
 };
 
 const applyProxyPreference = async (useSystemProxy: boolean): Promise<void> => {
@@ -3573,7 +3574,7 @@ if (!gotTheLock) {
         disableDialogs: true,
         navigateOnDragDrop: false
       },
-      backgroundColor: getInitialTheme() === 'dark' ? '#0F1117' : '#F8F4EA',
+      backgroundColor: getInitialTheme() === 'dark' ? '#0F1117' : '#F8F9FB',
       show: false,
       autoHideMenuBar: true,
       enableLargerThanScreen: false

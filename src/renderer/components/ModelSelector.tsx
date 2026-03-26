@@ -40,7 +40,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ dropdownDirection = 'down
   // 如果没有可用模型，显示提示
   if (availableModels.length === 0 || !selectedModel) {
     return (
-      <div className="rounded-[18px] border border-white/60 bg-white/[0.62] px-3 py-2 text-sm text-text-secondary shadow-[0_12px_24px_rgba(44,36,18,0.06)] dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text-secondary">
+      <div className="px-3 py-1.5 rounded-xl dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary text-sm">
         请先在设置中配置模型
       </div>
     );
@@ -54,40 +54,31 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ dropdownDirection = 'down
     <div ref={containerRef} className="relative cursor-pointer">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-3 rounded-[20px] border border-white/55 bg-white/[0.64] px-3.5 py-2 text-left shadow-[0_14px_28px_rgba(44,36,18,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.82] dark:border-dark-border/70 dark:bg-dark-surface/90 dark:text-dark-text dark:hover:bg-dark-surface ${isOpen ? 'bg-white/[0.82] dark:bg-dark-surface' : ''}`}
+        className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:text-dark-text text-text-primary transition-colors cursor-pointer ${isOpen ? 'dark:bg-dark-surface-hover bg-surface-hover' : ''}`}
       >
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold text-text-primary dark:text-dark-text">
-            {selectedModel.name}
-          </span>
-          {selectedModel.provider && (
-            <span className="block truncate text-[10px] uppercase tracking-[0.16em] text-text-muted dark:text-dark-text-muted">
-              {selectedModel.provider}
-            </span>
-          )}
-        </span>
-        <ChevronDownIcon className="h-4 w-4 flex-shrink-0 dark:text-dark-text-secondary text-text-secondary" />
+        <span className="font-medium text-sm">{selectedModel.name}</span>
+        <ChevronDownIcon className="h-4 w-4 dark:text-dark-text-secondary text-text-secondary" />
       </button>
 
       {isOpen && (
-        <div className={`absolute ${dropdownPositionClass} z-50 w-60 overflow-hidden rounded-[24px] border border-white/60 bg-white/92 shadow-popover popover-enter dark:border-dark-border/70 dark:bg-dark-surface/96`}>
+        <div className={`absolute ${dropdownPositionClass} w-52 dark:bg-dark-surface bg-surface rounded-xl popover-enter shadow-popover z-50 dark:border-dark-border border-border border overflow-hidden`}>
           <div className="max-h-64 overflow-y-auto">
           {availableModels.map((model) => (
             <button
               key={getModelIdentityKey(model)}
               onClick={() => handleModelSelect(model)}
-              className={`flex w-full items-center justify-between px-4 py-3 text-left transition-colors ${
-                isSameModelIdentity(model, selectedModel) ? 'bg-amber-100/60 dark:bg-amber-300/10' : 'hover:bg-surface-hover/80 dark:hover:bg-dark-surface-hover'
+              className={`w-full px-4 py-2.5 text-left dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover flex items-center justify-between transition-colors ${
+                isSameModelIdentity(model, selectedModel) ? 'dark:bg-dark-surface-hover/50 bg-surface-hover/50' : ''
               }`}
             >
               <div className="flex flex-col">
-                <span className="text-sm font-medium dark:text-dark-text text-text-primary">{model.name}</span>
+                <span className="text-sm">{model.name}</span>
                 {model.provider && (
-                  <span className="text-[10px] uppercase tracking-[0.16em] dark:text-dark-text-secondary text-text-secondary">{model.provider}</span>
+                  <span className="text-xs dark:text-dark-text-secondary text-text-secondary">{model.provider}</span>
                 )}
               </div>
               {isSameModelIdentity(model, selectedModel) && (
-                <CheckIcon className="h-4 w-4 text-amber-500 dark:text-amber-300" />
+                <CheckIcon className="h-4 w-4 text-primary" />
               )}
             </button>
           ))}

@@ -300,28 +300,13 @@ const SkillsManager: React.FC = () => {
     }
   };
 
-  const marketplaceCount = useMemo(
-    () => marketplaceSkills.length,
-    [marketplaceSkills],
-  );
-
-  const tabClass = (tab: SkillTab) =>
-    `px-4 py-2 text-sm font-medium transition-colors relative ${
-      activeTab === tab
-        ? 'dark:text-dark-text text-text-primary'
-        : 'dark:text-dark-text-secondary text-text-secondary hover:dark:text-dark-text hover:text-text-primary'
-    }`;
-
-  const tabIndicatorClass = (tab: SkillTab) =>
-    `absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-colors ${
-      activeTab === tab ? 'bg-primary' : 'bg-transparent'
-    }`;
-
   return (
     <div className="space-y-4">
-      <p className="text-sm dark:text-dark-text-secondary text-text-secondary">
-        {i18nService.t('skillsDescription')}
-      </p>
+      <div>
+        <p className="text-sm dark:text-dark-text-secondary text-text-secondary">
+          {i18nService.t('skillsDescription')}
+        </p>
+      </div>
 
       {skillActionError && (
         <ErrorMessage
@@ -346,7 +331,7 @@ const SkillsManager: React.FC = () => {
             ref={addSkillButtonRef}
             type="button"
             onClick={() => setIsAddSkillMenuOpen(prev => !prev)}
-            className="app-primary-btn h-10 gap-2 px-4 text-sm"
+            className="px-3 py-2 text-sm rounded-xl border transition-colors dark:bg-dark-surface bg-surface dark:border-dark-border border-border dark:text-dark-text text-text-primary dark:hover:bg-dark-surface-hover hover:bg-surface-hover flex items-center gap-2"
           >
             <PlusCircleIcon className="h-4 w-4" />
             <span>{i18nService.t('addSkill')}</span>
@@ -355,7 +340,7 @@ const SkillsManager: React.FC = () => {
           {isAddSkillMenuOpen && (
             <div
               ref={addSkillMenuRef}
-              className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-white shadow-popover dark:border-dark-border dark:bg-dark-surface"
+              className="absolute right-0 mt-2 w-72 rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface bg-surface shadow-lg z-50 overflow-hidden"
             >
               <button
                 type="button"
@@ -392,7 +377,11 @@ const SkillsManager: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('installed')}
-          className={tabClass('installed')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+            activeTab === 'installed'
+              ? 'dark:text-dark-text text-text-primary'
+              : 'dark:text-dark-text-secondary text-text-secondary hover:dark:text-dark-text hover:text-text-primary'
+          }`}
         >
           {i18nService.t('skillInstalled')}
           {skills.length > 0 && (
@@ -400,20 +389,23 @@ const SkillsManager: React.FC = () => {
               {skills.length}
             </span>
           )}
-          <div className={tabIndicatorClass('installed')} />
+          <div className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-colors ${
+            activeTab === 'installed' ? 'bg-primary' : 'bg-transparent'
+          }`} />
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('marketplace')}
-          className={tabClass('marketplace')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+            activeTab === 'marketplace'
+              ? 'dark:text-dark-text text-text-primary'
+              : 'dark:text-dark-text-secondary text-text-secondary hover:dark:text-dark-text hover:text-text-primary'
+          }`}
         >
           {i18nService.t('skillMarketplace')}
-          {marketplaceCount > 0 && (
-            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full dark:bg-dark-surface-hover bg-surface-hover">
-              {marketplaceCount}
-            </span>
-          )}
-          <div className={tabIndicatorClass('marketplace')} />
+          <div className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-colors ${
+            activeTab === 'marketplace' ? 'bg-primary' : 'bg-transparent'
+          }`} />
         </button>
       </div>
 
@@ -427,7 +419,7 @@ const SkillsManager: React.FC = () => {
           filteredSkills.map((skill) => (
             <div
               key={skill.id}
-              className="cursor-pointer rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface/50 bg-surface/50 p-3 transition-colors hover:border-primary/50"
+              className="rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface/50 bg-surface/50 p-3 transition-colors hover:border-primary/50 cursor-pointer"
               onClick={() => setSelectedSkill(skill)}
             >
               <div className="flex items-start justify-between mb-2">
@@ -447,7 +439,7 @@ const SkillsManager: React.FC = () => {
                       className="p-1 rounded-lg text-text-secondary dark:text-dark-text-secondary hover:text-red-500 dark:hover:text-red-400 transition-colors"
                       title={i18nService.t('deleteSkill')}
                     >
-                      <TrashIcon className="h-3.5 w-3.5" />
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   )}
                   <div
@@ -540,7 +532,7 @@ const SkillsManager: React.FC = () => {
                   {filteredMarketplaceSkills.map((skill) => (
                     <div
                       key={skill.id}
-                      className="cursor-pointer rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface/50 bg-surface/50 p-3 transition-colors hover:border-primary/50"
+                      className="rounded-xl border dark:border-dark-border border-border dark:bg-dark-surface/50 bg-surface/50 p-3 transition-colors hover:border-primary/50 cursor-pointer"
                       onClick={() => setSelectedMarketplaceSkill(skill)}
                     >
                       <div className="flex items-start justify-between mb-2">
@@ -554,11 +546,12 @@ const SkillsManager: React.FC = () => {
                         </div>
                         <div className="flex-shrink-0">
                           {isSkillInstalled(skill.id) ? (
-                            <span className="px-2.5 py-1 text-xs rounded-lg bg-surface dark:bg-dark-surface text-text-secondary dark:text-dark-text-secondary">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg text-green-600 dark:text-green-400 bg-green-500/10">
+                              <CheckCircleIcon className="h-3.5 w-3.5" />
                               {i18nService.t('skillAlreadyInstalled')}
                             </span>
                           ) : skill.permission?.canUse === false ? (
-                            <span className="px-2.5 py-1 text-xs rounded-lg text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg text-amber-600 dark:text-amber-400 bg-amber-500/10">
                               {i18nService.t('skillNoAccess')}
                             </span>
                           ) : (
@@ -566,7 +559,7 @@ const SkillsManager: React.FC = () => {
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleInstallMarketplaceSkill(skill); }}
                               disabled={installingSkillId !== null}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <ArrowDownTrayIcon className="h-3.5 w-3.5" />
                               {installingSkillId === skill.id ? i18nService.t('skillInstalling') : i18nService.t('skillInstall')}

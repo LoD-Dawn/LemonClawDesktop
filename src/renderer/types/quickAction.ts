@@ -49,8 +49,6 @@ export interface LocalizedQuickAction {
   id: string;
   /** 显示标题 */
   label: string;
-  /** 简短描述 */
-  description?: string;
   /** 图标名称（Heroicons） */
   icon: string;
   /** 主题色（hex） */
@@ -82,7 +80,6 @@ export interface QuickActionsI18n {
 export interface QuickActionsI18nData {
   [actionId: string]: {
     label: string;
-    description?: string;
     prompts: {
       [promptId: string]: {
         label: string;

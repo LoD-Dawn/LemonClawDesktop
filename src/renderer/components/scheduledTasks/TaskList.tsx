@@ -114,8 +114,8 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
     <div
       className={`group grid grid-cols-[1fr_1fr_110px_40px] items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all ${
         task.state.runningAtMs
-          ? 'dark:border-blue-500/30 border-blue-200/80 dark:bg-blue-500/10 bg-blue-50/80 shadow-subtle'
-          : 'dark:border-dark-border/70 border-border dark:bg-dark-surface bg-white hover:dark:bg-dark-surface-hover hover:bg-surface-hover shadow-subtle'
+          ? 'dark:border-blue-500/30 border-blue-300/60 dark:bg-blue-500/10 bg-blue-50/70'
+          : 'dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/80 hover:dark:bg-dark-surface-hover/55 hover:bg-surface-hover/70'
       }`}
       onClick={() => dispatch(selectTask(task.id))}
     >
@@ -131,7 +131,7 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
 
       {/* Status: toggle + running indicator */}
       <div className="flex items-center justify-between gap-2">
-        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${task.enabled ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300' : 'border-border bg-surface-hover text-text-secondary dark:border-dark-border dark:bg-dark-surface-hover dark:text-dark-text-secondary'}`}>
+        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${task.enabled ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300' : 'border-border bg-surface text-text-secondary dark:border-dark-border dark:bg-dark-surface-hover dark:text-dark-text-secondary'}`}>
           {statusLabel}
         </span>
 
@@ -246,7 +246,7 @@ const TaskList: React.FC<TaskListProps> = ({ onRequestDelete, onCreateTask }) =>
   }
 
   return (
-      <div className="space-y-3">
+    <div className="space-y-2">
       {/* Column Headers */}
       <div className="grid grid-cols-[1fr_1fr_110px_40px] items-center gap-3 px-3 py-1">
         <div className="text-xs font-semibold tracking-wide dark:text-dark-text-secondary text-text-secondary">
