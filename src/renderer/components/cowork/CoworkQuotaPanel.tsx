@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
+import { selectQuotaPanelViewModel } from '../../store/selectors/quotaSelectors';
 
 type CoworkQuotaPanelProps = {
   compact?: boolean;
@@ -37,19 +38,13 @@ const CoworkQuotaPanel: React.FC<CoworkQuotaPanelProps> = ({
   showSessionReservation = true,
 }) => {
   const selectedModel = useSelector((state: RootState) => state.model.selectedModel);
-  const overview = useSelector((state: RootState) => state.quota.overview);
-  const loading = useSelector((state: RootState) => state.quota.loading);
-  const currentSession = useSelector((state: RootState) => state.cowork.currentSession);
-
-  const currentModelMeta = useMemo(() => {
-    if (!selectedModel?.providerKey || !selectedModel.id || !overview.models?.providers?.length) {
-      return null;
-    }
-    return overview.models.providers
-      .find((provider) => provider.provider === selectedModel.providerKey)
-      ?.models.find((model) => model.model === selectedModel.id)
-      ?.usageMeta ?? null;
-  }, [overview.models, selectedModel?.id, selectedModel?.providerKey]);
+  const {
+    currentModelMeta,
+    loading,
+    quota,
+    usage,
+    sessionReservation,
+  } = useSelector(selectQuotaPanelViewModel);
 
   if (selectedModel?.source === 'local') {
     return (
@@ -61,10 +56,6 @@ const CoworkQuotaPanel: React.FC<CoworkQuotaPanelProps> = ({
       </div>
     );
   }
-
-  const quota = overview.quota;
-  const usage = overview.usageSummary;
-  const sessionReservation = currentSession?.quotaReservation ?? null;
 
   return (
     <div className={`rounded-2xl border dark:border-dark-border/70 border-border/80 dark:bg-dark-surface/60 bg-white/80 backdrop-blur-sm ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}>

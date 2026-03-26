@@ -1,77 +1,41 @@
-import { app } from 'electron';
 import { EventEmitter } from 'events';
-import crypto from 'crypto';
 import type { SqliteStore } from '../sqliteStore';
-import { ADMIN_API_BASE_URL } from '../../shared/appConstants';
 import type {
   ClawFinishReason,
   ClawHeartbeatStatus,
-  ClawModelItem,
-  ClawModelsSnapshot,
   ClawPrepareFailureData,
   ClawPrepareSuccessData,
-  ClawProviderModels,
-  ClawQuotaEnvelope,
   ClawQuotaOverview,
-  ClawQuotaSnapshot,
   ClawQuotaStreamPayload,
   ClawReservationStatusData,
   ClawSessionEntry,
   ClawSessionReservation,
-  ClawUsageSummary,
   ClawHeartbeatSuccessData,
   ClawFinishSuccessData,
 } from '../../shared/quota';
+import {
+  CoworkQuotaApiClient,
+  type EnsureAuthResult,
+} from './coworkQuotaApiClient';
+import {
+  CoworkQuotaReservationStore,
+  type PersistedReservation,
+} from './coworkQuotaReservationStore';
+import {
+  applyQuotaSnapshotPatch,
+  mergeQuotaOverview,
+  normalizeModelsSnapshot,
+  normalizeQuotaSnapshot,
+  normalizeUsageSummary,
+  safeClone,
+} from './coworkQuotaNormalizer';
 
-type EnsureAuthResult =
-  | { ok: true; accessToken: string }
-  | { ok: false; reason: 'no_token' | 'expired' | 'disabled' | 'scope_required' | 'network_error'; error: string };
-
-type EnsureAuthFailure = Extract<EnsureAuthResult, { ok: false }>;
-
-type PersistedReservation = ClawSessionReservation & {
-  entry: ClawSessionEntry;
-  heartbeatSeq: number;
-  heartbeatStatus: ClawHeartbeatStatus;
-  localTotalActiveSeconds: number;
-  phaseStartedAtMs: number | null;
-  workspacePath?: string | null;
-};
-
-type ApiResult<T> =
-  | { ok: true; code: string; message: string; data: T }
-  | { ok: false; code: string; message: string; data?: T };
-
-const STORE_KEY = 'cowork_quota_state_v1';
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const REQUEST_TIMEOUT_MS = 10_000;
 const USAGE_SUMMARY_RANGE = '7d';
 
-const isRecordObject = (value: unknown): value is Record<string, unknown> => (
-  !!value && typeof value === 'object' && !Array.isArray(value)
-);
-
-const asNullableNumber = (value: unknown): number | null => {
-  if (value === null || value === undefined || value === '') {
-    return null;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const asOptionalString = (value: unknown): string | undefined => {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-};
-
-const asOptionalBoolean = (value: unknown): boolean | undefined => {
-  return typeof value === 'boolean' ? value : undefined;
-};
-
-const safeClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
 export class CoworkQuotaManager extends EventEmitter {
-  private store: SqliteStore;
-  private ensureAuth: () => Promise<EnsureAuthResult>;
+  private apiClient: CoworkQuotaApiClient;
+  private reservationStore: CoworkQuotaReservationStore;
   private reservations = new Map<string, PersistedReservation>();
   private overview: ClawQuotaOverview = {
     models: null,
@@ -90,41 +54,17 @@ export class CoworkQuotaManager extends EventEmitter {
     onShouldStop?: (sessionId: string, message: string) => void;
   }) {
     super();
-    this.store = options.store;
-    this.ensureAuth = options.ensureAuth;
+    this.apiClient = new CoworkQuotaApiClient({
+      ensureAuth: options.ensureAuth,
+    });
+    this.reservationStore = new CoworkQuotaReservationStore(options.store);
     this.onShouldStop = options.onShouldStop;
-    this.hydrate();
+    this.reservations = this.reservationStore.hydrate();
     this.startHeartbeatLoop();
   }
 
-  private hydrate(): void {
-    const raw = this.store.get<Record<string, PersistedReservation>>(STORE_KEY) ?? {};
-    Object.entries(raw).forEach(([sessionId, reservation]) => {
-      if (!reservation || typeof reservation !== 'object') {
-        return;
-      }
-      this.reservations.set(sessionId, {
-        ...reservation,
-        phaseStartedAtMs: null,
-        heartbeatStatus: reservation.closed ? 'paused' : reservation.heartbeatStatus ?? 'paused',
-        localTotalActiveSeconds: Math.max(
-          Number(reservation.localTotalActiveSeconds || 0),
-          Number(reservation.serverAcceptedTotalActiveSeconds || 0)
-        ),
-        heartbeatSeq: Number(reservation.heartbeatSeq || 0),
-      });
-    });
-  }
-
   private persist(): void {
-    const serialized: Record<string, PersistedReservation> = {};
-    this.reservations.forEach((reservation, sessionId) => {
-      serialized[sessionId] = {
-        ...reservation,
-        phaseStartedAtMs: null,
-      };
-    });
-    this.store.set(STORE_KEY, serialized);
+    this.reservationStore.persist(this.reservations);
   }
 
   private startHeartbeatLoop(): void {
@@ -146,197 +86,22 @@ export class CoworkQuotaManager extends EventEmitter {
     }
   }
 
-  private buildRequestHeaders(accessToken: string, requestId: string): Record<string, string> {
-    return {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'X-Client-Version': app.getVersion(),
-      'X-Platform': `desktop-${process.platform}`,
-      'X-Request-Id': requestId,
-    };
-  }
-
-  private async request<T>(input: {
-    path: string;
-    method?: 'GET' | 'POST';
-    body?: Record<string, unknown>;
-  }): Promise<ApiResult<T>> {
-    const auth = await this.ensureAuth();
-    if (!auth.ok) {
-      const failedAuth = auth as EnsureAuthFailure;
-      return {
-        ok: false,
-        code:
-          failedAuth.reason === 'network_error'
-            ? 'NETWORK_ERROR'
-            : failedAuth.reason === 'scope_required'
-              ? 'UNAUTHORIZED'
-              : 'AUTH_INVALID',
-        message: failedAuth.error,
-      };
-    }
-
-    const requestId = crypto.randomUUID();
-    const url = `${ADMIN_API_BASE_URL}/api/external/v1${input.path}`;
-
-    try {
-      const response = await fetch(url, {
-        method: input.method ?? 'GET',
-        headers: this.buildRequestHeaders(auth.accessToken, requestId),
-        body: input.body ? JSON.stringify(input.body) : undefined,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-
-      let payload: ClawQuotaEnvelope<T> | null = null;
-      try {
-        payload = await response.json() as ClawQuotaEnvelope<T>;
-      } catch {
-        payload = null;
-      }
-
-      const code = typeof payload?.normalizedCode === 'string'
-        ? payload.normalizedCode
-        : typeof payload?.code === 'string'
-          ? payload.code
-          : response.ok
-            ? 'OK'
-            : `HTTP_${response.status}`;
-      const message = typeof payload?.message === 'string'
-        ? payload.message
-        : typeof payload?.error === 'string'
-          ? payload.error
-          : response.statusText || 'Request failed';
-      const data = (payload?.data ?? payload) as T;
-
-      if (!response.ok || code !== 'OK') {
-        return { ok: false, code, message, data };
-      }
-
-      return { ok: true, code, message, data };
-    } catch (error) {
-      return {
-        ok: false,
-        code: 'NETWORK_ERROR',
-        message: error instanceof Error ? error.message : 'Network request failed',
-      };
-    }
-  }
-
   private normalizeQuotaPatch(input: {
     creditBalance?: number | null;
     remainingClawSeconds?: number | null;
     pricingVersion?: string | null;
     isUnlimited?: boolean;
   }): Partial<ClawQuotaOverview> | null {
-    const quotaPatch = this.applyQuotaSnapshotFromReservation(input);
+    const quotaPatch = applyQuotaSnapshotPatch(this.overview.quota, input);
     if (!quotaPatch) {
       return null;
     }
-    this.overview = {
-      ...this.overview,
-      quota: quotaPatch,
-    };
+    this.overview = mergeQuotaOverview(this.overview, { quota: quotaPatch });
     return { quota: quotaPatch };
   }
 
-  private normalizeModelsSnapshot(raw: unknown): ClawModelsSnapshot | null {
-    const source = isRecordObject(raw) && isRecordObject(raw.data) ? raw.data : raw;
-    if (!isRecordObject(source) || !Array.isArray(source.providers)) {
-      return null;
-    }
-
-    const providers: ClawProviderModels[] = source.providers
-      .map((provider): ClawProviderModels | null => {
-        if (!isRecordObject(provider)) {
-          return null;
-        }
-        const providerName = asOptionalString(provider.provider);
-        if (!providerName || !Array.isArray(provider.models)) {
-          return null;
-        }
-
-        const models: ClawModelItem[] = provider.models
-          .map((model): ClawModelItem | null => {
-            if (!isRecordObject(model)) {
-              return null;
-            }
-            const modelId = asOptionalString(model.model) ?? asOptionalString(model.id);
-            const displayName = asOptionalString(model.displayName) ?? asOptionalString(model.name) ?? modelId;
-            if (!modelId || !displayName) {
-              return null;
-            }
-            const usageMeta = isRecordObject(model.usageMeta)
-              ? {
-                  billingTier: asOptionalString(model.usageMeta.billingTier),
-                  billingTierName: asOptionalString(model.usageMeta.billingTierName),
-                  creditPerMinute: asNullableNumber(model.usageMeta.creditPerMinute),
-                  maxSessionSeconds: asNullableNumber(model.usageMeta.maxSessionSeconds),
-                  toolPolicy: asOptionalString(model.usageMeta.toolPolicy) ?? null,
-                  estimatedRemainingMinutes: asNullableNumber(model.usageMeta.estimatedRemainingMinutes),
-                  isUnlimited: asOptionalBoolean(model.usageMeta.isUnlimited),
-                }
-              : undefined;
-
-            return {
-              provider: providerName,
-              model: modelId,
-              displayName,
-              enabled: model.enabled !== false,
-              ...(usageMeta ? { usageMeta } : {}),
-            };
-          })
-          .filter((item): item is ClawModelItem => item !== null);
-
-        return {
-          provider: providerName,
-          models,
-        };
-      })
-      .filter((item): item is ClawProviderModels => item !== null);
-
-    return {
-      providers,
-      updatedAt: asOptionalString(source.updatedAt),
-    };
-  }
-
-  private normalizeQuotaSnapshot(raw: unknown): ClawQuotaSnapshot | null {
-    const source = isRecordObject(raw) && isRecordObject(raw.data) ? raw.data : raw;
-    if (!isRecordObject(source)) {
-      return null;
-    }
-
-    return {
-      userId: asOptionalString(source.userId),
-      isUnlimited: source.isUnlimited === true,
-      creditBalance: asNullableNumber(source.creditBalance),
-      remainingClawSeconds: asNullableNumber(source.remainingClawSeconds),
-      pricingVersion: asOptionalString(source.pricingVersion) ?? null,
-      expiresAt: asOptionalString(source.expiresAt) ?? null,
-      updatedAt: asOptionalString(source.updatedAt) ?? null,
-    };
-  }
-
-  private normalizeUsageSummary(raw: unknown, fallbackRange: string): ClawUsageSummary | null {
-    const source = isRecordObject(raw) && isRecordObject(raw.data) ? raw.data : raw;
-    if (!isRecordObject(source)) {
-      return null;
-    }
-
-    return {
-      range: asOptionalString(source.range) ?? fallbackRange,
-      consumedCredits: Math.max(0, Number(source.consumedCredits) || 0),
-      usedClawSeconds: Math.max(0, Number(source.usedClawSeconds) || 0),
-      sessions: Math.max(0, Number(source.sessions) || 0),
-    };
-  }
-
   private updateOverview(patch: Partial<ClawQuotaOverview>, sessionId?: string, reservation?: ClawSessionReservation | null): void {
-    this.overview = {
-      models: patch.models !== undefined ? patch.models : this.overview.models,
-      quota: patch.quota !== undefined ? patch.quota : this.overview.quota,
-      usageSummary: patch.usageSummary !== undefined ? patch.usageSummary : this.overview.usageSummary,
-    };
+    this.overview = mergeQuotaOverview(this.overview, patch);
     this.emitQuotaUpdate(sessionId ?? '', reservation ?? null, patch);
   }
 
@@ -426,51 +191,24 @@ export class CoworkQuotaManager extends EventEmitter {
     reservation.phaseStartedAtMs += deltaSeconds * 1000;
   }
 
-  private applyQuotaSnapshotFromReservation(input: {
-    creditBalance?: number | null;
-    remainingClawSeconds?: number | null;
-    pricingVersion?: string | null;
-    isUnlimited?: boolean;
-  }): ClawQuotaSnapshot | null {
-    const current = this.overview.quota;
-    if (!current && input.creditBalance === undefined && input.remainingClawSeconds === undefined && input.isUnlimited === undefined) {
-      return null;
-    }
-
-    return {
-      userId: current?.userId,
-      isUnlimited: input.isUnlimited ?? current?.isUnlimited ?? false,
-      creditBalance: input.creditBalance ?? current?.creditBalance ?? null,
-      remainingClawSeconds: input.remainingClawSeconds ?? current?.remainingClawSeconds ?? null,
-      pricingVersion: input.pricingVersion ?? current?.pricingVersion ?? null,
-      expiresAt: current?.expiresAt ?? null,
-      updatedAt: new Date().toISOString(),
-    };
-  }
-
   async getOverview(range: string = USAGE_SUMMARY_RANGE): Promise<ClawQuotaOverview> {
     const [modelsResp, quotaResp, usageResp] = await Promise.all([
-      this.request<unknown>({ path: '/me/models' }),
-      this.request<unknown>({ path: '/me/quota' }),
-      this.request<unknown>({ path: `/me/usage-summary?range=${encodeURIComponent(range)}` }),
+      this.apiClient.getModels(),
+      this.apiClient.getQuota(),
+      this.apiClient.getUsageSummary(range),
     ]);
 
     const patch: Partial<ClawQuotaOverview> = {};
     if (modelsResp.ok) {
-      patch.models = this.normalizeModelsSnapshot(modelsResp.data);
+      patch.models = normalizeModelsSnapshot(modelsResp.data);
     }
     if (quotaResp.ok) {
-      patch.quota = this.normalizeQuotaSnapshot(quotaResp.data);
+      patch.quota = normalizeQuotaSnapshot(quotaResp.data);
     }
     if (usageResp.ok) {
-      patch.usageSummary = this.normalizeUsageSummary(usageResp.data, range);
+      patch.usageSummary = normalizeUsageSummary(usageResp.data, range);
     }
-
-    this.overview = {
-      models: patch.models !== undefined ? patch.models : this.overview.models,
-      quota: patch.quota !== undefined ? patch.quota : this.overview.quota,
-      usageSummary: patch.usageSummary !== undefined ? patch.usageSummary : this.overview.usageSummary,
-    };
+    this.overview = mergeQuotaOverview(this.overview, patch);
 
     return safeClone(this.overview);
   }
@@ -508,18 +246,13 @@ export class CoworkQuotaManager extends EventEmitter {
     clientSessionId?: string;
   }): Promise<{ success: true; reservation: ClawSessionReservation } | { success: false; code: string; error: string; data?: ClawPrepareFailureData }> {
     const clientSessionId = input.clientSessionId?.trim() || `${input.sessionId}:${Date.now()}`;
-    const response = await this.request<ClawPrepareSuccessData | ClawPrepareFailureData>({
-      path: '/claw/sessions/prepare',
-      method: 'POST',
-      body: {
-        clientSessionId,
-        provider: input.provider,
-        model: input.model,
-        entry: input.entry,
-        workspacePath: input.workspacePath?.trim() || undefined,
-        estimatedSeconds: Math.max(60, Number(input.estimatedSeconds) || 900),
-        idempotencyKey: `prepare_${clientSessionId}`,
-      },
+    const response = await this.apiClient.prepareSession({
+      clientSessionId,
+      provider: input.provider,
+      model: input.model,
+      entry: input.entry,
+      workspacePath: input.workspacePath,
+      estimatedSeconds: Math.max(60, Number(input.estimatedSeconds) || 900),
     });
 
     if (!response.ok || !response.data || (response.data as ClawPrepareSuccessData).allowed !== true) {
@@ -594,21 +327,16 @@ export class CoworkQuotaManager extends EventEmitter {
     this.flushElapsedSeconds(reservation);
     this.heartbeatInFlight.add(sessionId);
     try {
-      const response = await this.request<ClawHeartbeatSuccessData>({
-        path: '/claw/sessions/heartbeat',
-        method: 'POST',
-        body: {
-          reservationId: reservation.reservationId,
-          clientSessionId: reservation.clientSessionId,
-          activeSecondsDelta: Math.max(
-            0,
-            reservation.localTotalActiveSeconds - reservation.serverAcceptedTotalActiveSeconds
-          ),
-          totalActiveSeconds: reservation.localTotalActiveSeconds,
-          status: reservation.heartbeatStatus,
-          sentAt: new Date().toISOString(),
-          idempotencyKey: `heartbeat_${reservation.reservationId}_${reservation.heartbeatSeq + 1}`,
-        },
+      const response = await this.apiClient.heartbeat({
+        reservationId: reservation.reservationId,
+        clientSessionId: reservation.clientSessionId,
+        activeSecondsDelta: Math.max(
+          0,
+          reservation.localTotalActiveSeconds - reservation.serverAcceptedTotalActiveSeconds
+        ),
+        totalActiveSeconds: reservation.localTotalActiveSeconds,
+        status: reservation.heartbeatStatus,
+        heartbeatSeq: reservation.heartbeatSeq,
       });
 
       reservation.heartbeatSeq += 1;
@@ -688,17 +416,12 @@ export class CoworkQuotaManager extends EventEmitter {
 
     this.finishInFlight.add(sessionId);
     try {
-      const response = await this.request<ClawFinishSuccessData>({
-        path: '/claw/sessions/finish',
-        method: 'POST',
-        body: {
-          reservationId: reservation.reservationId,
-          clientSessionId: reservation.clientSessionId,
-          totalActiveSeconds: reservation.localTotalActiveSeconds,
-          finishReason: reason,
-          lastErrorCode: lastErrorCode ?? null,
-          idempotencyKey: `finish_${reservation.reservationId}`,
-        },
+      const response = await this.apiClient.finishSession({
+        reservationId: reservation.reservationId,
+        clientSessionId: reservation.clientSessionId,
+        totalActiveSeconds: reservation.localTotalActiveSeconds,
+        finishReason: reason,
+        lastErrorCode,
       });
 
       if (!response.ok && response.code !== 'RESERVATION_CLOSED') {
@@ -739,9 +462,7 @@ export class CoworkQuotaManager extends EventEmitter {
   async recoverOpenReservations(): Promise<void> {
     const entries = Array.from(this.reservations.entries()).filter(([, reservation]) => !reservation.closed);
     for (const [sessionId, reservation] of entries) {
-      const response = await this.request<ClawReservationStatusData>({
-        path: `/claw/sessions/${encodeURIComponent(reservation.reservationId)}`,
-      });
+      const response = await this.apiClient.getReservationStatus(reservation.reservationId);
 
       if (response.ok && response.data?.closed === true) {
         reservation.closed = true;

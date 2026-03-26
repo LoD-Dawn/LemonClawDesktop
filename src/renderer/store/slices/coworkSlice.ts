@@ -7,7 +7,6 @@ import type {
   CoworkPermissionRequest,
   CoworkSessionStatus,
 } from '../../types/cowork';
-import type { ClawSessionReservation } from '../../../shared/quota';
 
 interface CoworkState {
   sessions: CoworkSessionSummary[];
@@ -53,6 +52,12 @@ const markSessionUnread = (state: CoworkState, sessionId: string) => {
   state.unreadSessionIds.push(sessionId);
 };
 
+const stripSessionQuotaReservation = (session: CoworkSession): CoworkSession => {
+  const { quotaReservation, ...rest } = session;
+  void quotaReservation;
+  return rest;
+};
+
 const coworkSlice = createSlice({
   name: 'cowork',
   initialState,
@@ -75,11 +80,12 @@ const coworkSlice = createSlice({
     },
 
     setCurrentSession(state, action: PayloadAction<CoworkSession | null>) {
-      state.currentSession = action.payload;
-      if (action.payload) {
-        state.currentSessionId = action.payload.id;
-        if (!action.payload.id.startsWith('temp-')) {
-          const { id, title, status, pinned, createdAt, updatedAt } = action.payload;
+      const session = action.payload ? stripSessionQuotaReservation(action.payload) : null;
+      state.currentSession = session;
+      if (session) {
+        state.currentSessionId = session.id;
+        if (!session.id.startsWith('temp-')) {
+          const { id, title, status, pinned, createdAt, updatedAt } = session;
           const summary: CoworkSessionSummary = {
             id,
             title,
@@ -98,7 +104,7 @@ const coworkSlice = createSlice({
             state.sessions.unshift(summary);
           }
         }
-        markSessionRead(state, action.payload.id);
+        markSessionRead(state, session.id);
       }
     },
 
@@ -107,18 +113,19 @@ const coworkSlice = createSlice({
     },
 
     addSession(state, action: PayloadAction<CoworkSession>) {
+      const session = stripSessionQuotaReservation(action.payload);
       const summary: CoworkSessionSummary = {
-        id: action.payload.id,
-        title: action.payload.title,
-        status: action.payload.status,
-        pinned: action.payload.pinned ?? false,
-        createdAt: action.payload.createdAt,
-        updatedAt: action.payload.updatedAt,
+        id: session.id,
+        title: session.title,
+        status: session.status,
+        pinned: session.pinned ?? false,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
       };
       state.sessions.unshift(summary);
-      state.currentSession = action.payload;
-      state.currentSessionId = action.payload.id;
-      markSessionRead(state, action.payload.id);
+      state.currentSession = session;
+      state.currentSessionId = session.id;
+      markSessionRead(state, session.id);
     },
 
     updateSessionStatus(state, action: PayloadAction<{ sessionId: string; status: CoworkSessionStatus }>) {
@@ -137,14 +144,6 @@ const coworkSlice = createSlice({
         state.currentSession.updatedAt = Date.now();
         // Streaming state is tied to the currently opened session only
         state.isStreaming = status === 'running';
-      }
-    },
-
-    updateSessionQuota(state, action: PayloadAction<{ sessionId: string; reservation: ClawSessionReservation | null }>) {
-      const { sessionId, reservation } = action.payload;
-      if (state.currentSession?.id === sessionId) {
-        state.currentSession.quotaReservation = reservation;
-        state.currentSession.updatedAt = Date.now();
       }
     },
 
@@ -278,7 +277,6 @@ export const {
   setDraftPrompt,
   addSession,
   updateSessionStatus,
-  updateSessionQuota,
   deleteSession,
   deleteSessions,
   addMessage,

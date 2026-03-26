@@ -4,7 +4,6 @@ import {
   setCurrentSession,
   addSession,
   updateSessionStatus,
-  updateSessionQuota,
   deleteSession as deleteSessionAction,
   deleteSessions as deleteSessionsAction,
   addMessage,
@@ -18,6 +17,7 @@ import {
   clearCurrentSession,
 } from '../store/slices/coworkSlice';
 import {
+  clearSessionReservation,
   mergeQuotaOverview,
   setQuotaError,
   setQuotaLoading,
@@ -137,7 +137,6 @@ class CoworkService {
     const quotaCleanup = cowork.onStreamQuota(({ sessionId, reservation, overview }) => {
       if (sessionId) {
         store.dispatch(setSessionReservation({ sessionId, reservation }));
-        store.dispatch(updateSessionQuota({ sessionId, reservation }));
       }
       if (overview) {
         store.dispatch(mergeQuotaOverview(overview));
@@ -155,6 +154,13 @@ class CoworkService {
     const result = await window.electron?.cowork?.listSessions();
     if (result?.success && result.sessions) {
       store.dispatch(setSessions(result.sessions));
+      const activeSessionIds = new Set(result.sessions.map((session) => session.id));
+      const reservations = store.getState().quota.sessionReservations;
+      Object.keys(reservations).forEach((sessionId) => {
+        if (!activeSessionIds.has(sessionId)) {
+          store.dispatch(clearSessionReservation(sessionId));
+        }
+      });
     }
   }
 
@@ -273,6 +279,7 @@ class CoworkService {
     const result = await cowork.deleteSession(sessionId);
     if (result.success) {
       store.dispatch(deleteSessionAction(sessionId));
+      store.dispatch(clearSessionReservation(sessionId));
       return true;
     }
 
@@ -287,6 +294,9 @@ class CoworkService {
     const result = await cowork.deleteSessions(sessionIds);
     if (result.success) {
       store.dispatch(deleteSessionsAction(sessionIds));
+      sessionIds.forEach((sessionId) => {
+        store.dispatch(clearSessionReservation(sessionId));
+      });
       return true;
     }
 
