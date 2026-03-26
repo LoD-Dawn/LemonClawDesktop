@@ -267,23 +267,25 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
-        <div className="sticky top-0 z-[1] px-3 pb-2 pt-4 text-[11px] font-medium dark:text-dark-text-secondary/70 text-text-secondary/70 bg-page dark:bg-dark-bg">
-          {i18nService.t('coworkHistory')}
+      {sessions.length > 0 && (
+        <div className="flex-1 overflow-y-auto px-2 pb-4">
+          <div className="sticky top-0 z-[1] px-3 pb-2 pt-4 text-[11px] font-medium dark:text-dark-text-secondary/70 text-text-secondary/70 bg-page dark:bg-dark-bg">
+            {i18nService.t('coworkHistory')}
+          </div>
+          <CoworkSessionList
+            sessions={sessions}
+            currentSessionId={currentSessionId}
+            isBatchMode={isBatchMode}
+            selectedIds={selectedIds}
+            onSelectSession={handleSelectSession}
+            onDeleteSession={handleDeleteSession}
+            onTogglePin={handleTogglePin}
+            onRenameSession={handleRenameSession}
+            onToggleSelection={handleToggleSelection}
+            onEnterBatchMode={handleEnterBatchMode}
+          />
         </div>
-        <CoworkSessionList
-          sessions={sessions}
-          currentSessionId={currentSessionId}
-          isBatchMode={isBatchMode}
-          selectedIds={selectedIds}
-          onSelectSession={handleSelectSession}
-          onDeleteSession={handleDeleteSession}
-          onTogglePin={handleTogglePin}
-          onRenameSession={handleRenameSession}
-          onToggleSelection={handleToggleSelection}
-          onEnterBatchMode={handleEnterBatchMode}
-        />
-      </div>
+      )}
       {isBatchMode ? (
         <div className="px-3 pb-3 pt-2 flex items-center justify-between border-t dark:border-dark-border/80 border-border/80">
           <label className="flex items-center gap-2 cursor-pointer text-sm dark:text-dark-text-secondary text-text-secondary">
