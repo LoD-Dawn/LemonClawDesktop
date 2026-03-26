@@ -198,10 +198,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       className={`${sidebarBaseClass} ${sidebarFrameClass} ${isCollapsed ? 'w-0 -translate-x-2 opacity-0 pointer-events-none' : 'w-64 translate-x-0 opacity-100'
         }`}
     >
-      <div className="pt-3 pb-2">
-        <div className="draggable sidebar-header-drag h-8 flex items-center justify-between px-3">
-          <div className={`${isMac ? 'pl-[68px]' : ''}`}>
-            {/* Header spacer */}
+      <div>
+        <div className="draggable sidebar-header-drag h-12 flex items-center justify-between px-4">
+          <div className={`flex items-center gap-2.5 ${isMac ? 'pl-[68px]' : ''}`}>
+            <img src="./topLogo.png" alt="Logo" className="h-7 w-auto object-contain select-none pointer-events-none" />
+            <div className="flex items-baseline gap-1.5 pt-0.5">
+              <span className="text-[15px] font-bold tracking-tight text-text-primary dark:text-dark-text">LemonClaw</span>
+              <span className="text-[10px] font-medium text-text-secondary/50 dark:text-dark-text-secondary/40 select-none">v0.2.3</span>
+            </div>
           </div>
           <button
             type="button"
@@ -322,7 +326,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       ) : (
         <div className="px-2 pb-3 pt-2 space-y-1 mt-auto">
           {updateBadge && (
-             <div className="mb-2 px-1">{updateBadge}</div>
+            <div className="mb-2 px-1">{updateBadge}</div>
           )}
           <div className="relative" ref={settingsMenuRef}>
             <button
@@ -375,11 +379,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowLanguageMenu(prev => !prev)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                        showLanguageMenu
-                          ? 'dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text text-text-primary'
-                          : 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
-                      }`}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${showLanguageMenu
+                        ? 'dark:bg-dark-surface-hover bg-surface-hover dark:text-dark-text text-text-primary'
+                        : 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                        }`}
                       aria-expanded={showLanguageMenu}
                       aria-haspopup="true"
                       role="menuitem"
@@ -400,11 +403,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                               key={option.value}
                               type="button"
                               onClick={() => handleLanguageChange(option.value)}
-                              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                                selected
-                                  ? 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
-                                  : 'dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
-                              }`}
+                              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${selected
+                                ? 'dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                                : 'dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover'
+                                }`}
                               role="menuitemradio"
                               aria-checked={selected}
                             >
