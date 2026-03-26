@@ -8,17 +8,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Ink Blue Enterprise color palette
-        page: '#F5F5F7',              // Light page bg
-        surface: '#FFFFFF',          // Cards, inputs
-        'surface-hover': '#EBEBED',     // Hover state
-        'surface-muted': '#F3F4F6',     // Subtle area distinction
-        'surface-inset': '#EBEDF0',     // Inset areas
-        border: '#E8E8EB',           // Default border
-        'border-light': '#EBEDF0',      // Subtle dividers
-        'text-primary': '#1F2329',             // Primary text
-        'text-secondary': '#646A73',    // Secondary text
-        'text-muted': '#8F959E',        // Muted text
+        // Ink Blue Enterprise color palette (Clean white style)
+        page: '#FFFFFF',              // Pure white background
+        surface: '#FFFFFF',           // Pure white cards
+        'surface-hover': '#F3F4F6',   // Clean gray hover (gray-100)
+        'surface-muted': '#F9FAFB',   // Very subtle gray area (gray-50)
+        'surface-inset': '#F3F4F6',   // Inset areas
+        border: '#E5E7EB',            // Lighter border (gray-200)
+        'border-light': '#F3F4F6',    // Very subtle dividers
+        'text-primary': '#111827',    // Strong almost black (gray-900)
+        'text-secondary': '#4B5563',  // Dark gray for secondary (gray-600)
+        'text-muted': '#9CA3AF',      // Muted text (gray-400)
 
         // Dark mode colors
         'dark-bg': '#0F1117',           // Dark background
@@ -32,12 +32,12 @@ export default {
         'dark-text-secondary': '#C2CAD6', // Dark secondary text
         'dark-text-muted': '#9AA6B8',   // Dark muted text
 
-        // Primary (Ink Blue)
+        // Primary (Minimalist Black/Slate)
         primary: {
-          DEFAULT: '#0D2847', // Deep Ink Blue
-          light: '#134E6F',   // Hover in light
-          lighter: '#1E5F7A', // Focus ring
-          muted: 'rgba(13, 40, 71, 0.10)',
+          DEFAULT: '#111827', // Gray-900 for modern buttons
+          light: '#374151',   // hover state
+          lighter: '#6B7280', // lighter
+          muted: 'rgba(17, 24, 39, 0.10)',
         },
         secondary: {
           DEFAULT: '#646A73',
@@ -50,10 +50,10 @@ export default {
         elevated: '0 4px 12px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.04)',
         modal: '0 8px 30px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)',
         popover: '0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.05)',
-        focus: '0 8px 32px rgba(13, 40, 71, 0.18)',
-        'focus-dark': '0 8px 32px rgba(91, 163, 224, 0.25)',
-        'card-hover': '0 2px 12px rgba(13, 40, 71, 0.12)',
-        'card-hover-dark': '0 2px 12px rgba(91, 163, 224, 0.2)',
+        focus: '0 8px 32px rgba(0, 0, 0, 0.12)',
+        'focus-dark': '0 8px 32px rgba(255, 255, 255, 0.08)',
+        'card-hover': '0 2px 12px rgba(0, 0, 0, 0.08)',
+        'card-hover-dark': '0 2px 12px rgba(255, 255, 255, 0.05)',
       },
       keyframes: {
         'fade-in': {
@@ -92,9 +92,9 @@ export default {
           css: {
             color: '#1F2329',
             a: {
-              color: '#0D2847',
+              color: '#111827',
               '&:hover': {
-                color: '#134E6F',
+                color: '#374151',
               },
             },
             code: {
@@ -118,7 +118,7 @@ export default {
               overflowX: 'auto',
             },
             blockquote: {
-              borderLeftColor: '#0D2847',
+              borderLeftColor: '#111827',
               color: '#646A73',
             },
             h1: {

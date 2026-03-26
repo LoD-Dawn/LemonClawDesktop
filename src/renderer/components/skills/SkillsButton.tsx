@@ -31,10 +31,10 @@ const SkillsButton: React.FC<SkillsButtonProps> = ({
         ref={buttonRef}
         type="button"
         onClick={handleButtonClick}
-        className={`p-2 rounded-xl dark:bg-dark-surface bg-surface dark:text-dark-text-secondary text-text-secondary hover:text-primary dark:hover:text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors ${className}`}
+        className={`p-1 rounded-md dark:bg-dark-surface bg-transparent dark:text-dark-text-secondary text-text-secondary hover:text-primary dark:hover:text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors ${className}`}
         title="Skills"
       >
-        <PuzzleIcon className="h-5 w-5" />
+        <PuzzleIcon className="h-[15px] w-[15px] opacity-80" />
       </button>
       <SkillsPopover
         isOpen={isPopoverOpen}
