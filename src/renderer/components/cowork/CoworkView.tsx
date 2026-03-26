@@ -17,7 +17,7 @@ import WindowTitleBar from '../window/WindowTitleBar';
 import { PromptPanel } from '../quick-actions';
 import type { SettingsOpenOptions } from '../Settings';
 import type { CoworkSession, CoworkImageAttachment } from '../../types/cowork';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
+
 
 export interface CoworkViewProps {
   onRequestAppSettings?: (options?: SettingsOpenOptions) => void;
@@ -50,6 +50,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   const skills = useSelector((state: RootState) => state.skill.skills);
   const quickActions = useSelector((state: RootState) => state.quickAction.actions);
   const selectedActionId = useSelector((state: RootState) => state.quickAction.selectedActionId);
+
 
   const buildApiConfigNotice = (error?: string) => {
     const baseNotice = i18nService.t('coworkModelSettingsRequired');
@@ -360,43 +361,86 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       <div className="app-topbar bg-transparent border-none dark:bg-transparent backdrop-blur-none pointer-events-none z-10">
         <div className="app-topbar-inner">
           <div className="non-draggable h-8 flex items-center pointer-events-auto">
-          {isSidebarCollapsed && (
-            <div className={`flex items-center gap-1 mr-2 ${isMac ? 'pl-[68px]' : ''}`}>
-              <button
-                type="button"
-                onClick={onToggleSidebar}
-                className="app-icon-btn"
-              >
-                <SidebarToggleIcon className="h-4 w-4" isCollapsed={true} />
-              </button>
-              <button
-                type="button"
-                onClick={onNewChat}
-                className="app-icon-btn"
-              >
-                <ComposeIcon className="h-4 w-4" />
-              </button>
-              {updateBadge}
-            </div>
-          )}
-          <ModelSelector />
+            {isSidebarCollapsed && (
+              <div className={`flex items-center gap-1 mr-2 ${isMac ? 'pl-[68px]' : ''}`}>
+                <button
+                  type="button"
+                  onClick={onToggleSidebar}
+                  className="app-icon-btn"
+                >
+                  <SidebarToggleIcon className="h-4 w-4" isCollapsed={true} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onNewChat}
+                  className="app-icon-btn"
+                >
+                  <ComposeIcon className="h-4 w-4" />
+                </button>
+                {updateBadge}
+              </div>
+            )}
+            <ModelSelector />
           </div>
           <WindowTitleBar inline />
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scroll-smooth flex justify-center mt-[10vh]">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scroll-smooth flex justify-center mt-[6vh]">
         <div className="w-full max-w-[42rem] px-4 md:px-6 space-y-8 animate-fade-in-up z-10">
-          
+
           {/* Welcome Section */}
           <div className="text-center space-y-3 mb-2">
+            <img
+              src="/clawLogo.png"
+              alt="Logo"
+              className="w-28 h-28 mx-auto object-contain"
+            />
             <h2 className="text-[36px] md:text-[42px] font-medium tracking-tight dark:text-dark-text text-[#1a1b1e] font-tiempos" style={{ lineHeight: 1.15 }}>
               {i18nService.t('coworkWelcome')}
             </h2>
             <p className="text-[14px] dark:text-dark-text-secondary text-text-secondary max-w-2xl mx-auto leading-relaxed">
               {i18nService.t('coworkDescription')}
             </p>
+          </div>
+
+          {/* Active Tasks (Quick Actions strip) */}
+          <div className="w-full mb-3 px-1 animate-fade-in-up">
+            <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-hide snap-x items-center">
+              {quickActions.map(action => {
+                const isSelected = selectedActionId === action.id;
+                return (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionSelect(action.id)}
+                    className={`
+                      flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all flex-shrink-0 snap-start
+                      ${isSelected
+                        ? 'bg-[#1e1e24] dark:bg-[#1a1b1e] text-white/90 border-white/10 dark:text-dark-text'
+                        : 'bg-surface hover:bg-surface-hover dark:bg-dark-surface dark:hover:bg-dark-surface-hover border-border dark:border-dark-border text-text-primary dark:text-dark-text'}
+                    `}
+                  >
+                    <div className="flex items-center justify-center w-[13px] h-[13px] opacity-80">
+                      <svg fill="currentColor" viewBox="0 0 24 24" className="w-[13px] h-[13px]">
+                        <path d="M12 2.5v3M12 18.5v3M5.28 5.28l2.12 2.12M16.6 16.6l2.12 2.12M2.5 12h3M18.5 12h3M5.28 18.72l2.12-2.12M16.6 7.4l2.12-2.12" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" className="opacity-40" />
+                        <path d="M12 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" className="opacity-80" />
+                      </svg>
+                    </div>
+                    <span className="text-[12px] font-medium leading-[1] whitespace-nowrap">{action.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedAction && (
+              <div className="mt-3">
+                <PromptPanel
+                  action={selectedAction}
+                  onPromptSelect={handleQuickActionPromptSelect}
+                />
+              </div>
+            )}
           </div>
 
           {/* Prompt Input Area - Large version with folder selector */}
@@ -415,52 +459,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
               showFolderSelector={true}
               onManageSkills={() => onShowSkills?.()}
             />
-          </div>
-
-          {/* Active Tasks (Quick Actions mock) */}
-          <div className="pt-4 max-w-3xl mx-auto">
-            <div className="flex items-center justify-between mb-3 text-[13px] dark:text-dark-text-secondary text-text-secondary px-2">
-              <span>{i18nService.t('quickPrompt')}</span>
-              {selectedAction && (
-                <button 
-                  onClick={() => dispatch(clearSelection())}
-                  className="hover:text-text-primary dark:hover:text-dark-text transition-colors"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-1">
-              {selectedAction ? (
-                <div className="rounded-2xl border dark:border-dark-border/50 border-black/5 p-4 bg-white/50 dark:bg-dark-surface/50">
-                  <PromptPanel
-                    action={selectedAction}
-                    onPromptSelect={handleQuickActionPromptSelect}
-                  />
-                </div>
-              ) : (
-                quickActions.map(action => (
-                  <button
-                    key={action.id}
-                    onClick={() => handleActionSelect(action.id)}
-                    className="w-full flex items-center justify-between px-3 py-3.5 rounded-xl border border-transparent hover:bg-black/5 dark:hover:bg-white/5 transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <svg className="h-[22px] w-[22px] text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24">
-                        <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 2.5v3M12 18.5v3M5.28 5.28l2.12 2.12M16.6 16.6l2.12 2.12M2.5 12h3M18.5 12h3M5.28 18.72l2.12-2.12M16.6 7.4l2.12-2.12" className="opacity-40" />
-                        <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0" className="opacity-80"/>
-                      </svg>
-                      <div>
-                        <div className="text-[14px] dark:text-dark-text text-[#1a1b1e] font-medium leading-[1.2]">{action.label}</div>
-                        <div className="text-[12px] dark:text-dark-text-secondary text-gray-500 mt-1">{i18nService.t('skills') || 'now'}</div>
-                      </div>
-                    </div>
-                    <ChevronRightIcon className="h-4 w-4 dark:text-dark-text-secondary text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))
-              )}
-            </div>
           </div>
         </div>
       </div>
