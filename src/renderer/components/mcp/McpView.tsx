@@ -4,6 +4,7 @@ import McpManager from './McpManager';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ComposeIcon from '../icons/ComposeIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
+import QuotaStatusBadge from '../QuotaStatusBadge';
 
 interface McpViewProps {
   isSidebarCollapsed?: boolean;
@@ -42,7 +43,10 @@ const McpView: React.FC<McpViewProps> = ({ isSidebarCollapsed, onToggleSidebar, 
             {i18nService.t('mcpServers')}
             </h1>
           </div>
-          <WindowTitleBar inline />
+          <div className="non-draggable flex items-center gap-2">
+            <QuotaStatusBadge />
+            <WindowTitleBar inline />
+          </div>
         </div>
       </div>
 

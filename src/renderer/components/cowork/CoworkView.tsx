@@ -14,6 +14,7 @@ import ModelSelector from '../ModelSelector';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ComposeIcon from '../icons/ComposeIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
+import QuotaStatusBadge from '../QuotaStatusBadge';
 import { PromptPanel } from '../quick-actions';
 import type { SettingsOpenOptions } from '../Settings';
 import type { CoworkSession, CoworkImageAttachment } from '../../types/cowork';
@@ -51,6 +52,22 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   const quickActions = useSelector((state: RootState) => state.quickAction.actions);
   const selectedActionId = useSelector((state: RootState) => state.quickAction.selectedActionId);
   const selectedModel = useSelector((state: RootState) => state.model.selectedModel);
+
+  const resolveContinueErrorToast = (error?: string) => {
+    const normalized = (error || '').toLowerCase();
+    if (
+      normalized.includes('quota_exhausted')
+      || normalized.includes('quota not enough')
+      || normalized.includes('quota_not_enough')
+      || normalized.includes('配额已用尽')
+      || normalized.includes('积分已用尽')
+      || normalized.includes('积分不足')
+      || normalized.includes('余额不足')
+    ) {
+      return i18nService.t('coworkQuotaExhaustedToast');
+    }
+    return error || i18nService.t('coworkContinueFailedToast');
+  };
 
 
   const buildApiConfigNotice = (error?: string) => {
@@ -264,7 +281,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       .filter(p => p?.trim())
       .join('\n\n') || undefined;
 
-    const success = await coworkService.continueSession({
+    const result = await coworkService.continueSession({
       sessionId: currentSession.id,
       prompt,
       systemPrompt: combinedSystemPrompt,
@@ -274,8 +291,8 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       activeSkillIds: sessionSkillIds.length > 0 ? sessionSkillIds : undefined,
       imageAttachments,
     });
-    if (!success) {
-      window.dispatchEvent(new CustomEvent('app:showToast', { detail: '会话继续失败，请稍后重试' }));
+    if (!result.success) {
+      window.dispatchEvent(new CustomEvent('app:showToast', { detail: resolveContinueErrorToast(result.error) }));
     }
   };
 
@@ -343,7 +360,10 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         <div className="app-topbar">
           <div className="app-topbar-inner">
             <div />
-            <WindowTitleBar inline />
+            <div className="non-draggable flex items-center gap-2">
+              <QuotaStatusBadge />
+              <WindowTitleBar inline />
+            </div>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center">
@@ -401,7 +421,10 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
             )}
             <ModelSelector />
           </div>
-          <WindowTitleBar inline />
+          <div className="non-draggable flex items-center gap-2">
+            <QuotaStatusBadge />
+            <WindowTitleBar inline />
+          </div>
         </div>
       </div>
 

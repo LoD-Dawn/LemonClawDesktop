@@ -13,6 +13,7 @@ import { ArrowLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ComposeIcon from '../icons/ComposeIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
+import QuotaStatusBadge from '../QuotaStatusBadge';
 
 interface ScheduledTasksViewProps {
   isSidebarCollapsed?: boolean;
@@ -124,6 +125,7 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <QuotaStatusBadge />
             <WindowTitleBar inline />
           </div>
         </div>

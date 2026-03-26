@@ -341,10 +341,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex shrink-0 h-7 w-7 items-center justify-center rounded-full bg-[#4B4B4B] text-white text-xs">
                   {displayUserName?.[0] || 'U'}
                 </div>
-                <div className="flex flex-col items-start overflow-hidden">
-                  <span className="text-[13px] font-medium leading-tight truncate text-[#111827] dark:text-[#F3F6FB]">{displayUserName || authUser?.name || "User"}</span>
-                  <span className="text-[11px] text-gray-500 leading-tight">Free plan</span>
-                </div>
+                <span className="truncate text-[13px] font-medium leading-tight text-[#111827] dark:text-[#F3F6FB]">
+                  {displayUserName || authUser?.name || 'User'}
+                </span>
               </div>
               <AdjustmentsHorizontalIcon className="h-4 w-4 shrink-0 dark:text-dark-text-secondary text-text-secondary" />
 

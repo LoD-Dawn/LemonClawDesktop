@@ -6,6 +6,7 @@ interface QuotaState {
   loading: boolean;
   error: string | null;
   sessionReservations: Record<string, ClawSessionReservation | null | undefined>;
+  liveUsedCreditsBase: number | null;
 }
 
 const initialState: QuotaState = {
@@ -17,6 +18,7 @@ const initialState: QuotaState = {
   loading: false,
   error: null,
   sessionReservations: {},
+  liveUsedCreditsBase: null,
 };
 
 const quotaSlice = createSlice({
@@ -32,6 +34,12 @@ const quotaSlice = createSlice({
     setQuotaOverview(state, action: PayloadAction<ClawQuotaOverview>) {
       state.overview = action.payload;
       state.error = null;
+      const nextBalance = action.payload.quota?.creditBalance;
+      if (nextBalance !== null && nextBalance !== undefined && Number.isFinite(nextBalance)) {
+        state.liveUsedCreditsBase = state.liveUsedCreditsBase === null
+          ? nextBalance
+          : Math.max(state.liveUsedCreditsBase, nextBalance);
+      }
     },
     mergeQuotaOverview(state, action: PayloadAction<Partial<ClawQuotaOverview>>) {
       state.overview = {
@@ -40,6 +48,12 @@ const quotaSlice = createSlice({
         usageSummary: action.payload.usageSummary !== undefined ? action.payload.usageSummary : state.overview.usageSummary,
       };
       state.error = null;
+      const nextBalance = state.overview.quota?.creditBalance;
+      if (nextBalance !== null && nextBalance !== undefined && Number.isFinite(nextBalance)) {
+        state.liveUsedCreditsBase = state.liveUsedCreditsBase === null
+          ? nextBalance
+          : Math.max(state.liveUsedCreditsBase, nextBalance);
+      }
     },
     setSessionReservation(state, action: PayloadAction<{ sessionId: string; reservation: ClawSessionReservation | null }>) {
       state.sessionReservations[action.payload.sessionId] = action.payload.reservation;

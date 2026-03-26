@@ -4,6 +4,7 @@ import SkillsManager from './SkillsManager';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ComposeIcon from '../icons/ComposeIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
+import QuotaStatusBadge from '../QuotaStatusBadge';
 
 interface SkillsViewProps {
   isSidebarCollapsed?: boolean;
@@ -42,7 +43,10 @@ const SkillsView: React.FC<SkillsViewProps> = ({ isSidebarCollapsed, onToggleSid
             {i18nService.t('skills')}
             </h1>
           </div>
-          <WindowTitleBar inline />
+          <div className="non-draggable flex items-center gap-2">
+            <QuotaStatusBadge />
+            <WindowTitleBar inline />
+          </div>
         </div>
       </div>
 

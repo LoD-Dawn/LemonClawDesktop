@@ -220,11 +220,11 @@ class CoworkService {
     return { session: null, error: result.error };
   }
 
-  async continueSession(options: CoworkContinueOptions): Promise<boolean> {
+  async continueSession(options: CoworkContinueOptions): Promise<{ success: boolean; error?: string }> {
     const cowork = window.electron?.cowork;
     if (!cowork) {
       console.error('Cowork API not available');
-      return false;
+      return { success: false, error: 'Cowork API not available' };
     }
 
     store.dispatch(setStreaming(true));
@@ -245,10 +245,10 @@ class CoworkService {
       store.dispatch(setStreaming(false));
       store.dispatch(updateSessionStatus({ sessionId: options.sessionId, status: 'error' }));
       console.error('Failed to continue session:', result.error);
-      return false;
+      return { success: false, error: result.error };
     }
 
-    return true;
+    return { success: true };
   }
 
   async stopSession(sessionId: string): Promise<boolean> {

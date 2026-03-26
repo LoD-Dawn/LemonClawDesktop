@@ -26,6 +26,7 @@ import ComposeIcon from '../icons/ComposeIcon';
 import PuzzleIcon from '../icons/PuzzleIcon';
 import PushPinIcon from '../icons/PushPinIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
+import QuotaStatusBadge from '../QuotaStatusBadge';
 import { getCompactFolderName } from '../../utils/path';
 
 
@@ -1708,6 +1709,7 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           >
             <EllipsisHorizontalIcon className="h-5 w-5" />
           </button>
+          <QuotaStatusBadge />
           <WindowTitleBar inline className="ml-1" />
         </div>
         </div>
@@ -1839,7 +1841,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 };
 
 export default CoworkSessionDetail;
-
 
 
 
