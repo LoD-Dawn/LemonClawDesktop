@@ -14,10 +14,10 @@ import ModelSelector from '../ModelSelector';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ComposeIcon from '../icons/ComposeIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
-import { QuickActionBar, PromptPanel } from '../quick-actions';
+import { PromptPanel } from '../quick-actions';
 import type { SettingsOpenOptions } from '../Settings';
 import type { CoworkSession, CoworkImageAttachment } from '../../types/cowork';
-import { CpuChipIcon, FolderOpenIcon, SparklesIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
 
 export interface CoworkViewProps {
   onRequestAppSettings?: (options?: SettingsOpenOptions) => void;
@@ -303,19 +303,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     promptInputRef.current?.focus();
   };
 
-  const executionModeLabel = React.useMemo(() => {
-    switch (config.executionMode) {
-      case 'auto':
-        return i18nService.t('coworkExecutionModeAuto');
-      case 'sandbox':
-        return i18nService.t('coworkExecutionModeSandbox');
-      default:
-        return i18nService.t('coworkExecutionModeLocal');
-    }
-  }, [config.executionMode]);
-
-  const workingDirectoryDisplay = config.workingDirectory?.trim() || i18nService.t('noFolderSelected');
-
   useEffect(() => {
     const handleNewSession = () => {
       dispatch(clearCurrentSession());
@@ -368,11 +355,11 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
 
   // Home view - no current session
   return (
-    <div className="flex-1 flex flex-col dark:bg-dark-bg bg-page h-full">
+    <div className="flex-1 flex flex-col dark:bg-[#0f1117] bg-[#fafafa] h-full bg-grid-pattern relative">
       {/* Header */}
-      <div className="app-topbar">
+      <div className="app-topbar bg-transparent border-none dark:bg-transparent backdrop-blur-none pointer-events-none z-10">
         <div className="app-topbar-inner">
-          <div className="non-draggable h-8 flex items-center">
+          <div className="non-draggable h-8 flex items-center pointer-events-auto">
           {isSidebarCollapsed && (
             <div className={`flex items-center gap-1 mr-2 ${isMac ? 'pl-[68px]' : ''}`}>
               <button
@@ -399,69 +386,22 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scroll-smooth">
-        <div className="relative max-w-5xl mx-auto px-4 pt-4 pb-6 md:pt-5 md:pb-8 space-y-6 animate-fade-in-up">
-          <div className="pointer-events-none absolute -top-20 -left-10 h-52 w-52 rounded-full bg-primary/20 dark:bg-primary-lighter/20 blur-3xl" />
-          <div className="pointer-events-none absolute top-16 -right-16 h-64 w-64 rounded-full bg-cyan-400/20 dark:bg-cyan-300/10 blur-3xl" />
-
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scroll-smooth flex justify-center mt-[10vh]">
+        <div className="w-full max-w-[42rem] px-4 md:px-6 space-y-8 animate-fade-in-up z-10">
+          
           {/* Welcome Section */}
-          <div className="relative overflow-hidden rounded-3xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/55 bg-surface/85 shadow-elevated">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-cyan-400/10 dark:from-primary-lighter/10 dark:to-cyan-300/5" />
-            <div className="relative px-6 py-6 md:px-9 md:py-7 space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/75 bg-surface/90 px-3 py-1 text-xs dark:text-dark-text-secondary text-text-secondary">
-                <SparklesIcon className="h-3.5 w-3.5" />
-                <span>LemonClaw</span>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-4">
-                  <img src="logo.png" alt="logo" className="w-14 h-14 md:w-16 md:h-16 drop-shadow-sm" />
-                  <h2 className="text-3xl md:text-4xl font-semibold tracking-tight dark:text-dark-text text-text-primary">
-                    {i18nService.t('coworkWelcome')}
-                  </h2>
-                </div>
-                <p className="text-sm md:text-[15px] dark:text-dark-text-secondary text-text-secondary max-w-2xl leading-relaxed">
-                  {i18nService.t('coworkDescription')}
-                </p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border dark:border-dark-border/60 border-border/70 dark:bg-dark-surface/75 bg-surface/95 p-3.5">
-                  <div className="flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">
-                    <CpuChipIcon className="h-4 w-4" />
-                    {i18nService.t('coworkExecutionMode')}
-                  </div>
-                  <div className="mt-2 text-sm font-medium dark:text-dark-text text-text-primary">
-                    {executionModeLabel}
-                  </div>
-                </div>
-                <div className="rounded-2xl border dark:border-dark-border/60 border-border/70 dark:bg-dark-surface/75 bg-surface/95 p-3.5">
-                  <div className="flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">
-                    <FolderOpenIcon className="h-4 w-4" />
-                    {i18nService.t('coworkWorkingDirectory')}
-                  </div>
-                  <div className="mt-2 text-sm font-medium dark:text-dark-text text-text-primary truncate" title={workingDirectoryDisplay}>
-                    {workingDirectoryDisplay}
-                  </div>
-                </div>
-                <div className="rounded-2xl border dark:border-dark-border/60 border-border/70 dark:bg-dark-surface/75 bg-surface/95 p-3.5">
-                  <div className="flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">
-                    <Squares2X2Icon className="h-4 w-4" />
-                    {i18nService.t('quickPrompt')}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-cyan-200">{i18nService.t('skills')}</span>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-cyan-200">{i18nService.t('mcpServers')}</span>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary dark:bg-primary-lighter/20 dark:text-cyan-200">{i18nService.t('scheduledTasks')}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="text-center space-y-3 mb-2">
+            <h2 className="text-[36px] md:text-[42px] font-medium tracking-tight dark:text-dark-text text-[#1a1b1e] font-tiempos" style={{ lineHeight: 1.15 }}>
+              {i18nService.t('coworkWelcome')}
+            </h2>
+            <p className="text-[14px] dark:text-dark-text-secondary text-text-secondary max-w-2xl mx-auto leading-relaxed">
+              {i18nService.t('coworkDescription')}
+            </p>
           </div>
 
           {/* Prompt Input Area - Large version with folder selector */}
-          <div className="space-y-3">
-            <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/45 bg-surface/78 p-2 md:p-3 shadow-subtle">
+          <div className="relative">
+            <div className="rounded-2xl border dark:border-dark-border/60 border-black/10 dark:bg-dark-surface/90 bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
               <CoworkPromptInput
                 ref={promptInputRef}
                 onSubmit={handleStartSession}
@@ -479,17 +419,51 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="rounded-2xl border dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/38 bg-surface/72 p-4 md:p-5 shadow-subtle">
-            {selectedAction ? (
-              <PromptPanel
-                action={selectedAction}
-                onPromptSelect={handleQuickActionPromptSelect}
-              />
-            ) : (
-              <QuickActionBar actions={quickActions} onActionSelect={handleActionSelect} />
-            )}
+          {/* Active Tasks (Quick Actions mock) */}
+          <div className="pt-4 max-w-3xl mx-auto">
+            <div className="flex items-center justify-between mb-3 text-[13px] dark:text-dark-text-secondary text-text-secondary px-2">
+              <span>{i18nService.t('quickPrompt')}</span>
+              {selectedAction && (
+                <button 
+                  onClick={() => dispatch(clearSelection())}
+                  className="hover:text-text-primary dark:hover:text-dark-text transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
             </div>
+            
+            <div className="space-y-1">
+              {selectedAction ? (
+                <div className="rounded-2xl border dark:border-dark-border/50 border-black/5 p-4 bg-white/50 dark:bg-dark-surface/50">
+                  <PromptPanel
+                    action={selectedAction}
+                    onPromptSelect={handleQuickActionPromptSelect}
+                  />
+                </div>
+              ) : (
+                quickActions.map(action => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionSelect(action.id)}
+                    className="w-full flex items-center justify-between px-3 py-3.5 rounded-xl border border-transparent hover:bg-black/5 dark:hover:bg-white/5 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <svg className="h-[22px] w-[22px] text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 2.5v3M12 18.5v3M5.28 5.28l2.12 2.12M16.6 16.6l2.12 2.12M2.5 12h3M18.5 12h3M5.28 18.72l2.12-2.12M16.6 7.4l2.12-2.12" className="opacity-40" />
+                        <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0" className="opacity-80"/>
+                      </svg>
+                      <div>
+                        <div className="text-[14px] dark:text-dark-text text-[#1a1b1e] font-medium leading-[1.2]">{action.label}</div>
+                        <div className="text-[12px] dark:text-dark-text-secondary text-gray-500 mt-1">{i18nService.t('skills') || 'now'}</div>
+                      </div>
+                    </div>
+                    <ChevronRightIcon className="h-4 w-4 dark:text-dark-text-secondary text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

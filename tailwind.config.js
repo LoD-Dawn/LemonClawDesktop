@@ -8,17 +8,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Ink Blue Enterprise color palette
-        page: '#F5F5F7',              // Light page bg
-        surface: '#FFFFFF',          // Cards, inputs
-        'surface-hover': '#EBEBED',     // Hover state
-        'surface-muted': '#F3F4F6',     // Subtle area distinction
-        'surface-inset': '#EBEDF0',     // Inset areas
-        border: '#E8E8EB',           // Default border
-        'border-light': '#EBEDF0',      // Subtle dividers
-        'text-primary': '#1F2329',             // Primary text
-        'text-secondary': '#646A73',    // Secondary text
-        'text-muted': '#8F959E',        // Muted text
+        // Ink Blue Enterprise color palette (Clean white style)
+        page: '#FFFFFF',              // Pure white background
+        surface: '#FFFFFF',           // Pure white cards
+        'surface-hover': '#F3F4F6',   // Clean gray hover (gray-100)
+        'surface-muted': '#F9FAFB',   // Very subtle gray area (gray-50)
+        'surface-inset': '#F3F4F6',   // Inset areas
+        border: '#E5E7EB',            // Lighter border (gray-200)
+        'border-light': '#F3F4F6',    // Very subtle dividers
+        'text-primary': '#111827',    // Strong almost black (gray-900)
+        'text-secondary': '#4B5563',  // Dark gray for secondary (gray-600)
+        'text-muted': '#9CA3AF',      // Muted text (gray-400)
 
         // Dark mode colors
         'dark-bg': '#0F1117',           // Dark background

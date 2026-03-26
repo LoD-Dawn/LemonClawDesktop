@@ -643,12 +643,29 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="app-shell h-screen overflow-hidden flex flex-col">
+    <div className="app-shell h-screen overflow-hidden flex flex-col relative text-[#111827] dark:text-[#f3f6fb] bg-[#ffffff] dark:bg-[#0f1117]">
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-1xl animate-fade-in">
+      {/* Centered Top Toggle (UI Only to match layout) */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center bg-black/5 dark:bg-white/10 rounded-full p-[3px] pointer-events-auto app-drag-region-none">
+        <button 
+          type="button"
+          onClick={() => {}} 
+          className="px-4 py-1 text-[13px] font-medium rounded-full text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text transition-colors"
+        >
+          Chat
+        </button>
+        <button 
+          type="button"
+          className="px-4 py-1 text-[13px] font-medium rounded-full bg-white dark:bg-dark-surface text-text-primary dark:text-dark-text shadow-sm transition-colors"
+        >
+          Cowork
+        </button>
+      </div>
+
+      <div className="flex flex-1 min-h-0 overflow-hidden pt-8 md:pt-0">
+        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden animate-fade-in border-0 rounded-none md:border md:rounded-2xl md:m-1">
           <Sidebar
             onShowLogin={handleShowLogin}
             onShowSettings={handleShowSettings}

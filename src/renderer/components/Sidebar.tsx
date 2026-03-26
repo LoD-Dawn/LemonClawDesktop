@@ -172,13 +172,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     handleExitBatchMode();
   }, [selectedIds, handleExitBatchMode]);
 
-  const navButtonBase = 'w-full inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200';
-  const navButtonActive = 'bg-primary text-white shadow-subtle hover:bg-primary-light hover:shadow-card';
-  const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-surface-hover dark:hover:bg-dark-surface-hover';
-  const sidebarBaseClass = 'shrink-0 dark:bg-dark-surface-muted/90 bg-surface/90 flex flex-col sidebar-transition overflow-hidden';
+  const navButtonBase = 'w-full inline-flex items-center gap-2.5 rounded-[10px] px-3 py-[8px] text-[13px] font-medium transition-all duration-200';
+  const navButtonActive = 'bg-black/5 dark:bg-white/5 dark:text-dark-text text-text-primary';
+  const navButtonInactive = 'dark:text-dark-text-secondary text-text-secondary hover:text-text-primary dark:hover:text-dark-text hover:bg-black/5 dark:hover:bg-white/5';
+  const sidebarBaseClass = 'shrink-0 dark:bg-dark-bg bg-page flex flex-col sidebar-transition overflow-hidden';
   const sidebarFrameClass = isEmbedded
-    ? `${isCollapsed ? 'border-r-0' : 'border-r dark:border-dark-border/70 border-border/70'}`
-    : 'border dark:border-dark-border/80 border-border/80 rounded-2xl shadow-card';
+    ? `${isCollapsed ? 'border-r-0' : 'border-r dark:border-dark-border/70 border-border/60'}`
+    : 'border dark:border-dark-border/80 border-border/60 rounded-2xl shadow-sm';
   const languageOptions: Array<{ value: LanguageType; label: string }> = [
     { value: 'zh', label: i18nService.t('chinese') },
     { value: 'en', label: i18nService.t('english') },
@@ -201,7 +201,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="pt-3 pb-2">
         <div className="draggable sidebar-header-drag h-8 flex items-center justify-between px-3">
           <div className={`${isMac ? 'pl-[68px]' : ''}`}>
-            {updateBadge}
+            {/* Header spacer */}
           </div>
           <button
             type="button"
@@ -267,9 +267,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </div>
-      <div className="mx-3 mb-3 h-px dark:bg-dark-border bg-border-light" />
-      <div className="flex-1 overflow-y-auto px-2.5 pb-4">
-        <div className="sticky top-0 z-[1] px-3 pb-2.5 pt-1 text-xs font-semibold tracking-wide uppercase dark:text-dark-text-secondary/90 text-text-secondary/90 dark:bg-dark-surface-muted/85 bg-surface/85 backdrop-blur-sm">
+      <div className="flex-1 overflow-y-auto px-2 pb-4">
+        <div className="sticky top-0 z-[1] px-3 pb-2 pt-4 text-[11px] font-medium dark:text-dark-text-secondary/70 text-text-secondary/70 bg-page dark:bg-dark-bg">
           {i18nService.t('coworkHistory')}
         </div>
         <CoworkSessionList
@@ -319,20 +318,29 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       ) : (
-        <div className="px-3 pb-3 pt-2 border-t dark:border-dark-border/80 border-border/80">
+        <div className="px-2 pb-3 pt-2 space-y-1 mt-auto">
+          {updateBadge && (
+             <div className="mb-2 px-1">{updateBadge}</div>
+          )}
           <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"
               onClick={() => setShowSettingsMenu(prev => !prev)}
-              className={`${navButtonBase} ${navButtonInactive} justify-between`}
+              className={`${navButtonBase} ${navButtonInactive} justify-between !py-1.5`}
               aria-label={i18nService.t('settings')}
               aria-haspopup="menu"
               aria-expanded={showSettingsMenu}
             >
-              <span className="inline-flex items-center gap-2">
-                <AdjustmentsHorizontalIcon className="h-4 w-4" />
-                {i18nService.t('settings')}
-              </span>
+              <div className="flex items-center gap-2 overflow-hidden">
+                <div className="flex shrink-0 h-7 w-7 items-center justify-center rounded-full bg-[#4B4B4B] text-white text-xs">
+                  {displayUserName?.[0] || 'U'}
+                </div>
+                <div className="flex flex-col items-start overflow-hidden">
+                  <span className="text-[13px] font-medium leading-tight truncate text-[#111827] dark:text-[#F3F6FB]">{displayUserName || authUser?.name || "User"}</span>
+                  <span className="text-[11px] text-gray-500 leading-tight">Free plan</span>
+                </div>
+              </div>
+              <AdjustmentsHorizontalIcon className="h-4 w-4 shrink-0 dark:text-dark-text-secondary text-text-secondary" />
 
             </button>
             {showSettingsMenu && (
