@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { PaperAirplaneIcon, StopIcon, FolderIcon } from '@heroicons/react/24/solid';
 import { PhotoIcon } from '@heroicons/react/24/outline';
@@ -11,7 +11,8 @@ import { i18nService } from '../../services/i18n';
 import { skillService } from '../../services/skill';
 import { RootState } from '../../store';
 import { setDraftPrompt } from '../../store/slices/coworkSlice';
-import { setSkills, toggleActiveSkill } from '../../store/slices/skillSlice';
+import { setSkills, toggleActiveSkill, clearActiveSkills } from '../../store/slices/skillSlice';
+import { clearSelection } from '../../store/slices/quickActionSlice';
 import { Skill } from '../../types/skill';
 import { CoworkImageAttachment } from '../../types/cowork';
 import { getCompactFolderName } from '../../utils/path';
@@ -136,10 +137,26 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
 
   const activeSkillIds = useSelector((state: RootState) => state.skill.activeSkillIds);
   const skills = useSelector((state: RootState) => state.skill.skills);
+  const selectedActionId = useSelector((state: RootState) => state.quickAction.selectedActionId);
+  const quickActions = useSelector((state: RootState) => state.quickAction.actions);
+  const selectedAction = activeSkillIds.length > 0 && selectedActionId ? quickActions.find(a => a.id === selectedActionId) : null;
 
   const isLarge = size === 'large';
   const minHeight = isLarge ? 60 : 24;
   const maxHeight = isLarge ? 200 : 200;
+
+  const badgeRef = useRef<HTMLDivElement>(null);
+  const [indent, setIndent] = useState(0);
+
+  // Synchronous measurement so textIndent is applied before paint
+  useLayoutEffect(() => {
+    if (selectedAction && isLarge && badgeRef.current) {
+      const w = badgeRef.current.offsetWidth;
+      setIndent(w > 0 ? w + 12 : 0);
+    } else {
+      setIndent(0);
+    }
+  }, [selectedAction, isLarge]);
 
   // Load skills on mount
   useEffect(() => {
@@ -264,6 +281,15 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
     dispatch(toggleActiveSkill(skill.id));
   }, [dispatch]);
 
+  const handleClearSelectedAction = useCallback((e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    dispatch(clearSelection());
+    dispatch(clearActiveSkills());
+  }, [dispatch]);
+
   const handleManageSkills = useCallback(() => {
     if (onManageSkills) {
       onManageSkills();
@@ -286,12 +312,12 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
   };
 
   const containerClass = isLarge
-    ? 'relative rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-card transition-[box-shadow,border-color,background-color] duration-200 focus-within:shadow-elevated focus-within:ring-2 focus-within:ring-primary/25 focus-within:border-primary/70'
-    : 'relative flex items-end gap-2 p-3 rounded-xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-subtle transition-[box-shadow,border-color] duration-200 focus-within:shadow-card focus-within:border-primary/60';
+    ? 'relative rounded-2xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-sm transition-[box-shadow,border-color,background-color] duration-200'
+    : 'relative flex items-end gap-2 p-3 rounded-xl border dark:border-dark-border/80 border-border/80 dark:bg-dark-surface/90 bg-surface/95 shadow-sm transition-[box-shadow,border-color] duration-200';
 
   const textareaClass = isLarge
-    ? `w-full resize-none bg-transparent px-4 pt-3 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none text-[15px] leading-6 min-h-[${minHeight}px] max-h-[${maxHeight}px]`
-    : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none text-sm leading-relaxed min-h-[24px] max-h-[200px]';
+    ? `w-full resize-none bg-transparent px-4 pt-3 pb-2 dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary/65 placeholder:text-text-secondary/65 focus:outline-none focus:ring-0 text-[14px] leading-[22px] scrollbar-hide`
+    : 'flex-1 resize-none bg-transparent dark:text-dark-text text-text-primary placeholder:dark:text-dark-text-secondary placeholder:text-text-secondary focus:outline-none focus:ring-0 text-sm leading-relaxed min-h-[24px] max-h-[200px]';
 
   const truncatePath = (path: string, maxLength = 30): string => {
     if (!path) return i18nService.t('noFolderSelected');
@@ -582,6 +608,30 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
         )}
         {isLarge ? (
           <>
+            {selectedAction && (
+              <div
+                ref={badgeRef}
+                className="absolute left-4 top-[15px] z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1e1e24] dark:bg-[#1a1b1e] text-white/90 border border-white/10 shadow-sm pointer-events-auto"
+              >
+                {/* Dynamically trying to render icon could be complex, using Puzzle as fallback if Dynamic isn't in this file */}
+                <div className="flex items-center justify-center w-[13px] h-[13px] opacity-80">
+                  <svg fill="currentColor" viewBox="0 0 24 24" className="w-[13px] h-[13px]">
+                    <path d="M12 2.5v3M12 18.5v3M5.28 5.28l2.12 2.12M16.6 16.6l2.12 2.12M2.5 12h3M18.5 12h3M5.28 18.72l2.12-2.12M16.6 7.4l2.12-2.12" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" className="opacity-40" />
+                    <path d="M12 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" className="opacity-80"/>
+                  </svg>
+                </div>
+                <span className="text-[12px] font-medium leading-[1]">
+                  {selectedAction.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearSelectedAction}
+                  className="ml-1 p-0.5 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <XMarkIcon className="w-3 h-3 text-white/70" />
+                </button>
+              </div>
+            )}
             <textarea
               ref={textareaRef}
               value={value}
@@ -591,8 +641,11 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
               placeholder={placeholder}
               disabled={disabled}
               rows={isLarge ? 2 : 1}
-              className={textareaClass}
-              style={{ minHeight: `${minHeight}px` }}
+              className={`${textareaClass} ${selectedAction ? 'relative' : ''}`}
+              style={{
+                minHeight: `${minHeight}px`,
+                textIndent: selectedAction && indent > 0 ? `${indent}px` : undefined,
+              }}
             />
             <div className="flex items-center justify-between px-4 pb-2 pt-1.5">
               <div className="flex items-center gap-2 relative">
@@ -603,9 +656,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                         ref={folderButtonRef as React.RefObject<HTMLButtonElement>}
                         type="button"
                         onClick={() => setShowFolderMenu(!showFolderMenu)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
                       >
-                        <FolderIcon className="h-4 w-4" />
+                        <FolderIcon className="h-[15px] w-[15px] opacity-80" />
                         <span className="max-w-[150px] truncate text-xs">
                           {truncatePath(workingDirectory)}
                         </span>
@@ -629,38 +682,39 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 <button
                   type="button"
                   onClick={handleAddFile}
-                  className="flex items-center justify-center p-1.5 rounded-lg text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
+                  className="flex items-center justify-center p-1 rounded-md text-sm dark:text-dark-text-secondary text-text-secondary dark:hover:bg-dark-surface-hover hover:bg-surface-hover dark:hover:text-dark-text hover:text-text-primary transition-colors"
                   title={i18nService.t('coworkAddFile')}
                   aria-label={i18nService.t('coworkAddFile')}
                   disabled={disabled || isStreaming}
                 >
-                  <PaperClipIcon className="h-4 w-4" />
+                  <PaperClipIcon className="h-[15px] w-[15px] opacity-80" />
                 </button>
                 <SkillsButton
                   onSelectSkill={handleSelectSkill}
                   onManageSkills={handleManageSkills}
                 />
-                <ActiveSkillBadge />
+                {/* Only show standard badge if no quick action is selected */}
+                {!selectedAction && <ActiveSkillBadge />}
               </div>
               <div className="flex items-center gap-2">
                 {isStreaming ? (
                   <button
                     type="button"
                     onClick={handleStopClick}
-                    className="p-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
+                    className="p-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all shadow-subtle hover:shadow-card active:scale-95"
                     aria-label="Stop"
                   >
-                    <StopIcon className="h-5 w-5" />
+                    <StopIcon className="h-[18px] w-[18px]" />
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={handleSubmit}
                     disabled={!canSubmit}
-                    className="p-2 rounded-xl bg-primary hover:bg-primary-light text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1.5 rounded-lg bg-primary hover:bg-primary-light text-white transition-all shadow-subtle hover:shadow-card active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Send"
                   >
-                    <PaperAirplaneIcon className="h-5 w-5" />
+                    <PaperAirplaneIcon className="h-[18px] w-[18px]" />
                   </button>
                 )}
               </div>

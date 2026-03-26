@@ -643,12 +643,12 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="app-shell h-screen overflow-hidden flex flex-col">
+    <div className="app-shell h-screen overflow-hidden flex flex-col relative text-[#111827] dark:text-[#f3f6fb] bg-[#ffffff] dark:bg-[#0f1117]">
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-1xl animate-fade-in">
+        <div className="app-workspace-panel flex flex-1 min-h-0 min-w-0 overflow-hidden animate-fade-in">
           <Sidebar
             onShowLogin={handleShowLogin}
             onShowSettings={handleShowSettings}
