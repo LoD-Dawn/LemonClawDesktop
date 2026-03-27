@@ -377,6 +377,14 @@ export class IMStore {
     this.setConfigValue(`notification_target:${platform}`, target);
   }
 
+  getConversationNotificationTarget(platform: IMPlatform, conversationId: string): any | null {
+    return this.getConfigValue<any>(`notification_target:${platform}:${conversationId}`) ?? null;
+  }
+
+  setConversationNotificationTarget(platform: IMPlatform, conversationId: string, target: any): void {
+    this.setConfigValue(`notification_target:${platform}:${conversationId}`, target);
+  }
+
   // ==================== Session Mapping Operations ====================
 
   /**

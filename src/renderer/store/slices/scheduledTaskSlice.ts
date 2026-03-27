@@ -12,6 +12,7 @@ interface ScheduledTaskState {
   selectedTaskId: string | null;
   viewMode: ScheduledTaskViewMode;
   runs: Record<string, ScheduledTaskRun[]>;
+  runsHasMore: Record<string, boolean>;
   allRuns: ScheduledTaskRunWithName[];
   loading: boolean;
   error: string | null;
@@ -22,6 +23,7 @@ const initialState: ScheduledTaskState = {
   selectedTaskId: null,
   viewMode: 'list',
   runs: {},
+  runsHasMore: {},
   allRuns: [],
   loading: false,
   error: null,
@@ -45,25 +47,23 @@ const scheduledTaskSlice = createSlice({
       state.tasks.unshift(action.payload);
     },
     updateTask(state, action: PayloadAction<ScheduledTask>) {
-      const index = state.tasks.findIndex((t) => t.id === action.payload.id);
+      const index = state.tasks.findIndex((task) => task.id === action.payload.id);
       if (index !== -1) {
         state.tasks[index] = action.payload;
       }
     },
     removeTask(state, action: PayloadAction<string>) {
-      state.tasks = state.tasks.filter((t) => t.id !== action.payload);
+      state.tasks = state.tasks.filter((task) => task.id !== action.payload);
       if (state.selectedTaskId === action.payload) {
         state.selectedTaskId = null;
         state.viewMode = 'list';
       }
       delete state.runs[action.payload];
-      state.allRuns = state.allRuns.filter((r) => r.taskId !== action.payload);
+      delete state.runsHasMore[action.payload];
+      state.allRuns = state.allRuns.filter((run) => run.taskId !== action.payload);
     },
-    updateTaskState(
-      state,
-      action: PayloadAction<{ taskId: string; taskState: TaskState }>
-    ) {
-      const task = state.tasks.find((t) => t.id === action.payload.taskId);
+    updateTaskState(state, action: PayloadAction<{ taskId: string; taskState: TaskState }>) {
+      const task = state.tasks.find((item) => item.id === action.payload.taskId);
       if (task) {
         task.state = action.payload.taskState;
       }
@@ -75,20 +75,27 @@ const scheduledTaskSlice = createSlice({
     setViewMode(state, action: PayloadAction<ScheduledTaskViewMode>) {
       state.viewMode = action.payload;
     },
-    setRuns(
-      state,
-      action: PayloadAction<{ taskId: string; runs: ScheduledTaskRun[] }>
-    ) {
+    setRuns(state, action: PayloadAction<{ taskId: string; runs: ScheduledTaskRun[]; hasMore: boolean }>) {
       state.runs[action.payload.taskId] = action.payload.runs;
+      state.runsHasMore[action.payload.taskId] = action.payload.hasMore;
+    },
+    appendRuns(state, action: PayloadAction<{ taskId: string; runs: ScheduledTaskRun[]; hasMore: boolean }>) {
+      const { taskId, runs, hasMore } = action.payload;
+      if (!state.runs[taskId]) {
+        state.runs[taskId] = runs;
+      } else {
+        const existingIds = new Set(state.runs[taskId].map((run) => run.id));
+        const nextRuns = runs.filter((run) => !existingIds.has(run.id));
+        state.runs[taskId] = [...state.runs[taskId], ...nextRuns];
+      }
+      state.runsHasMore[taskId] = hasMore;
     },
     addOrUpdateRun(state, action: PayloadAction<ScheduledTaskRun>) {
       const { taskId } = action.payload;
       if (!state.runs[taskId]) {
         state.runs[taskId] = [];
       }
-      const existingIndex = state.runs[taskId].findIndex(
-        (r) => r.id === action.payload.id
-      );
+      const existingIndex = state.runs[taskId].findIndex((run) => run.id === action.payload.id);
       if (existingIndex !== -1) {
         state.runs[taskId][existingIndex] = action.payload;
       } else {
@@ -115,6 +122,7 @@ export const {
   selectTask,
   setViewMode,
   setRuns,
+  appendRuns,
   addOrUpdateRun,
   setAllRuns,
   appendAllRuns,

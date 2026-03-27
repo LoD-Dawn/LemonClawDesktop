@@ -22,6 +22,8 @@ import { isAutoLaunched, getAutoLaunchEnabled, setAutoLaunchEnabled } from './au
 import { McpStore } from './mcpStore';
 import { ScheduledTaskStore } from './scheduledTaskStore';
 import { Scheduler } from './libs/scheduler';
+import { BindingKind, DeliveryMode, IpcChannel as ScheduledTaskIpc, OriginKind } from '../scheduled-task/constants';
+import type { ScheduledTaskInput } from '../scheduled-task/types';
 import { downloadUpdate, installUpdate, cancelActiveDownload } from './libs/appUpdateInstaller';
 import { initLogger, getLogFilePath } from './logger';
 import { getCoworkLogPath } from './libs/coworkLogger';
@@ -40,6 +42,7 @@ import type { ProviderConfig, ProviderModelConfig, ResolvedModelConfig, TenantCo
 import { CoworkQuotaManager } from './libs/coworkQuotaManager';
 import type { ClawQuotaStreamPayload } from '../shared/quota';
 import crypto from 'crypto';
+import { buildManagedSessionKey, parseManagedSessionKey } from './libs/scheduledTaskSessionKey';
 
 // 主进程本地类型定义（不依赖渲染层类型文件）
 type AuthOrganization = {
@@ -1367,18 +1370,6 @@ const resolveTaskWorkingDirectory = (workspaceRoot: string): string => {
   return resolvedWorkspaceRoot;
 };
 
-const resolveExistingTaskWorkingDirectory = (workspaceRoot: string): string => {
-  const trimmed = workspaceRoot.trim();
-  if (!trimmed) {
-    throw new Error('Please select a task folder before submitting.');
-  }
-  const resolvedWorkspaceRoot = path.resolve(trimmed);
-  if (!fs.existsSync(resolvedWorkspaceRoot) || !fs.statSync(resolvedWorkspaceRoot).isDirectory()) {
-    throw new Error(`Task folder does not exist or is not a directory: ${resolvedWorkspaceRoot}`);
-  }
-  return resolvedWorkspaceRoot;
-};
-
 const getDefaultExportImageName = (defaultFileName?: string): string => {
   const normalized = typeof defaultFileName === 'string' && defaultFileName.trim()
     ? defaultFileName.trim()
@@ -1919,6 +1910,56 @@ const getIMGatewayManager = () => {
       {
         coworkRunner: runner,
         coworkStore: store,
+        createScheduledTask: async ({ sessionId, message, request }) => {
+          const session = store.getSession(sessionId);
+          if (!session) {
+            throw new Error(`IM 会话不存在: ${sessionId}`);
+          }
+
+          const taskInput: ScheduledTaskInput = {
+            name: request.taskName,
+            description: request.sourceText,
+            enabled: true,
+            schedule: {
+              kind: 'at',
+              at: request.scheduleAt,
+            },
+            sessionTarget: 'main',
+            wakeMode: 'now',
+            payload: {
+              kind: 'agentTurn',
+              message: request.taskPrompt,
+            },
+            delivery: {
+              mode: DeliveryMode.Announce,
+              channel: message.platform,
+              to: message.conversationId,
+            },
+            sessionKey: buildManagedSessionKey(sessionId),
+            origin: {
+              kind: OriginKind.IM,
+              platform: message.platform,
+              conversationId: message.conversationId,
+            },
+            binding: {
+              kind: BindingKind.IMSession,
+              platform: message.platform,
+              conversationId: message.conversationId,
+              sessionId,
+            },
+          };
+
+          const task = getScheduledTaskStore().createTask(taskInput);
+
+          getScheduler().reschedule();
+
+          return {
+            id: task.id,
+            name: task.name,
+            payloadText: request.payloadText,
+            scheduleAt: request.scheduleAt,
+          };
+        },
       }
     );
 
@@ -2002,6 +2043,28 @@ const getScheduler = () => {
   }
   return scheduler;
 };
+
+const CHANNEL_PLATFORM_MAP = {
+  dingtalk: 'dingtalk',
+  feishu: 'feishu',
+  telegram: 'telegram',
+  discord: 'discord',
+  nim: 'nim',
+  xiaomifeng: 'xiaomifeng',
+  qq: 'qq',
+  wecom: 'wecom',
+} as const satisfies Record<string, IMPlatform>;
+
+const listScheduledTaskChannels = () => ([
+  { value: 'dingtalk', label: 'DingTalk' },
+  { value: 'feishu', label: 'Feishu' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'discord', label: 'Discord' },
+  { value: 'nim', label: 'NIM' },
+  { value: 'xiaomifeng', label: 'Xiaomifeng' },
+  { value: 'qq', label: 'QQ' },
+  { value: 'wecom', label: 'WeCom' },
+]);
 
 // 获取正确的预加载脚本路径
 const PRELOAD_PATH = app.isPackaged
@@ -3291,7 +3354,7 @@ if (!gotTheLock) {
 
   // ==================== Scheduled Task IPC Handlers ====================
 
-  ipcMain.handle('scheduledTask:list', async () => {
+  ipcMain.handle(ScheduledTaskIpc.List, async () => {
     try {
       const tasks = getScheduledTaskStore().listTasks();
       return { success: true, tasks };
@@ -3300,7 +3363,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:get', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.Get, async (_event, id: string) => {
     try {
       const task = getScheduledTaskStore().getTask(id);
       return { success: true, task };
@@ -3309,15 +3372,9 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:create', async (_event, input: any) => {
+  ipcMain.handle(ScheduledTaskIpc.Create, async (_event, input: ScheduledTaskInput) => {
     try {
-      const coworkConfig = getCoworkStore().getConfig();
-      const normalizedInput = input && typeof input === 'object' ? { ...input } : {};
-      const candidateWorkingDirectory = typeof normalizedInput.workingDirectory === 'string' && normalizedInput.workingDirectory.trim()
-        ? normalizedInput.workingDirectory
-        : coworkConfig.workingDirectory;
-      normalizedInput.workingDirectory = resolveExistingTaskWorkingDirectory(candidateWorkingDirectory);
-
+      const normalizedInput = input && typeof input === 'object' ? { ...input } : {} as ScheduledTaskInput;
       const task = getScheduledTaskStore().createTask(normalizedInput);
       getScheduler().reschedule();
       return { success: true, task };
@@ -3326,22 +3383,9 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:update', async (_event, id: string, input: any) => {
+  ipcMain.handle(ScheduledTaskIpc.Update, async (_event, id: string, input: Partial<ScheduledTaskInput>) => {
     try {
-      const scheduledTaskStore = getScheduledTaskStore();
-      const existingTask = scheduledTaskStore.getTask(id);
-      if (!existingTask) {
-        return { success: false, error: `Task not found: ${id}` };
-      }
-
-      const coworkConfig = getCoworkStore().getConfig();
-      const normalizedInput = input && typeof input === 'object' ? { ...input } : {};
-      const candidateWorkingDirectory = typeof normalizedInput.workingDirectory === 'string'
-        ? (normalizedInput.workingDirectory.trim() || existingTask.workingDirectory || coworkConfig.workingDirectory)
-        : (existingTask.workingDirectory || coworkConfig.workingDirectory);
-      normalizedInput.workingDirectory = resolveExistingTaskWorkingDirectory(candidateWorkingDirectory);
-
-      const task = scheduledTaskStore.updateTask(id, normalizedInput);
+      const task = getScheduledTaskStore().updateTask(id, input ?? {});
       getScheduler().reschedule();
       return { success: true, task };
     } catch (error) {
@@ -3349,7 +3393,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:delete', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.Delete, async (_event, id: string) => {
     try {
       getScheduler().stopTask(id);
       const result = getScheduledTaskStore().deleteTask(id);
@@ -3360,7 +3404,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:toggle', async (_event, id: string, enabled: boolean) => {
+  ipcMain.handle(ScheduledTaskIpc.Toggle, async (_event, id: string, enabled: boolean) => {
     try {
       const { task, warning } = getScheduledTaskStore().toggleTask(id, enabled);
       getScheduler().reschedule();
@@ -3370,7 +3414,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:runManually', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.RunManually, async (_event, id: string) => {
     try {
       const authContext = await ensureActiveAuthSession();
       if ('error' in authContext) {
@@ -3387,7 +3431,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:stop', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.Stop, async (_event, id: string) => {
     try {
       const result = getScheduler().stopTask(id);
       return { success: true, result };
@@ -3396,7 +3440,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:listRuns', async (_event, taskId: string, limit?: number, offset?: number) => {
+  ipcMain.handle(ScheduledTaskIpc.ListRuns, async (_event, taskId: string, limit?: number, offset?: number) => {
     try {
       const runs = getScheduledTaskStore().listRuns(taskId, limit, offset);
       return { success: true, runs };
@@ -3405,7 +3449,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:countRuns', async (_event, taskId: string) => {
+  ipcMain.handle(ScheduledTaskIpc.CountRuns, async (_event, taskId: string) => {
     try {
       const count = getScheduledTaskStore().countRuns(taskId);
       return { success: true, count };
@@ -3414,12 +3458,51 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:listAllRuns', async (_event, limit?: number, offset?: number) => {
+  ipcMain.handle(ScheduledTaskIpc.ListAllRuns, async (_event, limit?: number, offset?: number) => {
     try {
       const runs = getScheduledTaskStore().listAllRuns(limit, offset);
       return { success: true, runs };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to list all runs' };
+    }
+  });
+
+  ipcMain.handle(ScheduledTaskIpc.ResolveSession, async (_event, sessionKey: string) => {
+    try {
+      if (!sessionKey) return { success: true, session: null };
+      const parsed = parseManagedSessionKey(sessionKey);
+      const sessionId = parsed?.sessionId ?? sessionKey;
+      const session = getCoworkStore().getSession(sessionId);
+      return { success: true, session: session ?? null };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to resolve session' };
+    }
+  });
+
+  ipcMain.handle(ScheduledTaskIpc.ListChannels, async () => {
+    try {
+      return { success: true, channels: listScheduledTaskChannels() };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to list channels' };
+    }
+  });
+
+  ipcMain.handle(ScheduledTaskIpc.ListChannelConversations, async (_event, channel: string) => {
+    try {
+      const platform = CHANNEL_PLATFORM_MAP[channel as keyof typeof CHANNEL_PLATFORM_MAP];
+      if (!platform) {
+        return { success: true, conversations: [] };
+      }
+      const mappings = getIMGatewayManager().getIMStore().listSessionMappings(platform);
+      const conversations = mappings.map((mapping) => ({
+        conversationId: mapping.imConversationId,
+        platform: mapping.platform,
+        coworkSessionId: mapping.coworkSessionId,
+        lastActiveAt: mapping.lastActiveAt,
+      }));
+      return { success: true, conversations };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to list conversations' };
     }
   });
 

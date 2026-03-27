@@ -199,7 +199,19 @@ export class SqliteStore {
       ON user_memory_sources(memory_id, is_active);
     `);
 
-    // Create scheduled tasks tables
+    // Scheduled tasks now use the new full model directly.
+    // If an old schema is present, rebuild it in-place instead of migrating.
+    const scheduledTaskColsResult = this.db.exec("PRAGMA table_info(scheduled_tasks);");
+    const scheduledTaskColumns = scheduledTaskColsResult[0]?.values.map((row) => row[1]) || [];
+    const usesLatestScheduledTaskSchema = scheduledTaskColumns.includes('payload_json')
+      && scheduledTaskColumns.includes('delivery_json')
+      && scheduledTaskColumns.includes('binding_json')
+      && scheduledTaskColumns.includes('origin_json');
+    if (scheduledTaskColumns.length > 0 && !usesLatestScheduledTaskSchema) {
+      this.db.run('DROP TABLE IF EXISTS scheduled_task_runs;');
+      this.db.run('DROP TABLE IF EXISTS scheduled_tasks;');
+    }
+
     this.db.run(`
       CREATE TABLE IF NOT EXISTS scheduled_tasks (
         id TEXT PRIMARY KEY,
@@ -207,12 +219,14 @@ export class SqliteStore {
         description TEXT NOT NULL DEFAULT '',
         enabled INTEGER NOT NULL DEFAULT 1,
         schedule_json TEXT NOT NULL,
-        prompt TEXT NOT NULL,
-        working_directory TEXT NOT NULL DEFAULT '',
-        system_prompt TEXT NOT NULL DEFAULT '',
-        execution_mode TEXT NOT NULL DEFAULT 'auto',
-        expires_at TEXT,
-        notify_platforms_json TEXT NOT NULL DEFAULT '[]',
+        session_target TEXT NOT NULL,
+        wake_mode TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        delivery_json TEXT NOT NULL,
+        agent_id TEXT,
+        session_key TEXT,
+        origin_json TEXT NOT NULL,
+        binding_json TEXT NOT NULL,
         next_run_at_ms INTEGER,
         last_run_at_ms INTEGER,
         last_status TEXT,
@@ -235,6 +249,7 @@ export class SqliteStore {
         id TEXT PRIMARY KEY,
         task_id TEXT NOT NULL,
         session_id TEXT,
+        session_key TEXT,
         status TEXT NOT NULL,
         started_at TEXT NOT NULL,
         finished_at TEXT,
@@ -326,26 +341,6 @@ export class SqliteStore {
       `);
     } catch (error) {
       console.warn('Failed to migrate cowork execution mode:', error);
-    }
-
-    // Migration: Add expires_at and notify_platforms_json columns to scheduled_tasks
-    try {
-      const stColsResult = this.db.exec("PRAGMA table_info(scheduled_tasks);");
-      if (stColsResult[0]) {
-        const stColumns = stColsResult[0].values.map((row) => row[1]) || [];
-
-        if (!stColumns.includes('expires_at')) {
-          this.db.run('ALTER TABLE scheduled_tasks ADD COLUMN expires_at TEXT');
-          this.save();
-        }
-
-        if (!stColumns.includes('notify_platforms_json')) {
-          this.db.run("ALTER TABLE scheduled_tasks ADD COLUMN notify_platforms_json TEXT NOT NULL DEFAULT '[]'");
-          this.save();
-        }
-      }
-    } catch {
-      // Migration not needed or table doesn't exist yet.
     }
 
     this.migrateLegacyMemoryFileToUserMemories();

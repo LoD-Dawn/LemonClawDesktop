@@ -12,6 +12,12 @@ import type { CoworkStore, CoworkMessage } from '../coworkStore';
 import type { IMStore } from './imStore';
 import type { IMMessage, IMPlatform, IMMediaAttachment } from './types';
 import { buildIMMediaInstruction } from './imMediaInstruction';
+import { analyzeIMReply, DEFAULT_IM_EMPTY_REPLY } from './imReplyGuard';
+import type {
+  IMScheduledTaskCreationResult,
+  IMScheduledTaskRequestDetector,
+  ParsedIMScheduledTaskRequest,
+} from './imScheduledTaskHandler';
 
 interface MessageAccumulator {
   messages: CoworkMessage[];
@@ -41,6 +47,12 @@ export interface IMCoworkHandlerOptions {
   coworkStore: CoworkStore;
   imStore: IMStore;
   getSkillsPrompt?: () => Promise<string | null>;
+  detectScheduledTaskRequest?: IMScheduledTaskRequestDetector;
+  createScheduledTask?: (params: {
+    sessionId: string;
+    message: IMMessage;
+    request: ParsedIMScheduledTaskRequest;
+  }) => Promise<IMScheduledTaskCreationResult>;
 }
 
 export class IMCoworkHandler extends EventEmitter {
@@ -48,6 +60,12 @@ export class IMCoworkHandler extends EventEmitter {
   private coworkStore: CoworkStore;
   private imStore: IMStore;
   private getSkillsPrompt?: () => Promise<string | null>;
+  private detectScheduledTaskRequest?: IMScheduledTaskRequestDetector;
+  private createScheduledTask?: (params: {
+    sessionId: string;
+    message: IMMessage;
+    request: ParsedIMScheduledTaskRequest;
+  }) => Promise<IMScheduledTaskCreationResult>;
 
   // Track active sessions' message accumulation
   private messageAccumulators: Map<string, MessageAccumulator> = new Map();
@@ -56,6 +74,11 @@ export class IMCoworkHandler extends EventEmitter {
   private imSessionIds: Set<string> = new Set();
   private sessionConversationMap: Map<string, { conversationId: string; platform: IMPlatform }> = new Map();
   private pendingPermissionByConversation: Map<string, PendingIMPermission> = new Map();
+  private readonly onMessage = this.handleMessage.bind(this);
+  private readonly onMessageUpdate = this.handleMessageUpdate.bind(this);
+  private readonly onPermissionRequest = this.handlePermissionRequest.bind(this);
+  private readonly onComplete = this.handleComplete.bind(this);
+  private readonly onError = this.handleError.bind(this);
 
   constructor(options: IMCoworkHandlerOptions) {
     super();
@@ -63,6 +86,8 @@ export class IMCoworkHandler extends EventEmitter {
     this.coworkStore = options.coworkStore;
     this.imStore = options.imStore;
     this.getSkillsPrompt = options.getSkillsPrompt;
+    this.detectScheduledTaskRequest = options.detectScheduledTaskRequest;
+    this.createScheduledTask = options.createScheduledTask;
 
     this.setupEventListeners();
   }
@@ -71,11 +96,11 @@ export class IMCoworkHandler extends EventEmitter {
    * Set up event listeners for CoworkRunner
    */
   private setupEventListeners(): void {
-    this.coworkRunner.on('message', this.handleMessage.bind(this));
-    this.coworkRunner.on('messageUpdate', this.handleMessageUpdate.bind(this));
-    this.coworkRunner.on('permissionRequest', this.handlePermissionRequest.bind(this));
-    this.coworkRunner.on('complete', this.handleComplete.bind(this));
-    this.coworkRunner.on('error', this.handleError.bind(this));
+    this.coworkRunner.on('message', this.onMessage);
+    this.coworkRunner.on('messageUpdate', this.onMessageUpdate);
+    this.coworkRunner.on('permissionRequest', this.onPermissionRequest);
+    this.coworkRunner.on('complete', this.onComplete);
+    this.coworkRunner.on('error', this.onError);
   }
 
   /**
@@ -120,11 +145,24 @@ export class IMCoworkHandler extends EventEmitter {
       platform: message.platform,
     });
 
+    const formattedContent = this.formatMessageWithMedia(message);
+    const directScheduledTaskRequest = this.createScheduledTask && this.detectScheduledTaskRequest
+      ? await this.detectScheduledTaskRequest(message)
+      : null;
+
+    if (directScheduledTaskRequest && this.createScheduledTask) {
+      return this.handleDirectScheduledTaskRequest(
+        coworkSessionId,
+        message,
+        formattedContent,
+        directScheduledTaskRequest,
+      );
+    }
+
     const responsePromise = this.createAccumulatorPromise(coworkSessionId);
 
     // Start or continue session
     const isActive = this.coworkRunner.isSessionActive(coworkSessionId);
-    const formattedContent = this.formatMessageWithMedia(message);
     const systemPrompt = await this.buildSystemPromptWithSkills();
     const hasAvailableSkills = systemPrompt.includes('<available_skills>');
     const session = this.coworkStore.getSession(coworkSessionId);
@@ -175,6 +213,91 @@ export class IMCoworkHandler extends EventEmitter {
     }
 
     return responsePromise;
+  }
+
+  private async handleDirectScheduledTaskRequest(
+    sessionId: string,
+    message: IMMessage,
+    formattedContent: string,
+    request: ParsedIMScheduledTaskRequest,
+  ): Promise<string> {
+    const toolUseId = `cron:${Date.now()}`;
+
+    this.coworkStore.addMessage(sessionId, {
+      type: 'user',
+      content: formattedContent,
+      metadata: {},
+    });
+    this.coworkStore.addMessage(sessionId, {
+      type: 'tool_use',
+      content: 'Using tool: cron',
+      metadata: {
+        toolName: 'cron',
+        toolUseId,
+        toolInput: {
+          action: 'add',
+          job: {
+            name: request.taskName,
+            schedule: {
+              type: 'at',
+              datetime: request.scheduleAt,
+            },
+            prompt: request.taskPrompt,
+            enabled: true,
+          },
+        },
+      },
+    });
+
+    try {
+      const created = await this.createScheduledTask!({
+        sessionId,
+        message,
+        request,
+      });
+      const toolResultText = JSON.stringify(created);
+      this.coworkStore.addMessage(sessionId, {
+        type: 'tool_result',
+        content: toolResultText,
+        metadata: {
+          toolUseId,
+          toolResult: toolResultText,
+          isError: false,
+        },
+      });
+      this.coworkStore.addMessage(sessionId, {
+        type: 'assistant',
+        content: request.confirmationText,
+        metadata: {},
+      });
+      console.log('[IMCoworkHandler] Created IM scheduled task via cron.add', JSON.stringify({
+        sessionId,
+        platform: message.platform,
+        conversationId: message.conversationId,
+        taskId: created.id,
+        taskName: created.name,
+        scheduleAt: created.scheduleAt,
+      }));
+      return request.confirmationText;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.coworkStore.addMessage(sessionId, {
+        type: 'tool_result',
+        content: errorMessage,
+        metadata: {
+          toolUseId,
+          toolResult: errorMessage,
+          error: errorMessage,
+          isError: true,
+        },
+      });
+      this.coworkStore.addMessage(sessionId, {
+        type: 'assistant',
+        content: '抱歉，这次提醒创建失败了，请稍后重试。',
+        metadata: {},
+      });
+      throw error instanceof Error ? error : new Error(errorMessage);
+    }
   }
 
   /**
@@ -408,7 +531,7 @@ export class IMCoworkHandler extends EventEmitter {
         if (accumulator && accumulator.timeoutId === timeoutId) {
           const partialReply = this.formatReply(accumulator.messages);
           this.cleanupAccumulator(sessionId);
-          if (partialReply && partialReply !== '处理完成，但没有生成回复。') {
+          if (partialReply && partialReply !== DEFAULT_IM_EMPTY_REPLY) {
             accumulator.resolve(partialReply + '\n\n[处理超时，以上为部分结果]');
           } else {
             accumulator.reject(new Error('处理超时，请稍后重试'));
@@ -615,12 +738,15 @@ export class IMCoworkHandler extends EventEmitter {
     this.clearPendingPermissionsBySessionId(sessionId);
     const accumulator = this.messageAccumulators.get(sessionId);
     if (accumulator) {
-      const replyText = this.formatReply(accumulator.messages);
+      const session = this.coworkStore.getSession(sessionId);
+      const storeMessages = session?.messages ?? [];
+      const messages = storeMessages.length > 0 ? storeMessages : accumulator.messages;
+      const replyText = this.formatReply(messages);
 
       // 打印完整的输出消息日志
       console.log(`[IMCoworkHandler] 会话完成:`, JSON.stringify({
         sessionId,
-        messageCount: accumulator.messages.length,
+        messageCount: messages.length,
         replyLength: replyText.length,
         reply: replyText,
       }, null, 2));
@@ -660,19 +786,7 @@ export class IMCoworkHandler extends EventEmitter {
    * Format accumulated messages into a reply string
    */
   private formatReply(messages: CoworkMessage[]): string {
-    const parts: string[] = [];
-
-    for (const msg of messages) {
-      // Skip user messages (they're the input)
-      if (msg.type === 'user') continue;
-
-      // Only include assistant messages in reply (skip thinking messages)
-      if (msg.type === 'assistant' && msg.content && !msg.metadata?.isThinking) {
-        parts.push(msg.content);
-      }
-    }
-
-    return parts.join('\n\n') || '处理完成，但没有生成回复。';
+    return analyzeIMReply(messages).text;
   }
 
   /**
@@ -724,10 +838,10 @@ export class IMCoworkHandler extends EventEmitter {
     this.pendingPermissionByConversation.clear();
 
     // Remove event listeners
-    this.coworkRunner.removeListener('message', this.handleMessage.bind(this));
-    this.coworkRunner.removeListener('messageUpdate', this.handleMessageUpdate.bind(this));
-    this.coworkRunner.removeListener('permissionRequest', this.handlePermissionRequest.bind(this));
-    this.coworkRunner.removeListener('complete', this.handleComplete.bind(this));
-    this.coworkRunner.removeListener('error', this.handleError.bind(this));
+    this.coworkRunner.removeListener('message', this.onMessage);
+    this.coworkRunner.removeListener('messageUpdate', this.onMessageUpdate);
+    this.coworkRunner.removeListener('permissionRequest', this.onPermissionRequest);
+    this.coworkRunner.removeListener('complete', this.onComplete);
+    this.coworkRunner.removeListener('error', this.onError);
   }
 }

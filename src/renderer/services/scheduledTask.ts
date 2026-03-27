@@ -8,11 +8,14 @@ import {
   removeTask,
   updateTaskState,
   setRuns,
+  appendRuns,
   addOrUpdateRun,
   setAllRuns,
   appendAllRuns,
 } from '../store/slices/scheduledTaskSlice';
 import type {
+  ScheduledTaskChannelOption,
+  ScheduledTaskConversationOption,
   ScheduledTaskInput,
   ScheduledTaskStatusEvent,
   ScheduledTaskRunEvent,
@@ -40,24 +43,22 @@ class ScheduledTaskService {
     const api = window.electron?.scheduledTasks;
     if (!api) return;
 
-    const cleanupStatus = api.onStatusUpdate(
-      (event: ScheduledTaskStatusEvent) => {
-        store.dispatch(
-          updateTaskState({
-            taskId: event.taskId,
-            taskState: event.state,
-          })
-        );
-      }
-    );
+    const cleanupStatus = api.onStatusUpdate((event: ScheduledTaskStatusEvent) => {
+      store.dispatch(updateTaskState({ taskId: event.taskId, taskState: event.state }));
+    });
     this.cleanupFns.push(cleanupStatus);
 
-    const cleanupRun = api.onRunUpdate(
-      (event: ScheduledTaskRunEvent) => {
-        store.dispatch(addOrUpdateRun(event.run));
-      }
-    );
+    const cleanupRun = api.onRunUpdate((event: ScheduledTaskRunEvent) => {
+      store.dispatch(addOrUpdateRun(event.run));
+    });
     this.cleanupFns.push(cleanupRun);
+
+    if (api.onRefresh) {
+      const cleanupRefresh = api.onRefresh(() => {
+        void this.loadTasks();
+      });
+      this.cleanupFns.push(cleanupRefresh);
+    }
   }
 
   async loadTasks(): Promise<void> {
@@ -72,6 +73,8 @@ class ScheduledTaskService {
       }
     } catch (err: unknown) {
       store.dispatch(setError(err instanceof Error ? err.message : String(err)));
+    } finally {
+      store.dispatch(setLoading(false));
     }
   }
 
@@ -92,10 +95,7 @@ class ScheduledTaskService {
     }
   }
 
-  async updateTaskById(
-    id: string,
-    input: Partial<ScheduledTaskInput>
-  ): Promise<void> {
+  async updateTaskById(id: string, input: Partial<ScheduledTaskInput>): Promise<void> {
     const api = window.electron?.scheduledTasks;
     if (!api) return;
 
@@ -103,6 +103,8 @@ class ScheduledTaskService {
       const result = await api.update(id, input);
       if (result.success && result.task) {
         store.dispatch(updateTask(result.task));
+      } else if (!result.success) {
+        throw new Error(result.error || 'Failed to update task');
       }
     } catch (err: unknown) {
       store.dispatch(setError(err instanceof Error ? err.message : String(err)));
@@ -165,14 +167,19 @@ class ScheduledTaskService {
     }
   }
 
-  async loadRuns(taskId: string, limit?: number, offset?: number): Promise<void> {
+  async loadRuns(taskId: string, limit = 20, offset?: number): Promise<void> {
     const api = window.electron?.scheduledTasks;
     if (!api) return;
 
     try {
       const result = await api.listRuns(taskId, limit, offset);
       if (result.success && result.runs) {
-        store.dispatch(setRuns({ taskId, runs: result.runs }));
+        const hasMore = result.runs.length >= limit;
+        if (offset && offset > 0) {
+          store.dispatch(appendRuns({ taskId, runs: result.runs, hasMore }));
+        } else {
+          store.dispatch(setRuns({ taskId, runs: result.runs, hasMore }));
+        }
       }
     } catch (err: unknown) {
       store.dispatch(setError(err instanceof Error ? err.message : String(err)));
@@ -194,6 +201,31 @@ class ScheduledTaskService {
       }
     } catch (err: unknown) {
       store.dispatch(setError(err instanceof Error ? err.message : String(err)));
+    }
+  }
+
+  async listChannels(): Promise<ScheduledTaskChannelOption[]> {
+    const api = window.electron?.scheduledTasks;
+    if (!api?.listChannels) return [];
+
+    try {
+      const result = await api.listChannels();
+      return result.success && result.channels ? result.channels : [];
+    } catch (err: unknown) {
+      store.dispatch(setError(err instanceof Error ? err.message : String(err)));
+      return [];
+    }
+  }
+
+  async listChannelConversations(channel: string): Promise<ScheduledTaskConversationOption[]> {
+    const api = window.electron?.scheduledTasks;
+    if (!api?.listChannelConversations) return [];
+
+    try {
+      const result = await api.listChannelConversations(channel);
+      return result.success && result.conversations ? result.conversations : [];
+    } catch {
+      return [];
     }
   }
 }

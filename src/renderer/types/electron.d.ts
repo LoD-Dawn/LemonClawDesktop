@@ -490,8 +490,12 @@ interface IElectronAPI {
     listRuns: (taskId: string, limit?: number, offset?: number) => Promise<any>;
     countRuns: (taskId: string) => Promise<any>;
     listAllRuns: (limit?: number, offset?: number) => Promise<any>;
+    resolveSession: (sessionKey: string) => Promise<any>;
+    listChannels: () => Promise<any>;
+    listChannelConversations: (channel: string) => Promise<any>;
     onStatusUpdate: (callback: (data: any) => void) => () => void;
     onRunUpdate: (callback: (data: any) => void) => () => void;
+    onRefresh?: (callback: () => void) => () => void;
   };
   permissions: {
     checkCalendar: () => Promise<{ success: boolean; status?: string; error?: string; autoRequested?: boolean }>;
