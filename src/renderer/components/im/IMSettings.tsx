@@ -46,6 +46,11 @@ const errorMessageI18nMap: Record<string, string> = {
   '账号已在其它地方登录': 'kickedByOtherClient',
 };
 
+function getInitialActivePlatform(language: 'zh' | 'en'): IMPlatform {
+  const visiblePlatforms = getVisibleIMPlatforms(language) as IMPlatform[];
+  return visiblePlatforms[0] ?? 'dingtalk';
+}
+
 // Helper function to translate IM error messages
 function translateIMError(error: string | null): string {
   if (!error) return '';
@@ -59,11 +64,11 @@ function translateIMError(error: string | null): string {
 const IMSettings: React.FC = () => {
   const dispatch = useDispatch();
   const { config, status, isLoading } = useSelector((state: RootState) => state.im);
-  const [activePlatform, setActivePlatform] = useState<IMPlatform>('dingtalk');
+  const [language, setLanguage] = useState<'zh' | 'en'>(i18nService.getLanguage());
+  const [activePlatform, setActivePlatform] = useState<IMPlatform>(() => getInitialActivePlatform(i18nService.getLanguage()));
   const [testingPlatform, setTestingPlatform] = useState<IMPlatform | null>(null);
   const [connectivityResults, setConnectivityResults] = useState<Partial<Record<IMPlatform, IMConnectivityTestResult>>>({});
   const [connectivityModalPlatform, setConnectivityModalPlatform] = useState<IMPlatform | null>(null);
-  const [language, setLanguage] = useState<'zh' | 'en'>(i18nService.getLanguage());
   const [allowedUserIdInput, setAllowedUserIdInput] = useState('');
   const [configLoaded, setConfigLoaded] = useState(false);
   // Re-entrancy guard for gateway toggle to prevent rapid ON→OFF→ON
