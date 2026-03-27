@@ -13,6 +13,7 @@ import { setDingTalkConfig, setFeishuConfig, setQQConfig, setTelegramConfig, set
 import { i18nService } from '../../services/i18n';
 import type { IMPlatform, IMConnectivityCheck, IMConnectivityTestResult, IMGatewayConfig } from '../../types/im';
 import { getVisibleIMPlatforms } from '../../utils/regionFilter';
+import { QRCodeSVG } from 'qrcode.react';
 
 // Platform metadata
 const platformMeta: Record<IMPlatform, { label: string; logo: string }> = {
@@ -73,6 +74,7 @@ const IMSettings: React.FC = () => {
   const [weixinQrUrl, setWeixinQrUrl] = useState<string>('');
   const [weixinQrError, setWeixinQrError] = useState<string>('');
   const weixinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isWeixinQrImageUrl = weixinQrUrl.startsWith('data:image/');
 
   // Track the last-persisted NIM credentials so we can detect real changes on save
   const savedNimConfigRef = useRef<{ appKey: string; account: string; token: string }>({
@@ -1425,7 +1427,11 @@ const IMSettings: React.FC = () => {
                   </p>
                   <div className="flex justify-center">
                     <div className="p-3 bg-white rounded-lg border dark:border-dark-border/40 border-border/40">
-                      <img src={weixinQrUrl} alt="Weixin QR" className="w-48 h-48 object-contain" />
+                      {isWeixinQrImageUrl ? (
+                        <img src={weixinQrUrl} alt="Weixin QR" className="w-48 h-48 object-contain" />
+                      ) : (
+                        <QRCodeSVG value={weixinQrUrl} size={192} />
+                      )}
                     </div>
                   </div>
                 </div>
