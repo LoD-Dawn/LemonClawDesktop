@@ -5,11 +5,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { SignalIcon, XMarkIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { SignalIcon, XMarkIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { EyeIcon, EyeSlashIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/20/solid';
 import { RootState } from '../../store';
 import { imService } from '../../services/im';
-import { setDingTalkConfig, setFeishuConfig, setQQConfig, setTelegramConfig, setDiscordConfig, setNimConfig, setXiaomifengConfig, setWecomConfig, clearError } from '../../store/slices/imSlice';
+import { setDingTalkConfig, setFeishuConfig, setQQConfig, setTelegramConfig, setDiscordConfig, setNimConfig, setXiaomifengConfig, setWecomConfig, setWeixinConfig, clearError } from '../../store/slices/imSlice';
 import { i18nService } from '../../services/i18n';
 import type { IMPlatform, IMConnectivityCheck, IMConnectivityTestResult, IMGatewayConfig } from '../../types/im';
 import { getVisibleIMPlatforms } from '../../utils/regionFilter';
@@ -23,6 +23,7 @@ const platformMeta: Record<IMPlatform, { label: string; logo: string }> = {
   discord: { label: 'Discord', logo: 'discord.svg' },
   nim: { label: '云信', logo: 'nim.png' },
   xiaomifeng: { label: '小蜜蜂', logo: 'xiaomifeng.png' },
+  weixin: { label: '微信', logo: 'weixin.png' },
   wecom: { label: '企业微信', logo: 'wecom.png' },
 };
 
@@ -68,6 +69,10 @@ const IMSettings: React.FC = () => {
   const [togglingPlatform, setTogglingPlatform] = useState<IMPlatform | null>(null);
   // Track visibility of password fields (eye toggle)
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [weixinQrStatus, setWeixinQrStatus] = useState<'idle' | 'loading' | 'showing' | 'waiting' | 'success' | 'error'>('idle');
+  const [weixinQrUrl, setWeixinQrUrl] = useState<string>('');
+  const [weixinQrError, setWeixinQrError] = useState<string>('');
+  const weixinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track the last-persisted NIM credentials so we can detect real changes on save
   const savedNimConfigRef = useRef<{ appKey: string; account: string; token: string }>({
@@ -87,6 +92,18 @@ const IMSettings: React.FC = () => {
   // Reset password visibility when switching platforms
   useEffect(() => {
     setShowSecrets({});
+  }, [activePlatform]);
+
+  useEffect(() => {
+    if (activePlatform !== 'weixin') {
+      if (weixinTimerRef.current) {
+        clearTimeout(weixinTimerRef.current);
+        weixinTimerRef.current = null;
+      }
+      setWeixinQrStatus('idle');
+      setWeixinQrUrl('');
+      setWeixinQrError('');
+    }
   }, [activePlatform]);
 
   // Initialize IM service and subscribe status updates
@@ -145,6 +162,61 @@ const IMSettings: React.FC = () => {
   // Handle WeCom config change
   const handleWecomChange = (field: 'botId' | 'secret', value: string) => {
     dispatch(setWecomConfig({ [field]: value }));
+  };
+
+  const handleWeixinQrLogin = async () => {
+    setWeixinQrStatus('loading');
+    setWeixinQrError('');
+
+    try {
+      const startResult = await window.electron.im.weixinQrLoginStart();
+      if (!startResult.success || !startResult.qrDataUrl) {
+        setWeixinQrStatus('error');
+        setWeixinQrError(startResult.message || i18nService.t('imWeixinQrFailed'));
+        return;
+      }
+
+      setWeixinQrUrl(startResult.qrDataUrl);
+      setWeixinQrStatus('showing');
+
+      if (weixinTimerRef.current) clearTimeout(weixinTimerRef.current);
+      weixinTimerRef.current = setTimeout(() => {
+        setWeixinQrStatus('error');
+        setWeixinQrError(i18nService.t('imWeixinQrExpired'));
+      }, 120000);
+
+      setWeixinQrStatus('waiting');
+      const waitResult = await window.electron.im.weixinQrLoginWait(startResult.sessionKey);
+      if (weixinTimerRef.current) {
+        clearTimeout(weixinTimerRef.current);
+        weixinTimerRef.current = null;
+      }
+
+      if (waitResult.success && waitResult.connected) {
+        const nextAccountId = waitResult.accountId || '';
+        dispatch(setWeixinConfig({ enabled: true, accountId: nextAccountId }));
+        await imService.updateConfig({
+          weixin: {
+            ...config.weixin,
+            enabled: true,
+            accountId: nextAccountId,
+          },
+        });
+        await imService.loadStatus();
+        setWeixinQrStatus('success');
+        return;
+      }
+
+      setWeixinQrStatus('error');
+      setWeixinQrError(waitResult.message || i18nService.t('imWeixinQrFailed'));
+    } catch (error) {
+      if (weixinTimerRef.current) {
+        clearTimeout(weixinTimerRef.current);
+        weixinTimerRef.current = null;
+      }
+      setWeixinQrStatus('error');
+      setWeixinQrError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   // Save config on blur — also auto-triggers NIM connectivity test when
@@ -269,6 +341,7 @@ const IMSettings: React.FC = () => {
   const xiaomifengConnected = status.xiaomifeng?.connected ?? false;
   const qqConnected = status.qq?.connected ?? false;
   const wecomConnected = status.wecom?.connected ?? false;
+  const weixinConnected = status.weixin?.connected ?? false;
 
   // Compute visible platforms based on language
   const platforms = useMemo<IMPlatform[]>(() => {
@@ -306,6 +379,9 @@ const IMSettings: React.FC = () => {
     if (platform === 'wecom') {
       return !!(config.wecom.botId && config.wecom.secret);
     }
+    if (platform === 'weixin') {
+      return true;
+    }
     return !!(config.feishu.appId && config.feishu.appSecret);
   };
 
@@ -323,6 +399,7 @@ const IMSettings: React.FC = () => {
     if (platform === 'xiaomifeng') return xiaomifengConnected;
     if (platform === 'qq') return qqConnected;
     if (platform === 'wecom') return wecomConnected;
+    if (platform === 'weixin') return weixinConnected;
     return feishuConnected;
   };
 
@@ -399,6 +476,7 @@ const IMSettings: React.FC = () => {
       nim: setNimConfig,
       xiaomifeng: setXiaomifengConfig,
       wecom: setWecomConfig,
+      weixin: setWeixinConfig,
     };
     return actionMap[platform];
   };
@@ -1301,6 +1379,87 @@ const IMSettings: React.FC = () => {
             {status.xiaomifeng?.lastError && (
               <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
                 {translateIMError(status.xiaomifeng.lastError)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Weixin (微信) Settings */}
+        {activePlatform === 'weixin' && (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-dashed dark:border-dark-border/60 border-border/60 p-4 text-center space-y-3">
+              {(weixinQrStatus === 'idle' || weixinQrStatus === 'error') && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleWeixinQrLogin()}
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium bg-primary text-white hover:opacity-90 transition-colors"
+                  >
+                    {i18nService.t('imWeixinScanBtn')}
+                  </button>
+                  <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                    {i18nService.t('imWeixinScanHint')}
+                  </p>
+                  {weixinQrStatus === 'error' && weixinQrError && (
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
+                      <XCircleIcon className="h-4 w-4 flex-shrink-0" />
+                      {weixinQrError}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {weixinQrStatus === 'loading' && (
+                <div className="flex items-center justify-center gap-2 py-4">
+                  <ArrowPathIcon className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
+                    {i18nService.t('imWeixinQrLoading')}
+                  </span>
+                </div>
+              )}
+
+              {(weixinQrStatus === 'showing' || weixinQrStatus === 'waiting') && weixinQrUrl && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium dark:text-dark-text text-text-primary">
+                    {i18nService.t('imWeixinQrScanPrompt')}
+                  </p>
+                  <div className="flex justify-center">
+                    <div className="p-3 bg-white rounded-lg border dark:border-dark-border/40 border-border/40">
+                      <img src={weixinQrUrl} alt="Weixin QR" className="w-48 h-48 object-contain" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {weixinQrStatus === 'success' && (
+                <div className="flex items-center justify-center gap-1.5 text-xs text-green-600 dark:text-green-400 bg-green-500/10 px-3 py-2 rounded-lg">
+                  <CheckCircleIcon className="h-4 w-4 flex-shrink-0" />
+                  {i18nService.t('imWeixinQrSuccess')}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border dark:border-dark-border/60 border-border/60 px-3 py-3 bg-surface/40 dark:bg-dark-surface/30">
+              <ol className="text-xs text-text-secondary dark:text-dark-text-secondary space-y-1 list-decimal list-inside">
+                <li>{i18nService.t('imWeixinGuideStep1')}</li>
+                <li>{i18nService.t('imWeixinGuideStep2')}</li>
+                <li>{i18nService.t('imWeixinGuideStep3')}</li>
+              </ol>
+            </div>
+
+            <div className="pt-1">
+              {renderConnectivityTestButton('weixin')}
+            </div>
+
+            {config.weixin.accountId && (
+              <div className="text-xs text-green-600 dark:text-green-400 bg-green-500/10 px-3 py-2 rounded-lg">
+                Account ID: {config.weixin.accountId}
+              </div>
+            )}
+
+            {status.weixin?.lastError && (
+              <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
+                {status.weixin.lastError}
               </div>
             )}
           </div>

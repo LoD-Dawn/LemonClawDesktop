@@ -14,6 +14,7 @@ import {
   NimConfig,
   XiaomifengConfig,
   WecomConfig,
+  WeixinConfig,
   IMSettings,
   IMPlatform,
   IMSessionMapping,
@@ -25,6 +26,7 @@ import {
   DEFAULT_NIM_CONFIG,
   DEFAULT_XIAOMIFENG_CONFIG,
   DEFAULT_WECOM_CONFIG,
+  DEFAULT_WEIXIN_CONFIG,
   DEFAULT_IM_SETTINGS,
 } from './types';
 
@@ -67,7 +69,7 @@ export class IMStore {
    * Migrate existing IM configs to ensure stable defaults.
    */
   private migrateDefaults(): void {
-    const platforms = ['dingtalk', 'feishu', 'telegram', 'discord', 'nim', 'xiaomifeng', 'qq', 'wecom'] as const;
+    const platforms = ['dingtalk', 'feishu', 'telegram', 'discord', 'nim', 'xiaomifeng', 'qq', 'wecom', 'weixin'] as const;
     let changed = false;
 
     for (const platform of platforms) {
@@ -171,6 +173,7 @@ export class IMStore {
     const xiaomifeng = this.getConfigValue<XiaomifengConfig>('xiaomifeng') ?? DEFAULT_XIAOMIFENG_CONFIG;
     const qq = this.getConfigValue<QQConfig>('qq') ?? DEFAULT_QQ_CONFIG;
     const wecom = this.getConfigValue<WecomConfig>('wecom') ?? DEFAULT_WECOM_CONFIG;
+    const weixin = this.getConfigValue<WeixinConfig>('weixin') ?? DEFAULT_WEIXIN_CONFIG;
     const settings = this.getConfigValue<IMSettings>('settings') ?? DEFAULT_IM_SETTINGS;
 
     // Resolve enabled field: default to false for safety
@@ -193,6 +196,7 @@ export class IMStore {
       xiaomifeng: resolveEnabled(xiaomifeng, DEFAULT_XIAOMIFENG_CONFIG),
       qq: resolveEnabled(qq, DEFAULT_QQ_CONFIG),
       wecom: resolveEnabled(wecom, DEFAULT_WECOM_CONFIG),
+      weixin: resolveEnabled(weixin, DEFAULT_WEIXIN_CONFIG),
       settings: { ...DEFAULT_IM_SETTINGS, ...settings },
     };
   }
@@ -221,6 +225,9 @@ export class IMStore {
     }
     if (config.wecom) {
       this.setWecomConfig(config.wecom);
+    }
+    if (config.weixin) {
+      this.setWeixinConfig(config.weixin);
     }
     if (config.settings) {
       this.setIMSettings(config.settings);
@@ -323,6 +330,18 @@ export class IMStore {
     this.setConfigValue('wecom', { ...current, ...config });
   }
 
+  // ==================== Weixin Config ====================
+
+  getWeixinConfig(): WeixinConfig {
+    const stored = this.getConfigValue<WeixinConfig>('weixin');
+    return { ...DEFAULT_WEIXIN_CONFIG, ...stored };
+  }
+
+  setWeixinConfig(config: Partial<WeixinConfig>): void {
+    const current = this.getWeixinConfig();
+    this.setConfigValue('weixin', { ...current, ...config });
+  }
+
   // ==================== IM Settings ====================
 
   getIMSettings(): IMSettings {
@@ -358,7 +377,8 @@ export class IMStore {
     const hasXiaomifeng = !!(config.xiaomifeng?.clientId && config.xiaomifeng?.secret);
     const hasQQ = !!(config.qq?.appId && config.qq?.appSecret);
     const hasWecom = !!(config.wecom?.botId && config.wecom?.secret);
-    return hasDingTalk || hasFeishu || hasTelegram || hasDiscord || hasNim || hasXiaomifeng || hasQQ || hasWecom;
+    const hasWeixin = !!config.weixin?.enabled;
+    return hasDingTalk || hasFeishu || hasTelegram || hasDiscord || hasNim || hasXiaomifeng || hasQQ || hasWecom || hasWeixin;
   }
 
   // ==================== Notification Target Persistence ====================

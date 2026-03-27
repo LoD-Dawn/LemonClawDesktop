@@ -35,6 +35,9 @@ import {
   restoreOriginalProxyEnv,
   setSystemProxyEnabled,
 } from './libs/systemProxy';
+import { OpenClawEngineManager } from './libs/openclawEngineManager';
+import { OpenClawGatewayClientManager } from './libs/openclawGatewayClient';
+import { OpenClawWeixinConfigSync } from './libs/openclawWeixinConfigSync';
 import { AuthStore } from './authStore';
 import { resolveModelConfig } from './libs/modelConfigResolver';
 import { getUserPreferences, updateUserPreferences } from './libs/userPreferencesStore';
@@ -1674,6 +1677,9 @@ let skillManager: SkillManager | null = null;
 let mcpStore: McpStore | null = null;
 let imGatewayManager: IMGatewayManager | null = null;
 let scheduledTaskStore: ScheduledTaskStore | null = null;
+let openClawEngineManager: OpenClawEngineManager | null = null;
+let openClawGatewayClientManager: OpenClawGatewayClientManager | null = null;
+let openClawWeixinConfigSync: OpenClawWeixinConfigSync | null = null;
 let scheduler: Scheduler | null = null;
 let storeInitPromise: Promise<SqliteStore> | null = null;
 
@@ -1894,6 +1900,70 @@ const getMcpStore = () => {
     mcpStore = new McpStore(sqliteStore.getDatabase(), sqliteStore.getSaveFunction());
   }
   return mcpStore;
+};
+
+const getOpenClawEngineManager = () => {
+  if (!openClawEngineManager) {
+    openClawEngineManager = new OpenClawEngineManager();
+  }
+  return openClawEngineManager;
+};
+
+const getOpenClawGatewayClientManager = () => {
+  if (!openClawGatewayClientManager) {
+    openClawGatewayClientManager = new OpenClawGatewayClientManager(getOpenClawEngineManager());
+  }
+  return openClawGatewayClientManager;
+};
+
+const getOpenClawWeixinConfigSync = () => {
+  if (!openClawWeixinConfigSync) {
+    openClawWeixinConfigSync = new OpenClawWeixinConfigSync({
+      engineManager: getOpenClawEngineManager(),
+      getCoworkConfig: () => getCoworkStore().getConfig(),
+      getWeixinConfig: () => getIMGatewayManager().getConfig().weixin,
+    });
+  }
+  return openClawWeixinConfigSync;
+};
+
+const syncOpenClawWeixinConfig = async (options?: {
+  restartGatewayIfRunning?: boolean;
+  ensureGatewayAfterSync?: boolean;
+}) => {
+  const result = getOpenClawWeixinConfigSync().sync();
+  if (!result.ok) {
+    throw new Error(result.error || 'Failed to sync OpenClaw Weixin config');
+  }
+
+  const engineManager = getOpenClawEngineManager();
+  if (options?.restartGatewayIfRunning && result.changed && engineManager.getStatus().phase === 'running') {
+    await engineManager.restartGateway();
+  }
+
+  if (options?.ensureGatewayAfterSync) {
+    await getOpenClawGatewayClientManager().ensureReady();
+  }
+
+  return result;
+};
+
+const getOpenClawRuntimeHintPath = (): string => {
+  const envRuntimeDir = (process.env.OPENCLAW_RUNTIME_DIR || '').trim();
+  return envRuntimeDir || path.join(process.cwd(), 'vendor', 'openclaw-runtime', 'current');
+};
+
+const normalizeOpenClawWeixinError = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/OpenClaw runtime is missing/i.test(message)) {
+    return [
+      '未检测到 OpenClaw runtime。',
+      `请先将已构建 runtime 放到 ${getOpenClawRuntimeHintPath()}，`,
+      '或设置环境变量 OPENCLAW_RUNTIME_DIR 指向 runtime 根目录，',
+      '然后执行 npm run openclaw:runtime:host。',
+    ].join('');
+  }
+  return message || 'OpenClaw gateway is unavailable.';
 };
 
 const getIMGatewayManager = () => {
@@ -3562,6 +3632,9 @@ if (!gotTheLock) {
   ipcMain.handle('im:config:set', async (_event, config: Partial<IMGatewayConfig>) => {
     try {
       getIMGatewayManager().setConfig(config);
+      if (config.weixin) {
+        await syncOpenClawWeixinConfig({ restartGatewayIfRunning: true });
+      }
       return { success: true };
     } catch (error) {
       return {
@@ -3576,12 +3649,21 @@ if (!gotTheLock) {
       // Persist enabled state
       const manager = getIMGatewayManager();
       manager.setConfig({ [platform]: { enabled: true } });
+      if (platform === 'weixin') {
+        await syncOpenClawWeixinConfig({
+          restartGatewayIfRunning: true,
+          ensureGatewayAfterSync: true,
+        });
+        return { success: true };
+      }
       await manager.startGateway(platform);
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to start gateway',
+        error: platform === 'weixin'
+          ? normalizeOpenClawWeixinError(error)
+          : error instanceof Error ? error.message : 'Failed to start gateway',
       };
     }
   });
@@ -3591,6 +3673,10 @@ if (!gotTheLock) {
       // Persist disabled state
       const manager = getIMGatewayManager();
       manager.setConfig({ [platform]: { enabled: false } });
+      if (platform === 'weixin') {
+        await syncOpenClawWeixinConfig({ restartGatewayIfRunning: true });
+        return { success: true };
+      }
       await manager.stopGateway(platform);
       return { success: true };
     } catch (error) {
@@ -3625,6 +3711,55 @@ if (!gotTheLock) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get IM status',
+      };
+    }
+  });
+
+  ipcMain.handle('im:weixin:qr-login-start', async () => {
+    try {
+      await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+      const result = await getOpenClawGatewayClientManager().request<{
+        qrDataUrl?: string;
+        message: string;
+        sessionKey?: string;
+      }>('web.login.start', { force: true, timeoutMs: 300000, verbose: true });
+      return { success: true, ...result };
+    } catch (error) {
+      return {
+        success: false,
+        message: normalizeOpenClawWeixinError(error),
+      };
+    }
+  });
+
+  ipcMain.handle('im:weixin:qr-login-wait', async (_event, accountId?: string) => {
+    try {
+      await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+      const result = await getOpenClawGatewayClientManager().request<{
+        connected: boolean;
+        message: string;
+        accountId?: string;
+      }>('web.login.wait', { timeoutMs: 480000, ...(accountId ? { accountId } : {}) });
+
+      if (result.connected) {
+        getIMGatewayManager().setConfig({
+          weixin: {
+            enabled: true,
+            accountId: result.accountId || accountId || '',
+          },
+        });
+        await syncOpenClawWeixinConfig({
+          restartGatewayIfRunning: true,
+          ensureGatewayAfterSync: true,
+        });
+      }
+
+      return { success: true, ...result };
+    } catch (error) {
+      return {
+        success: false,
+        connected: false,
+        message: normalizeOpenClawWeixinError(error),
       };
     }
   });
@@ -4368,6 +4503,13 @@ if (!gotTheLock) {
     getIMGatewayManager().startAllEnabled().catch((error) => {
       console.error('[IM] Failed to auto-start enabled gateways:', error);
     });
+    if (getIMGatewayManager().getConfig().weixin.enabled) {
+      void syncOpenClawWeixinConfig({
+        ensureGatewayAfterSync: true,
+      }).catch((error) => {
+        console.error('[OpenClaw] Failed to auto-start Weixin gateway:', error);
+      });
+    }
 
     // 首次启动时默认开启开机自启动（先写标记再设置，避免崩溃后重复设置）
     if (!getStore().get('auto_launch_initialized')) {

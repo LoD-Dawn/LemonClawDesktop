@@ -637,6 +637,13 @@ export class IMGatewayManager extends EventEmitter {
       nim: this.nimGateway.getStatus(),
       xiaomifeng: this.xiaomifengGateway.getStatus(),
       wecom: this.wecomGateway.getStatus(),
+      weixin: {
+        connected: this.isConnected('weixin'),
+        startedAt: null,
+        lastError: null,
+        lastInboundAt: null,
+        lastOutboundAt: null,
+      },
     };
   }
 
@@ -840,6 +847,17 @@ export class IMGatewayManager extends EventEmitter {
         message: '企业微信机器人通过 WebSocket 长连接接收消息。',
         suggestion: '请在企业微信中向机器人发送消息触发对话。群聊中需 @机器人。',
       });
+    } else if (platform === 'weixin') {
+      addCheck({
+        code: 'gateway_running',
+        level: config.weixin.enabled ? 'info' : 'warn',
+        message: config.weixin.enabled
+          ? '微信渠道通过 OpenClaw 网关运行。'
+          : '微信渠道当前未启用。',
+        suggestion: config.weixin.enabled
+          ? '如需重新登录，请重新扫码连接微信。'
+          : '请先启用微信渠道并完成扫码登录。',
+      });
     }
 
     return {
@@ -877,6 +895,8 @@ export class IMGatewayManager extends EventEmitter {
       await this.qqGateway.start(config.qq);
     } else if (platform === 'wecom') {
       await this.wecomGateway.start(config.wecom);
+    } else if (platform === 'weixin') {
+      // Weixin lifecycle is managed by the OpenClaw gateway in main.ts.
     }
 
     // Restore persisted notification target
@@ -903,6 +923,8 @@ export class IMGatewayManager extends EventEmitter {
       await this.qqGateway.stop();
     } else if (platform === 'wecom') {
       await this.wecomGateway.stop();
+    } else if (platform === 'weixin') {
+      // Weixin lifecycle is managed by the OpenClaw gateway in main.ts.
     }
   }
 
@@ -975,6 +997,14 @@ export class IMGatewayManager extends EventEmitter {
         console.error(`[IMGatewayManager] Failed to start WeCom: ${error.message}`);
       }
     }
+
+    if (config.weixin?.enabled) {
+      try {
+        await this.startGateway('weixin');
+      } catch (error: any) {
+        console.error(`[IMGatewayManager] Failed to start Weixin: ${error.message}`);
+      }
+    }
   }
 
   /**
@@ -990,6 +1020,7 @@ export class IMGatewayManager extends EventEmitter {
       this.xiaomifengGateway.stop(),
       this.qqGateway.stop(),
       this.wecomGateway.stop(),
+      this.stopGateway('weixin'),
     ]);
   }
 
@@ -997,7 +1028,15 @@ export class IMGatewayManager extends EventEmitter {
    * Check if any gateway is connected
    */
   isAnyConnected(): boolean {
-    return this.dingtalkGateway.isConnected() || this.feishuGateway.isConnected() || this.telegramGateway.isConnected() || this.discordGateway.isConnected() || this.nimGateway.isConnected() || this.xiaomifengGateway.isConnected() || this.qqGateway.isConnected() || this.wecomGateway.isConnected();
+    return this.dingtalkGateway.isConnected()
+      || this.feishuGateway.isConnected()
+      || this.telegramGateway.isConnected()
+      || this.discordGateway.isConnected()
+      || this.nimGateway.isConnected()
+      || this.xiaomifengGateway.isConnected()
+      || this.qqGateway.isConnected()
+      || this.wecomGateway.isConnected()
+      || this.isConnected('weixin');
   }
 
   /**
@@ -1024,6 +1063,10 @@ export class IMGatewayManager extends EventEmitter {
     }
     if (platform === 'wecom') {
       return this.wecomGateway.isConnected();
+    }
+    if (platform === 'weixin') {
+      const config = this.imStore.getWeixinConfig();
+      return Boolean(config.enabled && config.accountId);
     }
     return this.feishuGateway.isConnected();
   }
@@ -1228,6 +1271,7 @@ export class IMGatewayManager extends EventEmitter {
       nim: { ...current.nim, ...(configOverride.nim || {}) },
       xiaomifeng: { ...current.xiaomifeng, ...(configOverride.xiaomifeng || {}) },
       wecom: { ...current.wecom, ...(configOverride.wecom || {}) },
+      weixin: { ...current.weixin, ...(configOverride.weixin || {}) },
       settings: { ...current.settings, ...(configOverride.settings || {}) },
     };
   }
@@ -1272,6 +1316,9 @@ export class IMGatewayManager extends EventEmitter {
       if (!config.wecom?.botId) fields.push('botId');
       if (!config.wecom?.secret) fields.push('secret');
       return fields;
+    }
+    if (platform === 'weixin') {
+      return [];
     }
     return config.discord.botToken ? [] : ['botToken'];
   }
@@ -1359,6 +1406,15 @@ export class IMGatewayManager extends EventEmitter {
       } finally {
         try { tmpClient.disconnect(); } catch (_) { /* ignore */ }
       }
+    }
+
+    if (platform === 'weixin') {
+      if (!config.weixin.enabled) {
+        return '微信渠道当前未启用。';
+      }
+      return config.weixin.accountId
+        ? `微信配置已就绪（Account ID: ${config.weixin.accountId}）。`
+        : '微信配置已就绪。';
     }
 
     if (platform === 'discord') {
@@ -1550,6 +1606,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.startedAt;
     if (platform === 'qq') return status.qq.startedAt;
     if (platform === 'wecom') return status.wecom.startedAt;
+    if (platform === 'weixin') return status.weixin.startedAt;
     return status.discord.startedAt;
   }
 
@@ -1561,6 +1618,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.lastInboundAt;
     if (platform === 'qq') return status.qq.lastInboundAt;
     if (platform === 'wecom') return status.wecom.lastInboundAt;
+    if (platform === 'weixin') return status.weixin.lastInboundAt;
     return status.discord.lastInboundAt;
   }
 
@@ -1572,6 +1630,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.lastOutboundAt;
     if (platform === 'qq') return status.qq.lastOutboundAt;
     if (platform === 'wecom') return status.wecom.lastOutboundAt;
+    if (platform === 'weixin') return status.weixin.lastOutboundAt;
     return status.discord.lastOutboundAt;
   }
 
@@ -1583,6 +1642,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.lastError;
     if (platform === 'qq') return status.qq.lastError;
     if (platform === 'wecom') return status.wecom.lastError;
+    if (platform === 'weixin') return status.weixin.lastError;
     return status.discord.lastError;
   }
 
