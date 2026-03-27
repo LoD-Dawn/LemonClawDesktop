@@ -1,0 +1,87 @@
+diff --git a/scripts/ui.js b/scripts/ui.js
+--- a/scripts/ui.js
++++ b/scripts/ui.js
+@@ -76,53 +76,76 @@ export function assertSafeWindowsShellArgs(args, platform = process.platform) {
+   );
+ }
+ 
+-function createSpawnOptions(cmd, args, envOverride) {
+-  const useShell = shouldUseShellForCommand(cmd);
+-  if (useShell) {
+-    assertSafeWindowsShellArgs(args);
++function prependCommandDirToPath(cmd, env) {
++  const commandDir = path.dirname(cmd);
++  const pathKey = Object.keys(env).find((key) => key.toUpperCase() === "PATH") ?? "PATH";
++  const currentPath = env[pathKey];
++  if (!currentPath) {
++    return { ...env, [pathKey]: commandDir };
+   }
++  const pathEntries = String(currentPath).split(path.delimiter);
++  if (pathEntries.includes(commandDir)) {
++    return env;
++  }
++  return { ...env, [pathKey]: `${commandDir}${path.delimiter}${currentPath}` };
++}
++
++function resolveCommandInvocation(cmd, args, env, platform = process.platform) {
++  if (!shouldUseShellForCommand(cmd, platform)) {
++    return { cmd, args, env };
++  }
++  assertSafeWindowsShellArgs(args, platform);
++  return {
++    cmd: process.env.ComSpec ?? process.env.COMSPEC ?? "cmd.exe",
++    args: ["/d", "/s", "/c", path.basename(cmd), ...args],
++    env: prependCommandDirToPath(cmd, env),
++  };
++}
++
++function createSpawnOptions(envOverride) {
+   return {
+     cwd: uiDir,
+     stdio: "inherit",
+     env: envOverride ?? process.env,
+-    ...(useShell ? { shell: true } : {}),
+   };
+ }
+ 
+ function run(cmd, args) {
++  const invocation = resolveCommandInvocation(cmd, args, process.env);
+   let child;
+   try {
+-    child = spawn(cmd, args, createSpawnOptions(cmd, args));
++    child = spawn(invocation.cmd, invocation.args, createSpawnOptions(invocation.env));
+   } catch (err) {
+     console.error(`Failed to launch ${cmd}:`, err);
+     process.exit(1);
+     return;
+   }
+ 
+   child.on("error", (err) => {
+     console.error(`Failed to launch ${cmd}:`, err);
+     process.exit(1);
+   });
+   child.on("exit", (code) => {
+     if (code !== 0) {
+       process.exit(code ?? 1);
+     }
+   });
+ }
+ 
+ function runSync(cmd, args, envOverride) {
++  const invocation = resolveCommandInvocation(cmd, args, envOverride ?? process.env);
+   let result;
+   try {
+-    result = spawnSync(cmd, args, createSpawnOptions(cmd, args, envOverride));
++    result = spawnSync(invocation.cmd, invocation.args, createSpawnOptions(invocation.env));
+   } catch (err) {
+     console.error(`Failed to launch ${cmd}:`, err);
+     process.exit(1);
+     return;
+   }
+   if (result.signal) {
+     process.exit(1);
+   }
+   if ((result.status ?? 1) !== 0) {
+     process.exit(result.status ?? 1);
+   }
+ }

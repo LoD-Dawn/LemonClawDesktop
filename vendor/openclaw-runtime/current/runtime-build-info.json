@@ -1,8 +1,8 @@
 {
-  "builtAt": "2026-03-27T12:23:09.507Z",
-  "source": "D:/project/OpenSourceProject/claw-desktop/lemon-claw-desktop/../openclaw",
+  "builtAt": "2026-03-27T14:55:47.289Z",
+  "source": "C:/Users/Administrator/Desktop/project/lemonClaw/lemon-claw-desktop/../openclaw",
   "target": "win-x64",
   "openclawVersion": "v2026.3.2",
   "openclawCommit": "85377a28175695c224f6589eb5c1460841ecd65c",
-  "patchHash": "a10ea5a5b2b806f4d0a63b787ec7a38e20809fc39a5d06a9a0062df8a4f3abf3"
+  "patchHash": "d01df4b348b16fb9c97dacfa2f59bcea6c7f1d9f0deea6c89615a3e3f15bc37f"
 }

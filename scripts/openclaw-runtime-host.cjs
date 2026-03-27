@@ -26,13 +26,46 @@ function resolveHostTargetId() {
 
 const targetId = resolveHostTargetId();
 const rootDir = path.resolve(__dirname, '..');
-const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-const result = spawnSync(npmBin, ['run', `openclaw:runtime:${targetId}`], {
+function resolvePackageManagerInvocation() {
+  if (process.env.npm_execpath) {
+    return {
+      command: process.execPath,
+      args: [process.env.npm_execpath],
+    };
+  }
+
+  try {
+    const npmPackageJsonPath = require.resolve('npm/package.json');
+    return {
+      command: process.execPath,
+      args: [path.join(path.dirname(npmPackageJsonPath), 'bin', 'npm-cli.js')],
+    };
+  } catch {}
+
+  if (process.platform === 'win32') {
+    return {
+      command: process.env.ComSpec || process.env.COMSPEC || 'cmd.exe',
+      args: ['/d', '/s', '/c', 'npm.cmd'],
+    };
+  }
+
+  return {
+    command: 'npm',
+    args: [],
+  };
+}
+
+const packageManager = resolvePackageManagerInvocation();
+
+const result = spawnSync(packageManager.command, [
+  ...packageManager.args,
+  'run',
+  `openclaw:runtime:${targetId}`,
+], {
   cwd: rootDir,
   env: process.env,
   stdio: 'inherit',
-  shell: true,
 });
 
 if (typeof result.status === 'number') {
