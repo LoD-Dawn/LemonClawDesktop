@@ -147,12 +147,13 @@ jobs:
           APP_VERSION=$(node -p "require('./package.json').version")
           SHORT_SHA=$(git rev-parse --short HEAD)
 
-          export RELEASE_TARGET=$(git rev-parse HEAD)
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            export RELEASE_TARGET="main"
             export RELEASE_TAG="${GITHUB_REF_NAME}"
             export RELEASE_NAME="LemonClaw ${GITHUB_REF_NAME}"
           else
-            export RELEASE_TAG="main-${APP_VERSION}+gh.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+            export RELEASE_TARGET="main"
+            export RELEASE_TAG="main-${APP_VERSION}-gh-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
             export RELEASE_NAME="LemonClaw ${APP_VERSION} build ${GITHUB_RUN_NUMBER}"
           fi
           export PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
