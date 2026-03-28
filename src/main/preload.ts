@@ -250,6 +250,11 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.on('cowork:stream:quota', handler);
       return () => ipcRenderer.removeListener('cowork:stream:quota', handler);
     },
+    onSessionsChanged: (callback: (data: { sessionIds: string[] }) => void) => {
+      const handler = (_event: any, data: { sessionIds: string[] }) => callback(data);
+      ipcRenderer.on('cowork:stream:sessionsChanged', handler);
+      return () => ipcRenderer.removeListener('cowork:stream:sessionsChanged', handler);
+    },
   },
   dialog: {
     selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),

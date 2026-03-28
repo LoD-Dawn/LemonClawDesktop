@@ -452,5 +452,3 @@ const CoworkSessionItem: React.FC<CoworkSessionItemProps> = ({
 };
 
 export default CoworkSessionItem;
-
-

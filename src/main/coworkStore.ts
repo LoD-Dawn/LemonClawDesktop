@@ -40,6 +40,8 @@ const MAX_MEMORY_USER_MEMORIES_MAX_ITEMS = 60;
 const MEMORY_NEAR_DUPLICATE_MIN_SCORE = 0.82;
 const MEMORY_PROCEDURAL_TEXT_RE = /(执行以下命令|run\s+(?:the\s+)?following\s+command|\b(?:cd|npm|pnpm|yarn|node|python|bash|sh|git|curl|wget)\b|\$[A-Z_][A-Z0-9_]*|&&|--[a-z0-9-]+|\/tmp\/|\.sh\b|\.bat\b|\.ps1\b)/i;
 const MEMORY_ASSISTANT_STYLE_TEXT_RE = /^(?:使用|use)\s+[A-Za-z0-9._-]+\s*(?:技能|skill)/i;
+const IMPORTED_SESSION_KEY_KV_PREFIX = 'cowork.importedSessionKey.';
+const IMPORTED_SESSION_DELETED_AT_KV_PREFIX = 'cowork.importedSessionDeletedAt.';
 
 function normalizeMemoryGuardLevel(value: string | undefined): CoworkMemoryGuardLevel {
   if (value === 'strict' || value === 'standard' || value === 'relaxed') return value;
@@ -539,6 +541,205 @@ export class CoworkStore {
       createdAt: now,
       updatedAt: now,
     };
+  }
+
+  upsertSyncedSession(session: {
+    id: string;
+    title: string;
+    claudeSessionId?: string | null;
+    status: CoworkSessionStatus;
+    pinned?: boolean;
+    cwd: string;
+    systemPrompt?: string;
+    executionMode?: CoworkExecutionMode;
+    activeSkillIds?: string[];
+    createdAt: number;
+    updatedAt: number;
+    messages: CoworkMessage[];
+  }): CoworkSession {
+    const existing = this.getOne<{ id: string }>(`
+      SELECT id
+      FROM cowork_sessions
+      WHERE id = ?
+    `, [session.id]);
+
+    const claudeSessionId = session.claudeSessionId ?? null;
+    const systemPrompt = session.systemPrompt ?? '';
+    const executionMode = session.executionMode ?? 'local';
+    const activeSkillIds = session.activeSkillIds ?? [];
+    const pinned = session.pinned ? 1 : 0;
+
+    if (existing) {
+      this.db.run(`
+        UPDATE cowork_sessions
+        SET title = ?, claude_session_id = ?, status = ?, cwd = ?, system_prompt = ?, execution_mode = ?,
+            active_skill_ids = ?, pinned = ?, created_at = ?, updated_at = ?
+        WHERE id = ?
+      `, [
+        session.title,
+        claudeSessionId,
+        session.status,
+        session.cwd,
+        systemPrompt,
+        executionMode,
+        JSON.stringify(activeSkillIds),
+        pinned,
+        session.createdAt,
+        session.updatedAt,
+        session.id,
+      ]);
+    } else {
+      this.db.run(`
+        INSERT INTO cowork_sessions (
+          id, title, claude_session_id, status, cwd, system_prompt, execution_mode,
+          active_skill_ids, pinned, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        session.id,
+        session.title,
+        claudeSessionId,
+        session.status,
+        session.cwd,
+        systemPrompt,
+        executionMode,
+        JSON.stringify(activeSkillIds),
+        pinned,
+        session.createdAt,
+        session.updatedAt,
+      ]);
+    }
+
+    this.db.run('DELETE FROM cowork_messages WHERE session_id = ?', [session.id]);
+
+    let sequence = 1;
+    for (const message of session.messages) {
+      this.db.run(`
+        INSERT INTO cowork_messages (id, session_id, type, content, metadata, created_at, sequence)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        message.id,
+        session.id,
+        message.type,
+        message.content,
+        message.metadata ? JSON.stringify(message.metadata) : null,
+        message.timestamp,
+        sequence,
+      ]);
+      sequence += 1;
+    }
+
+    this.saveDb();
+
+    return {
+      id: session.id,
+      title: session.title,
+      claudeSessionId,
+      status: session.status,
+      pinned: Boolean(session.pinned),
+      cwd: session.cwd,
+      systemPrompt,
+      executionMode,
+      activeSkillIds,
+      messages: session.messages,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+    };
+  }
+
+  getImportedSessionKey(sessionId: string): string | null {
+    interface KvRow {
+      value: string;
+    }
+
+    const row = this.getOne<KvRow>('SELECT value FROM kv WHERE key = ?', [
+      `${IMPORTED_SESSION_KEY_KV_PREFIX}${sessionId}`,
+    ]);
+    if (!row?.value) {
+      return null;
+    }
+    return typeof row.value === 'string' && row.value.trim() ? row.value.trim() : null;
+  }
+
+  setImportedSessionKey(sessionId: string, sessionKey: string): void {
+    const normalizedSessionKey = sessionKey.trim();
+    if (!normalizedSessionKey) {
+      this.deleteImportedSessionKey(sessionId);
+      return;
+    }
+    if (this.getImportedSessionKey(sessionId) === normalizedSessionKey) {
+      return;
+    }
+
+    const now = Date.now();
+    this.db.run(`
+      INSERT INTO kv (key, value, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_at = excluded.updated_at
+    `, [
+      `${IMPORTED_SESSION_KEY_KV_PREFIX}${sessionId}`,
+      normalizedSessionKey,
+      now,
+    ]);
+    this.saveDb();
+  }
+
+  deleteImportedSessionKey(sessionId: string): void {
+    if (!this.getImportedSessionKey(sessionId)) {
+      return;
+    }
+    this.db.run('DELETE FROM kv WHERE key = ?', [`${IMPORTED_SESSION_KEY_KV_PREFIX}${sessionId}`]);
+    this.saveDb();
+  }
+
+  getImportedSessionDeletedAt(sessionId: string): number | null {
+    interface KvRow {
+      value: string;
+    }
+
+    const row = this.getOne<KvRow>('SELECT value FROM kv WHERE key = ?', [
+      `${IMPORTED_SESSION_DELETED_AT_KV_PREFIX}${sessionId}`,
+    ]);
+    if (!row?.value) {
+      return null;
+    }
+
+    const numericValue = Number(row.value);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+  }
+
+  setImportedSessionDeletedAt(sessionId: string, deletedAt: number): void {
+    const normalizedDeletedAt = Number(deletedAt);
+    if (!Number.isFinite(normalizedDeletedAt) || normalizedDeletedAt <= 0) {
+      this.deleteImportedSessionDeletedAt(sessionId);
+      return;
+    }
+    if (this.getImportedSessionDeletedAt(sessionId) === Math.floor(normalizedDeletedAt)) {
+      return;
+    }
+
+    this.db.run(`
+      INSERT INTO kv (key, value, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_at = excluded.updated_at
+    `, [
+      `${IMPORTED_SESSION_DELETED_AT_KV_PREFIX}${sessionId}`,
+      String(Math.floor(normalizedDeletedAt)),
+      Date.now(),
+    ]);
+    this.saveDb();
+  }
+
+  deleteImportedSessionDeletedAt(sessionId: string): void {
+    if (this.getImportedSessionDeletedAt(sessionId) === null) {
+      return;
+    }
+    this.db.run('DELETE FROM kv WHERE key = ?', [`${IMPORTED_SESSION_DELETED_AT_KV_PREFIX}${sessionId}`]);
+    this.saveDb();
   }
 
   getSession(id: string): CoworkSession | null {

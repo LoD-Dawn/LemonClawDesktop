@@ -38,12 +38,14 @@ import {
 import { OpenClawEngineManager } from './libs/openclawEngineManager';
 import { OpenClawGatewayClientManager } from './libs/openclawGatewayClient';
 import { OpenClawWeixinConfigSync } from './libs/openclawWeixinConfigSync';
+import { OpenClawWeixinSessionBridge } from './libs/openclawWeixinSessionBridge';
 import { AuthStore } from './authStore';
 import { resolveModelConfig } from './libs/modelConfigResolver';
 import { getUserPreferences, updateUserPreferences } from './libs/userPreferencesStore';
 import type { ProviderConfig, ProviderModelConfig, ResolvedModelConfig, TenantConfig, TenantConfigMeta } from '../shared/modelConfig';
 import { CoworkQuotaManager } from './libs/coworkQuotaManager';
 import type { ClawQuotaStreamPayload } from '../shared/quota';
+import { isOpenClawWeixinSessionId } from '../shared/openclawSession';
 import crypto from 'crypto';
 import { buildManagedSessionKey, parseManagedSessionKey } from './libs/scheduledTaskSessionKey';
 
@@ -1680,6 +1682,7 @@ let scheduledTaskStore: ScheduledTaskStore | null = null;
 let openClawEngineManager: OpenClawEngineManager | null = null;
 let openClawGatewayClientManager: OpenClawGatewayClientManager | null = null;
 let openClawWeixinConfigSync: OpenClawWeixinConfigSync | null = null;
+let openClawWeixinSessionBridge: OpenClawWeixinSessionBridge | null = null;
 let scheduler: Scheduler | null = null;
 let storeInitPromise: Promise<SqliteStore> | null = null;
 
@@ -1725,6 +1728,19 @@ const broadcastCoworkQuotaUpdate = (payload: ClawQuotaStreamPayload): void => {
         win.webContents.send('cowork:stream:quota', payload);
       } catch (error) {
         console.error('Failed to forward cowork quota update:', error);
+      }
+    }
+  });
+};
+
+const broadcastCoworkSessionsChanged = (sessionIds: string[]): void => {
+  const windows = BrowserWindow.getAllWindows();
+  windows.forEach((win) => {
+    if (!win.isDestroyed()) {
+      try {
+        win.webContents.send('cowork:stream:sessionsChanged', { sessionIds });
+      } catch (error) {
+        console.error('Failed to forward cowork session change:', error);
       }
     }
   });
@@ -1927,6 +1943,22 @@ const getOpenClawWeixinConfigSync = () => {
   return openClawWeixinConfigSync;
 };
 
+const getOpenClawWeixinSessionBridge = () => {
+  if (!openClawWeixinSessionBridge) {
+    openClawWeixinSessionBridge = new OpenClawWeixinSessionBridge({
+      coworkStore: getCoworkStore(),
+      gatewayClientManager: getOpenClawGatewayClientManager(),
+      getDefaultCwd: () => getCoworkStore().getConfig().workingDirectory || '',
+      isWeixinEnabled: () => Boolean(getIMGatewayManager().getConfig().weixin?.enabled),
+    });
+    openClawWeixinSessionBridge.on('sessionsChanged', ({ sessionIds }: { sessionIds: string[] }) => {
+      broadcastCoworkSessionsChanged(sessionIds);
+    });
+    openClawWeixinSessionBridge.start();
+  }
+  return openClawWeixinSessionBridge;
+};
+
 const syncOpenClawWeixinConfig = async (options?: {
   restartGatewayIfRunning?: boolean;
   ensureGatewayAfterSync?: boolean;
@@ -1964,6 +1996,138 @@ const normalizeOpenClawWeixinError = (error: unknown): string => {
     ].join('');
   }
   return message || 'OpenClaw gateway is unavailable.';
+};
+
+const buildOpenClawWeixinOutboundMessage = (prompt: string, systemPrompt?: string): string => {
+  const normalizedPrompt = prompt.trim();
+  const normalizedSystemPrompt = (systemPrompt || '').trim();
+  if (!normalizedSystemPrompt) {
+    return normalizedPrompt;
+  }
+
+  return [
+    '[LemonClaw system instructions]',
+    'Apply the instructions below for this request.',
+    normalizedSystemPrompt,
+    '[Current user request]',
+    normalizedPrompt,
+  ].join('\n\n');
+};
+
+const scheduleOpenClawWeixinRefresh = (): void => {
+  [400, 1_800, 5_000].forEach((delayMs) => {
+    setTimeout(() => {
+      void getOpenClawWeixinSessionBridge().syncNow();
+    }, delayMs);
+  });
+};
+
+const continueOpenClawWeixinSession = async (options: {
+  sessionId: string;
+  prompt: string;
+  systemPrompt?: string;
+  activeSkillIds?: string[];
+  imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
+}): Promise<{ success: boolean; error?: string; session?: ReturnType<CoworkStore['getSession']> }> => {
+  const normalizedPrompt = options.prompt.trim();
+  if (!normalizedPrompt) {
+    return { success: false, error: 'Prompt is required.' };
+  }
+
+  try {
+    await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+
+    const coworkStoreInstance = getCoworkStore();
+    const session = coworkStoreInstance.getSession(options.sessionId);
+    if (!session) {
+      return { success: false, error: 'Session not found.' };
+    }
+
+    const sessionKey = getOpenClawWeixinSessionBridge().getSessionKeyForSession(options.sessionId);
+    if (!sessionKey) {
+      return { success: false, error: 'OpenClaw Weixin session key is unavailable.' };
+    }
+
+    const messageMetadata: Record<string, unknown> = {};
+    if (options.activeSkillIds?.length) {
+      messageMetadata.skillIds = options.activeSkillIds;
+    }
+    if (options.imageAttachments?.length) {
+      messageMetadata.imageAttachments = options.imageAttachments;
+    }
+
+    coworkStoreInstance.addMessage(options.sessionId, {
+      type: 'user',
+      content: normalizedPrompt,
+      metadata: Object.keys(messageMetadata).length > 0 ? messageMetadata : undefined,
+    });
+    coworkStoreInstance.updateSession(options.sessionId, { status: 'running' });
+    broadcastCoworkSessionsChanged([options.sessionId]);
+
+    const attachments = options.imageAttachments?.length
+      ? options.imageAttachments.map((image) => ({
+        type: 'image',
+        mimeType: image.mimeType,
+        content: image.base64Data,
+      }))
+      : undefined;
+
+    await getOpenClawGatewayClientManager().request<Record<string, unknown>>('chat.send', {
+      sessionKey,
+      message: buildOpenClawWeixinOutboundMessage(normalizedPrompt, options.systemPrompt),
+      idempotencyKey: `${options.sessionId}:${Date.now()}`,
+      ...(attachments ? { attachments } : {}),
+    });
+
+    scheduleOpenClawWeixinRefresh();
+
+    return {
+      success: true,
+      session: coworkStoreInstance.getSession(options.sessionId),
+    };
+  } catch (error) {
+    const message = normalizeOpenClawWeixinError(error);
+    const coworkStoreInstance = getCoworkStore();
+    coworkStoreInstance.updateSession(options.sessionId, { status: 'error' });
+    coworkStoreInstance.addMessage(options.sessionId, {
+      type: 'system',
+      content: `Error: ${message}`,
+      metadata: { error: message },
+    });
+    broadcastCoworkSessionsChanged([options.sessionId]);
+    return {
+      success: false,
+      error: message,
+      session: coworkStoreInstance.getSession(options.sessionId),
+    };
+  }
+};
+
+const stopOpenClawWeixinSession = async (
+  sessionId: string,
+): Promise<{ success: boolean; error?: string; session?: ReturnType<CoworkStore['getSession']> }> => {
+  try {
+    await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+    const sessionKey = getOpenClawWeixinSessionBridge().getSessionKeyForSession(sessionId);
+    if (!sessionKey) {
+      return { success: false, error: 'OpenClaw Weixin session key is unavailable.' };
+    }
+
+    const coworkStoreInstance = getCoworkStore();
+    await getOpenClawGatewayClientManager().request('chat.abort', { sessionKey });
+    coworkStoreInstance.updateSession(sessionId, { status: 'idle' });
+    broadcastCoworkSessionsChanged([sessionId]);
+    scheduleOpenClawWeixinRefresh();
+    return {
+      success: true,
+      session: coworkStoreInstance.getSession(sessionId),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: normalizeOpenClawWeixinError(error),
+    };
+  }
 };
 
 const getIMGatewayManager = () => {
@@ -2965,6 +3129,10 @@ if (!gotTheLock) {
     imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
   }) => {
     try {
+      if (isOpenClawWeixinSessionId(options.sessionId)) {
+        return continueOpenClawWeixinSession(options);
+      }
+
       const authContext = await ensureActiveAuthSession();
       if ('error' in authContext) {
         const { error } = authContext;
@@ -3037,6 +3205,9 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:stop', async (_event, sessionId: string) => {
     try {
+      if (isOpenClawWeixinSessionId(sessionId)) {
+        return stopOpenClawWeixinSession(sessionId);
+      }
       const runner = getCoworkRunner();
       runner.stopSession(sessionId);
       void getCoworkQuotaManager().finishSession(sessionId, 'stopped_by_user');
@@ -3051,6 +3222,9 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:delete', async (_event, sessionId: string) => {
     try {
+      if (isOpenClawWeixinSessionId(sessionId)) {
+        getOpenClawWeixinSessionBridge().markSessionDeleted(sessionId);
+      }
       const coworkStoreInstance = getCoworkStore();
       coworkStoreInstance.deleteSession(sessionId);
       return { success: true };
@@ -3064,6 +3238,11 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:deleteBatch', async (_event, sessionIds: string[]) => {
     try {
+      sessionIds
+        .filter((sessionId) => isOpenClawWeixinSessionId(sessionId))
+        .forEach((sessionId) => {
+          getOpenClawWeixinSessionBridge().markSessionDeleted(sessionId);
+        });
       const coworkStoreInstance = getCoworkStore();
       coworkStoreInstance.deleteSessions(sessionIds);
       return { success: true };
@@ -3107,7 +3286,13 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:get', async (_event, sessionId: string) => {
     try {
-      const session = getCoworkStore().getSession(sessionId);
+      let session = getCoworkStore().getSession(sessionId);
+      if (!session && isOpenClawWeixinSessionId(sessionId)) {
+        await getOpenClawWeixinSessionBridge().syncNow();
+        session = getCoworkStore().getSession(sessionId);
+      } else {
+        void getOpenClawWeixinSessionBridge().syncNow();
+      }
       return {
         success: true,
         session: session ? {
@@ -3125,6 +3310,7 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:list', async () => {
     try {
+      void getOpenClawWeixinSessionBridge().syncNow();
       const sessions = getCoworkStore().listSessions();
       return { success: true, sessions };
     } catch (error) {
@@ -4355,6 +4541,10 @@ if (!gotTheLock) {
       });
     }
 
+    if (openClawWeixinSessionBridge) {
+      openClawWeixinSessionBridge.stop();
+    }
+
     // Stop the scheduler
     if (scheduler) {
       scheduler.stop();
@@ -4494,6 +4684,7 @@ if (!gotTheLock) {
     console.log('[Main] initApp: creating window');
     createWindow();
     console.log('[Main] initApp: window created');
+    getOpenClawWeixinSessionBridge();
 
     const initialDeepLinkUrl = findAuthDeepLinkArg(process.argv);
     if (initialDeepLinkUrl) {

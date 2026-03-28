@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import { EventEmitter } from 'events';
 import type {
   OpenClawEngineManager,
   OpenClawGatewayConnectionInfo,
@@ -32,7 +33,7 @@ const waitWithTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promi
   }
 };
 
-export class OpenClawGatewayClientManager {
+export class OpenClawGatewayClientManager extends EventEmitter {
   private readonly engineManager: OpenClawEngineManager;
   private gatewayClient: GatewayClientLike | null = null;
   private gatewayClientVersion: string | null = null;
@@ -42,6 +43,7 @@ export class OpenClawGatewayClientManager {
   private gatewayStoppingIntentionally = false;
 
   constructor(engineManager: OpenClawEngineManager) {
+    super();
     this.engineManager = engineManager;
   }
 
@@ -152,8 +154,8 @@ export class OpenClawGatewayClientManager {
         this.gatewayClientEntryPath = null;
         this.gatewayReadyPromise = null;
       },
-      onEvent: (_event: unknown) => {
-        // We only need request/response RPC for Weixin login flows.
+      onEvent: (event: unknown) => {
+        this.emit('event', event);
       },
     });
 
@@ -184,7 +186,6 @@ export class OpenClawGatewayClientManager {
   }
 
   private async loadGatewayClientCtor(clientEntryPath: string): Promise<GatewayClientCtor> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const loaded = require(clientEntryPath) as Record<string, unknown>;
     const direct = loaded.GatewayClient;
     if (typeof direct === 'function') {

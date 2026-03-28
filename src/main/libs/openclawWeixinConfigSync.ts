@@ -69,6 +69,11 @@ export class OpenClawWeixinConfigSync {
       gateway: {
         mode: 'local',
       },
+      session: {
+        // Keep Weixin DMs isolated per account and peer so the sidebar can map
+        // one imported Cowork session to one actual Weixin conversation.
+        dmScope: 'per-account-channel-peer',
+      },
       agents: {
         defaults: {
           timeoutSeconds: OPENCLAW_AGENT_TIMEOUT_SECONDS,

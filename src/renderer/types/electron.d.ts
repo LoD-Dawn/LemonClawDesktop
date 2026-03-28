@@ -376,7 +376,7 @@ interface IElectronAPI {
   cowork: {
     startSession: (options: { prompt: string; cwd?: string; systemPrompt?: string; title?: string; providerKey?: string; modelId?: string; modelSource?: ClawManagedModelSource; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
     continueSession: (options: { sessionId: string; prompt: string; systemPrompt?: string; providerKey?: string; modelId?: string; modelSource?: ClawManagedModelSource; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
-    stopSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+    stopSession: (sessionId: string) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
     deleteSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
     deleteSessions: (sessionIds: string[]) => Promise<{ success: boolean; error?: string }>;
     setSessionPinned: (options: { sessionId: string; pinned: boolean }) => Promise<{ success: boolean; error?: string }>;
@@ -428,6 +428,7 @@ interface IElectronAPI {
     onStreamComplete: (callback: (data: { sessionId: string; claudeSessionId: string | null }) => void) => () => void;
     onStreamError: (callback: (data: { sessionId: string; error: string }) => void) => () => void;
     onStreamQuota: (callback: (data: { sessionId: string; reservation: ClawSessionReservation | null; overview?: Partial<ClawQuotaOverview> }) => void) => () => void;
+    onSessionsChanged: (callback: (data: { sessionIds: string[] }) => void) => () => void;
   };
   dialog: {
     selectDirectory: () => Promise<{ success: boolean; path: string | null }>;
