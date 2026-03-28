@@ -22,17 +22,6 @@
   ],
   "extraResources": [
     {
-      "from": "SKILLs",
-      "to": "SKILLs",
-      "filter": [
-        "**/*",
-        "!**/.env",
-        "!**/.env.*",
-        "!**/.venv",
-        "!**/.venv/**"
-      ]
-    },
-    {
       "from": "resources/tray",
       "to": "tray",
       "filter": [
@@ -61,7 +50,27 @@
           "CFBundleURLSchemes": ["diclaw"]
         }
       ]
-    }
+    },
+    "extraResources": [
+      {
+        "from": "SKILLs",
+        "to": "SKILLs",
+        "filter": [
+          "**/*",
+          "!**/.env",
+          "!**/.env.*",
+          "!**/.venv",
+          "!**/.venv/**"
+        ]
+      },
+      {
+        "from": "vendor/openclaw-runtime/current",
+        "to": "cfmind",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "dmg": {
     "sign": false
@@ -72,6 +81,7 @@
       "nsis"
     ],
     "icon": "build/icons/win/icon.ico",
+    "requestedExecutionLevel": "requireAdministrator",
     "protocols": [
       {
         "name": "LemonClaw Protocol",
@@ -87,11 +97,12 @@
         ]
       },
       {
-        "from": "resources/python-win",
-        "to": "python-win",
-        "filter": [
-          "**/*"
-        ]
+        "from": "build-tar/win-resources.tar",
+        "to": "win-resources.tar"
+      },
+      {
+        "from": "scripts/unpack-cfmind.cjs",
+        "to": "unpack-cfmind.cjs"
       }
     ]
   },
@@ -102,6 +113,26 @@
     ],
     "icon": "build/icons/png",
     "category": "Utility",
+    "extraResources": [
+      {
+        "from": "SKILLs",
+        "to": "SKILLs",
+        "filter": [
+          "**/*",
+          "!**/.env",
+          "!**/.env.*",
+          "!**/.venv",
+          "!**/.venv/**"
+        ]
+      },
+      {
+        "from": "vendor/openclaw-runtime/current",
+        "to": "cfmind",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "desktop": {
       "Name": "LemonClaw",
       "Comment": "AI-assisted coding and productivity tool",

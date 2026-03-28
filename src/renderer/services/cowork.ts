@@ -143,6 +143,15 @@ class CoworkService {
       }
     });
     this.streamListenerCleanups.push(quotaCleanup);
+
+    const sessionsChangedCleanup = cowork.onSessionsChanged(async ({ sessionIds }) => {
+      await this.loadSessions();
+      const currentSessionId = store.getState().cowork.currentSessionId;
+      if (currentSessionId && sessionIds.includes(currentSessionId)) {
+        await this.loadSession(currentSessionId);
+      }
+    });
+    this.streamListenerCleanups.push(sessionsChangedCleanup);
   }
 
   private cleanupListeners(): void {
@@ -248,10 +257,17 @@ class CoworkService {
       imageAttachments: options.imageAttachments,
     });
     if (!result.success) {
+      if (result.session) {
+        store.dispatch(setCurrentSession(result.session));
+      }
       store.dispatch(setStreaming(false));
       store.dispatch(updateSessionStatus({ sessionId: options.sessionId, status: 'error' }));
       console.error('Failed to continue session:', result.error);
       return { success: false, error: result.error };
+    }
+
+    if (result.session) {
+      store.dispatch(setCurrentSession(result.session));
     }
 
     return { success: true };
@@ -263,8 +279,12 @@ class CoworkService {
 
     const result = await cowork.stopSession(sessionId);
     if (result.success) {
+      if (result.session) {
+        store.dispatch(setCurrentSession(result.session));
+      } else {
+        store.dispatch(updateSessionStatus({ sessionId, status: 'idle' }));
+      }
       store.dispatch(setStreaming(false));
-      store.dispatch(updateSessionStatus({ sessionId, status: 'idle' }));
       return true;
     }
 

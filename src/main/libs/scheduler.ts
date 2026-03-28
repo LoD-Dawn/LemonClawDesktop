@@ -1,8 +1,11 @@
 import { BrowserWindow } from 'electron';
-import { ScheduledTaskStore, ScheduledTask, ScheduledTaskRun, Schedule, NotifyPlatform } from '../scheduledTaskStore';
-import type { CoworkStore } from '../coworkStore';
+import type { CoworkSession, CoworkStore } from '../coworkStore';
 import type { CoworkRunner } from './coworkRunner';
+import { BindingKind, DeliveryMode, IpcChannel, SessionTarget, TaskStatus } from '../../scheduled-task/constants';
+import type { ScheduledTask, ScheduledTaskRun } from '../../scheduled-task/types';
+import { ScheduledTaskStore } from '../scheduledTaskStore';
 import type { IMGatewayManager } from '../im/imGatewayManager';
+import { buildManagedSessionKey, parseManagedSessionKey } from './scheduledTaskSessionKey';
 
 interface SchedulerDeps {
   scheduledTaskStore: ScheduledTaskStore;
@@ -16,6 +19,23 @@ interface SchedulerDeps {
   getSkillsPrompt?: () => Promise<string | null>;
 }
 
+interface ResolvedExecutionSession {
+  sessionId: string;
+  sessionKey: string;
+  existingSession: CoworkSession | null;
+}
+
+const CHANNEL_PLATFORM_MAP = {
+  dingtalk: 'dingtalk',
+  feishu: 'feishu',
+  telegram: 'telegram',
+  discord: 'discord',
+  nim: 'nim',
+  xiaomifeng: 'xiaomifeng',
+  qq: 'qq',
+  wecom: 'wecom',
+} as const;
+
 export class Scheduler {
   private store: ScheduledTaskStore;
   private coworkStore: CoworkStore;
@@ -26,7 +46,6 @@ export class Scheduler {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running = false;
   private activeTasks: Map<string, AbortController> = new Map();
-  // Track cowork session IDs for running tasks so we can stop them
   private taskSessionIds: Map<string, string> = new Map();
 
   private static readonly MAX_TIMER_INTERVAL_MS = 60_000;
@@ -41,8 +60,6 @@ export class Scheduler {
     this.getSkillsPrompt = deps.getSkillsPrompt ?? null;
   }
 
-  // --- Lifecycle ---
-
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -56,7 +73,7 @@ export class Scheduler {
       clearTimeout(this.timer);
       this.timer = null;
     }
-    for (const [, controller] of this.activeTasks) {
+    for (const controller of this.activeTasks.values()) {
       controller.abort();
     }
     this.activeTasks.clear();
@@ -72,65 +89,37 @@ export class Scheduler {
     this.scheduleNext();
   }
 
-  // --- Core Scheduling ---
-
   private scheduleNext(): void {
     if (!this.running) return;
 
     const nextDueMs = this.store.getNextDueTimeMs();
     const now = Date.now();
-
-    let delayMs: number;
-    if (nextDueMs === null) {
-      delayMs = Scheduler.MAX_TIMER_INTERVAL_MS;
-    } else {
-      delayMs = Math.min(
-        Math.max(nextDueMs - now, 0),
-        Scheduler.MAX_TIMER_INTERVAL_MS
-      );
-    }
+    const delayMs = nextDueMs === null
+      ? Scheduler.MAX_TIMER_INTERVAL_MS
+      : Math.min(Math.max(nextDueMs - now, 0), Scheduler.MAX_TIMER_INTERVAL_MS);
 
     this.timer = setTimeout(() => {
       this.timer = null;
-      this.tick();
+      void this.tick();
     }, delayMs);
   }
 
   private async tick(): Promise<void> {
     if (!this.running) return;
 
-    const now = Date.now();
-    const dueTasks = this.store.getDueTasks(now);
-
-    const executions = dueTasks.map((task) => this.executeTask(task, 'scheduled'));
-    await Promise.allSettled(executions);
-
+    const dueTasks = this.store.getDueTasks(Date.now());
+    await Promise.allSettled(dueTasks.map((task) => this.executeTask(task, 'scheduled')));
     this.scheduleNext();
   }
 
-  // --- Task Execution ---
-
-  async executeTask(
-    task: ScheduledTask,
-    trigger: 'scheduled' | 'manual'
-  ): Promise<void> {
+  async executeTask(task: ScheduledTask, trigger: 'scheduled' | 'manual'): Promise<void> {
     if (this.activeTasks.has(task.id)) {
       console.log(`[Scheduler] Task ${task.id} already running, skipping`);
       return;
     }
 
-    // Check if task has expired (skip for manual triggers)
-    if (trigger === 'scheduled' && task.expiresAt) {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      if (task.expiresAt <= todayStr) {
-        console.log(`[Scheduler] Task ${task.id} expired (${task.expiresAt}), skipping`);
-        return;
-      }
-    }
-
     const startTime = Date.now();
-    const run = this.store.createRun(task.id, trigger);
-
+    const run = this.store.createRun(task.id, trigger, task.sessionKey);
     this.store.markTaskRunning(task.id, startTime);
     this.emitTaskStatusUpdate(task.id);
     this.emitRunUpdate(run);
@@ -138,14 +127,14 @@ export class Scheduler {
     const abortController = new AbortController();
     this.activeTasks.set(task.id, abortController);
 
-    let sessionId: string | null = null;
-    let success = false;
+    let executionSession: ResolvedExecutionSession | null = null;
+    let status: Exclude<(typeof TaskStatus)[keyof typeof TaskStatus], 'running'> = 'success';
     let error: string | null = null;
 
     try {
-      sessionId = await this.startCoworkSession(task);
-      success = true;
+      executionSession = await this.runTaskPayload(task);
     } catch (err: unknown) {
+      status = 'error';
       error = err instanceof Error ? err.message : String(err);
       console.error(`[Scheduler] Task ${task.id} failed:`, error);
     } finally {
@@ -153,29 +142,22 @@ export class Scheduler {
       this.activeTasks.delete(task.id);
       this.taskSessionIds.delete(task.id);
 
-      // Check if task still exists (may have been deleted while running)
       const taskStillExists = this.store.getTask(task.id) !== null;
-
       if (taskStillExists) {
-        // Update run record
         this.store.completeRun(
           run.id,
-          success ? 'success' : 'error',
-          sessionId,
+          status,
+          executionSession?.sessionId ?? null,
+          executionSession?.sessionKey ?? task.sessionKey ?? null,
           durationMs,
           error
         );
+        this.store.markTaskCompleted(task.id, status, durationMs, error);
 
-        // Update task state
-        this.store.markTaskCompleted(
-          task.id,
-          success,
-          durationMs,
-          error,
-          task.schedule
-        );
+        if (task.schedule.kind === 'at') {
+          this.store.toggleTask(task.id, false);
+        }
 
-        // Auto-disable on too many consecutive errors
         const updatedTask = this.store.getTask(task.id);
         if (updatedTask && updatedTask.state.consecutiveErrors >= Scheduler.MAX_CONSECUTIVE_ERRORS) {
           this.store.toggleTask(task.id, false);
@@ -184,45 +166,162 @@ export class Scheduler {
           );
         }
 
-        // Disable one-shot 'at' tasks after execution
-        if (task.schedule.type === 'at') {
-          this.store.toggleTask(task.id, false);
-        }
-
-        // Prune old run history
         this.store.pruneRuns(task.id, 100);
 
-        // Send IM notifications
-        if (task.notifyPlatforms && task.notifyPlatforms.length > 0) {
-          await this.sendNotifications(task, success, durationMs, error, sessionId);
-        }
+        await this.deliverTaskResult(
+          task,
+          status === 'success',
+          durationMs,
+          error,
+          executionSession?.sessionId ?? null,
+          executionSession?.sessionKey ?? task.sessionKey ?? null
+        );
 
-        // Emit final updates
         this.emitTaskStatusUpdate(task.id);
         const updatedRun = this.store.getRun(run.id);
         if (updatedRun) {
           this.emitRunUpdate(updatedRun);
         }
-      } else {
-        console.log(`[Scheduler] Task ${task.id} was deleted during execution, skipping post-run updates`);
       }
 
       this.reschedule();
     }
   }
 
-  private async startCoworkSession(task: ScheduledTask): Promise<string> {
+  private async runTaskPayload(task: ScheduledTask): Promise<ResolvedExecutionSession> {
     if (this.ensureActiveAuthSession) {
       const authCheck = await this.ensureActiveAuthSession();
       if ('error' in authCheck) {
-        const { error } = authCheck;
-        throw new Error(error);
+        throw new Error(authCheck.error);
       }
     }
 
+    const resolvedSession = await this.resolveExecutionSession(task);
+    const prompt = task.payload.kind === 'systemEvent' ? task.payload.text : task.payload.message;
+
+    if (!prompt.trim()) {
+      throw new Error('Scheduled task payload is empty');
+    }
+
+    const session = resolvedSession.existingSession ?? this.coworkStore.getSession(resolvedSession.sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${resolvedSession.sessionId}`);
+    }
+
+    this.taskSessionIds.set(task.id, resolvedSession.sessionId);
+    const runner = this.getCoworkRunner();
+
+    if (runner.isSessionActive(resolvedSession.sessionId)) {
+      await runner.continueSession(resolvedSession.sessionId, prompt, {
+        systemPrompt: session.systemPrompt,
+      });
+    } else {
+      this.coworkStore.updateSession(resolvedSession.sessionId, { status: 'running' });
+      await runner.startSession(resolvedSession.sessionId, prompt, {
+        workspaceRoot: session.cwd,
+        confirmationMode: 'text',
+        systemPrompt: session.systemPrompt,
+      });
+    }
+
+    return resolvedSession;
+  }
+
+  private async resolveExecutionSession(task: ScheduledTask): Promise<ResolvedExecutionSession> {
+    const binding = task.binding;
+
+    if ('sessionKey' in binding && typeof binding.sessionKey === 'string') {
+      const parsed = parseManagedSessionKey(binding.sessionKey);
+      if (!parsed) {
+        throw new Error(`Unsupported sessionKey: ${binding.sessionKey}`);
+      }
+      const session = this.coworkStore.getSession(parsed.sessionId);
+      if (!session) {
+        throw new Error(`Bound session not found: ${parsed.sessionId}`);
+      }
+      return {
+        sessionId: session.id,
+        sessionKey: buildManagedSessionKey(session.id),
+        existingSession: session,
+      };
+    }
+
+    if (binding.kind === BindingKind.UISession && 'sessionId' in binding && binding.sessionId) {
+      const session = this.coworkStore.getSession(binding.sessionId);
+      if (!session) {
+        throw new Error(`Bound UI session not found: ${binding.sessionId}`);
+      }
+      return {
+        sessionId: session.id,
+        sessionKey: buildManagedSessionKey(session.id),
+        existingSession: session,
+      };
+    }
+
+    if (binding.kind === BindingKind.IMSession) {
+      const manager = this.getIMGatewayManager?.() ?? null;
+      const sessionId = ('sessionId' in binding ? binding.sessionId : undefined)
+        ?? (('conversationId' in binding && 'platform' in binding)
+          ? manager?.getIMStore().getSessionMapping(binding.conversationId, binding.platform as any)?.coworkSessionId
+          : undefined)
+        ?? null;
+      if (!sessionId) {
+        const target = ('platform' in binding && 'conversationId' in binding)
+          ? `${binding.platform}:${binding.conversationId}`
+          : 'unknown';
+        throw new Error(`IM binding not found: ${target}`);
+      }
+      const session = this.coworkStore.getSession(sessionId);
+      if (!session) {
+        throw new Error(`Bound IM session not found: ${sessionId}`);
+      }
+      return {
+        sessionId: session.id,
+        sessionKey: buildManagedSessionKey(session.id),
+        existingSession: session,
+      };
+    }
+
+    if (task.sessionKey) {
+      const parsed = parseManagedSessionKey(task.sessionKey);
+      if (parsed) {
+        const session = this.coworkStore.getSession(parsed.sessionId);
+        if (session) {
+          return {
+            sessionId: session.id,
+            sessionKey: task.sessionKey,
+            existingSession: session,
+          };
+        }
+      }
+    }
+
+    if (task.sessionTarget === SessionTarget.Main) {
+      const originSessionId = 'sessionId' in task.origin && typeof task.origin.sessionId === 'string'
+        ? task.origin.sessionId
+        : null;
+      if (originSessionId) {
+        const session = this.coworkStore.getSession(originSessionId);
+        if (!session) {
+          throw new Error(`Origin session not found: ${originSessionId}`);
+        }
+        return {
+          sessionId: session.id,
+          sessionKey: buildManagedSessionKey(session.id),
+          existingSession: session,
+        };
+      }
+
+      throw new Error('Main session target requires an existing bound session');
+    }
+
     const config = this.coworkStore.getConfig();
-    const cwd = task.workingDirectory || config.workingDirectory;
-    const baseSystemPrompt = task.systemPrompt || config.systemPrompt;
+    const cwd = (config.workingDirectory || '').trim();
+    if (!cwd) {
+      throw new Error('Scheduled task working directory is not configured');
+    }
+
+    const baseSystemPrompt = config.systemPrompt || '';
     let skillsPrompt: string | null = null;
     if (this.getSkillsPrompt) {
       try {
@@ -232,100 +331,121 @@ export class Scheduler {
       }
     }
     const systemPrompt = [skillsPrompt, baseSystemPrompt]
-      .filter((prompt): prompt is string => Boolean(prompt?.trim()))
+      .filter((value): value is string => Boolean(value?.trim()))
       .join('\n\n');
-    const executionMode = task.executionMode || config.executionMode || 'auto';
-
-    // Create a cowork session
     const session = this.coworkStore.createSession(
       `[定时] ${task.name}`,
       cwd,
       systemPrompt,
-      executionMode,
+      config.executionMode || 'auto',
       []
     );
 
-    // Update session to running
-    this.coworkStore.updateSession(session.id, { status: 'running' });
-
-    // Add initial user message
-    this.coworkStore.addMessage(session.id, {
-      type: 'user',
-      content: task.prompt,
-    });
-
-    // Start the session with normal permission flow (no auto-approve).
-    this.taskSessionIds.set(task.id, session.id);
-    const runner = this.getCoworkRunner();
-    await runner.startSession(session.id, task.prompt, {
-      skipInitialUserMessage: true,
-      confirmationMode: 'text',
-    });
-
-    return session.id;
+    return {
+      sessionId: session.id,
+      sessionKey: buildManagedSessionKey(session.id),
+      existingSession: session,
+    };
   }
 
-  // --- IM Notifications ---
-
-  private async sendNotifications(
+  private async deliverTaskResult(
     task: ScheduledTask,
     success: boolean,
     durationMs: number,
     error: string | null,
     sessionId: string | null,
+    sessionKey: string | null,
   ): Promise<void> {
-    const imManager = this.getIMGatewayManager?.();
-    if (!imManager) return;
+    if (task.delivery.mode === DeliveryMode.None && !task.delivery.channel) {
+      return;
+    }
 
-    const status = success ? '✅ 成功' : '❌ 失败';
     const durationStr = durationMs < 1000
       ? `${durationMs}ms`
       : `${(durationMs / 1000).toFixed(1)}s`;
+    const header = [
+      '定时任务通知',
+      `任务: ${task.name}`,
+      `状态: ${success ? '成功' : '失败'}`,
+      `耗时: ${durationStr}`,
+      ...(error ? [`错误: ${error}`] : []),
+    ].join('\n');
 
-    let header = `📋 定时任务通知\n\n任务: ${task.name}\n状态: ${status}\n耗时: ${durationStr}`;
-    if (error) {
-      header += `\n错误: ${error}`;
-    }
-
-    // Extract full AI reply from completed cowork session (includes media markers)
-    let fullReplyText = '';
+    let resultText = '';
     if (sessionId && success) {
-      try {
-        const session = this.coworkStore.getSession(sessionId);
-        if (session) {
-          const assistantMessages = session.messages.filter(
-            (msg) => msg.type === 'assistant' && msg.content && !msg.metadata?.isThinking
-          );
-          fullReplyText = assistantMessages.map(m => m.content).join('\n\n');
-        }
-      } catch (err: unknown) {
-        console.warn(`[Scheduler] Failed to extract session result for notification:`, err);
+      const session = this.coworkStore.getSession(sessionId);
+      if (session) {
+        resultText = session.messages
+          .filter((message) => message.type === 'assistant' && message.content && !message.metadata?.isThinking)
+          .map((message) => message.content)
+          .join('\n\n');
       }
     }
 
-    // Build the complete notification message with header + result
-    let message = header;
-    if (fullReplyText) {
-      const MAX_RESULT_LENGTH = 1500;
-      const resultSnippet = fullReplyText.length > MAX_RESULT_LENGTH
-        ? fullReplyText.slice(0, MAX_RESULT_LENGTH) + '…'
-        : fullReplyText;
-      message += `\n\n📝 执行结果:\n${resultSnippet}`;
+    const message = resultText
+      ? `${header}\n\n执行结果:\n${resultText.length > 1500 ? `${resultText.slice(0, 1500)}…` : resultText}`
+      : header;
+
+    if (task.delivery.mode === DeliveryMode.Webhook && task.delivery.to) {
+      await this.deliverWebhook(task, message, success, durationMs, error, sessionId, sessionKey);
+      return;
     }
 
-    for (const platform of task.notifyPlatforms) {
-      try {
-        // Use sendNotificationWithMedia to support media files in AI reply
+    if (!task.delivery.channel) {
+      return;
+    }
+
+    const platform = CHANNEL_PLATFORM_MAP[task.delivery.channel as keyof typeof CHANNEL_PLATFORM_MAP];
+    if (!platform) {
+      return;
+    }
+
+    const imManager = this.getIMGatewayManager?.();
+    if (!imManager) return;
+
+    try {
+      if (task.delivery.to) {
+        await imManager.sendConversationNotificationWithMedia(platform, task.delivery.to, message);
+      } else {
         await imManager.sendNotificationWithMedia(platform, message);
-        console.log(`[Scheduler] Notification sent via ${platform} for task ${task.id}`);
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.warn(`[Scheduler] Failed to send notification via ${platform}: ${errMsg}`);
       }
+    } catch (deliveryError) {
+      console.warn('[Scheduler] Failed to deliver task result:', deliveryError);
     }
   }
 
-  // --- Manual Execution ---
+  private async deliverWebhook(
+    task: ScheduledTask,
+    text: string,
+    success: boolean,
+    durationMs: number,
+    error: string | null,
+    sessionId: string | null,
+    sessionKey: string | null,
+  ): Promise<void> {
+    if (!task.delivery.to) return;
+
+    const response = await fetch(task.delivery.to, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        taskId: task.id,
+        taskName: task.name,
+        success,
+        durationMs,
+        error,
+        sessionId,
+        sessionKey,
+        text,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook delivery failed: ${response.status}`);
+    }
+  }
 
   async runManually(taskId: string): Promise<void> {
     const task = this.store.getTask(taskId);
@@ -335,23 +455,20 @@ export class Scheduler {
 
   stopTask(taskId: string): boolean {
     const controller = this.activeTasks.get(taskId);
-    if (controller) {
-      // Also stop the cowork session if one is running
-      const sessionId = this.taskSessionIds.get(taskId);
-      if (sessionId) {
-        try {
-          this.getCoworkRunner().stopSession(sessionId);
-        } catch (err) {
-          console.warn(`[Scheduler] Failed to stop cowork session for task ${taskId}:`, err);
-        }
-      }
-      controller.abort();
-      return true;
-    }
-    return false;
-  }
+    if (!controller) return false;
 
-  // --- Event Emission ---
+    const sessionId = this.taskSessionIds.get(taskId);
+    if (sessionId) {
+      try {
+        this.getCoworkRunner().stopSession(sessionId);
+      } catch (error) {
+        console.warn(`[Scheduler] Failed to stop cowork session for task ${taskId}:`, error);
+      }
+    }
+
+    controller.abort();
+    return true;
+  }
 
   private emitTaskStatusUpdate(taskId: string): void {
     const task = this.store.getTask(taskId);
@@ -359,7 +476,7 @@ export class Scheduler {
 
     BrowserWindow.getAllWindows().forEach((win) => {
       if (!win.isDestroyed()) {
-        win.webContents.send('scheduledTask:statusUpdate', {
+        win.webContents.send(IpcChannel.StatusUpdate, {
           taskId: task.id,
           state: task.state,
         });
@@ -370,7 +487,7 @@ export class Scheduler {
   private emitRunUpdate(run: ScheduledTaskRun): void {
     BrowserWindow.getAllWindows().forEach((win) => {
       if (!win.isDestroyed()) {
-        win.webContents.send('scheduledTask:runUpdate', { run });
+        win.webContents.send(IpcChannel.RunUpdate, { run });
       }
     });
   }

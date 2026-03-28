@@ -1,0 +1,11 @@
+{
+  "name": "mcp-bridge",
+  "version": "0.0.0",
+  "description": "Expose LemonClaw-managed MCP servers as native OpenClaw tools.",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

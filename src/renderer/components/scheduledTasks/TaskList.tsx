@@ -1,57 +1,12 @@
 import React from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { ClockIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import { RootState } from '../../store';
 import { selectTask, setViewMode } from '../../store/slices/scheduledTaskSlice';
 import { scheduledTaskService } from '../../services/scheduledTask';
 import { i18nService } from '../../services/i18n';
-import type { ScheduledTask, Schedule } from '../../types/scheduledTask';
-import { EllipsisVerticalIcon, ClockIcon, PlusIcon } from '@heroicons/react/24/outline';
-import SpinnerIcon from '../icons/SpinnerIcon';
-
-
-const weekdayKeys: Record<number, string> = {
-  0: 'scheduledTasksFormWeekSun',
-  1: 'scheduledTasksFormWeekMon',
-  2: 'scheduledTasksFormWeekTue',
-  3: 'scheduledTasksFormWeekWed',
-  4: 'scheduledTasksFormWeekThu',
-  5: 'scheduledTasksFormWeekFri',
-  6: 'scheduledTasksFormWeekSat',
-};
-
-function formatScheduleLabel(schedule: Schedule): string {
-  if (schedule.type === 'at') {
-    const dt = schedule.datetime ?? '';
-    if (dt.includes('T')) {
-      const date = new Date(dt);
-      return `${i18nService.t('scheduledTasksFormScheduleModeOnce')} · ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    return i18nService.t('scheduledTasksFormScheduleModeOnce');
-  }
-
-  if (schedule.type === 'cron' && schedule.expression) {
-    const parts = schedule.expression.trim().split(/\s+/);
-    if (parts.length >= 5) {
-      const [min, hour, dom, , dow] = parts;
-      const timeStr = `${hour.padStart(2, '0')}:${min.padStart(2, '0')}`;
-
-      if (dow !== '*' && dom === '*') {
-        const dayNum = parseInt(dow) || 0;
-        return `${i18nService.t('scheduledTasksFormScheduleModeWeekly')} · ${i18nService.t(weekdayKeys[dayNum] ?? 'scheduledTasksFormWeekSun')} ${timeStr}`;
-      }
-      if (dom !== '*' && dow === '*') {
-        return `${i18nService.t('scheduledTasksFormScheduleModeMonthly')} · ${dom}${i18nService.t('scheduledTasksFormMonthDaySuffix')} ${timeStr}`;
-      }
-      return `${i18nService.t('scheduledTasksFormScheduleModeDaily')} · ${timeStr}`;
-    }
-  }
-
-  if (schedule.type === 'interval') {
-    return i18nService.t('scheduledTasksFormScheduleModeDaily');
-  }
-
-  return '';
-}
+import type { ScheduledTask } from '../../types/scheduledTask';
+import { formatScheduleLabel, getStatusLabelKey, getStatusTone } from './utils';
 
 interface TaskListItemProps {
   task: ScheduledTask;
@@ -62,13 +17,10 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
   const dispatch = useDispatch();
   const [showMenu, setShowMenu] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
-  const statusLabel = task.enabled
-    ? i18nService.t('scheduledTasksEnabled')
-    : i18nService.t('scheduledTasksDisabled');
 
   React.useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
       }
     };
@@ -78,78 +30,39 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
-  const handleToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const warning = await scheduledTaskService.toggleTask(task.id, !task.enabled);
-    if (warning) {
-      const msg = warning === 'TASK_AT_PAST'
-        ? i18nService.t('scheduledTasksToggleWarningAtPast')
-        : warning === 'TASK_EXPIRED'
-          ? i18nService.t('scheduledTasksToggleWarningExpired')
-          : warning;
-      window.dispatchEvent(new CustomEvent('app:showToast', { detail: msg }));
-    }
-  };
-
-  const handleRunNow = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(false);
-    await scheduledTaskService.runManually(task.id);
-  };
-
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(false);
-    dispatch(selectTask(task.id));
-    dispatch(setViewMode('edit'));
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(false);
-    onRequestDelete(task.id, task.name);
-  };
+  const statusLabel = i18nService.t(getStatusLabelKey(task.state.lastStatus));
+  const statusTone = getStatusTone(task.state.lastStatus);
 
   return (
     <div
-      className={`group grid grid-cols-[1fr_1fr_110px_40px] items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all ${
-        task.state.runningAtMs
-          ? 'dark:border-blue-500/30 border-blue-300/60 dark:bg-blue-500/10 bg-blue-50/70'
-          : 'dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/80 hover:dark:bg-dark-surface-hover/55 hover:bg-surface-hover/70'
-      }`}
+      className="grid grid-cols-[1.2fr_1fr_110px_40px] items-center gap-3 px-4 py-3 border-b dark:border-dark-border/50 border-border/50 hover:bg-surface-hover/50 dark:hover:bg-dark-surface-hover/50 cursor-pointer transition-colors"
       onClick={() => dispatch(selectTask(task.id))}
     >
-      {/* Title */}
-      <div className={`text-sm truncate ${task.enabled ? 'dark:text-dark-text text-text-primary' : 'dark:text-dark-text-secondary text-text-secondary'}`}>
-        {task.name}
+      <div className="min-w-0">
+        <div className={`text-sm truncate ${task.enabled ? 'dark:text-dark-text text-text-primary' : 'dark:text-dark-text-secondary text-text-secondary'}`}>
+          {task.name}
+        </div>
+        {task.description && (
+          <div className="text-xs truncate dark:text-dark-text-secondary text-text-secondary">
+            {task.description}
+          </div>
+        )}
       </div>
 
-      {/* Schedule */}
       <div className="text-sm dark:text-dark-text-secondary text-text-secondary truncate">
         {formatScheduleLabel(task.schedule)}
       </div>
 
-      {/* Status: toggle + running indicator */}
       <div className="flex items-center justify-between gap-2">
-        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${task.enabled ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300' : 'border-border bg-surface text-text-secondary dark:border-dark-border dark:bg-dark-surface-hover dark:text-dark-text-secondary'}`}>
-          {statusLabel}
-        </span>
-
-        {/* Running indicator */}
-        {task.state.runningAtMs && (
-          <span className="inline-flex items-center text-xs text-blue-500">
-            <SpinnerIcon className="w-3 h-3 animate-spin" />
-          </span>
-        )}
-
-        {/* Toggle switch */}
+        <span className={`text-xs font-medium ${statusTone}`}>{statusLabel}</span>
         <button
           type="button"
-          onClick={handleToggle}
+          onClick={(event) => {
+            event.stopPropagation();
+            void scheduledTaskService.toggleTask(task.id, !task.enabled);
+          }}
           className={`relative shrink-0 w-7 h-4 rounded-full transition-colors ${
-            task.enabled
-              ? 'bg-primary'
-              : 'dark:bg-dark-surface-hover bg-border'
+            task.enabled ? 'bg-primary' : 'dark:bg-dark-surface-hover bg-border'
           }`}
         >
           <span
@@ -160,12 +73,14 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
         </button>
       </div>
 
-      {/* More menu */}
       <div className="flex justify-center">
         <div className="relative" ref={menuRef}>
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowMenu((value) => !value);
+            }}
             className="p-1.5 rounded-md dark:text-dark-text-secondary text-text-secondary hover:bg-surface-hover dark:hover:bg-dark-surface-hover transition-colors"
           >
             <EllipsisVerticalIcon className="w-5 h-5" />
@@ -174,22 +89,35 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
             <div className="absolute right-0 top-full mt-1 w-32 rounded-lg shadow-lg dark:bg-dark-surface bg-white border dark:border-dark-border border-border z-50 py-1">
               <button
                 type="button"
-                onClick={handleRunNow}
-                disabled={!!task.state.runningAtMs}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowMenu(false);
+                  void scheduledTaskService.runManually(task.id);
+                }}
+                disabled={Boolean(task.state.runningAtMs)}
                 className="w-full text-left px-3 py-1.5 text-sm dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover disabled:opacity-50"
               >
                 {i18nService.t('scheduledTasksRun')}
               </button>
               <button
                 type="button"
-                onClick={handleEdit}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowMenu(false);
+                  dispatch(selectTask(task.id));
+                  dispatch(setViewMode('edit'));
+                }}
                 className="w-full text-left px-3 py-1.5 text-sm dark:text-dark-text text-text-primary hover:bg-surface-hover dark:hover:bg-dark-surface-hover"
               >
                 {i18nService.t('scheduledTasksEdit')}
               </button>
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowMenu(false);
+                  onRequestDelete(task.id, task.name);
+                }}
                 className="w-full text-left px-3 py-1.5 text-sm text-red-500 hover:bg-surface-hover dark:hover:bg-dark-surface-hover"
               >
                 {i18nService.t('scheduledTasksDelete')}
@@ -204,10 +132,9 @@ const TaskListItem: React.FC<TaskListItemProps> = ({ task, onRequestDelete }) =>
 
 interface TaskListProps {
   onRequestDelete: (taskId: string, taskName: string) => void;
-  onCreateTask?: () => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ onRequestDelete, onCreateTask }) => {
+const TaskList: React.FC<TaskListProps> = ({ onRequestDelete }) => {
   const tasks = useSelector((state: RootState) => state.scheduledTask.tasks);
   const loading = useSelector((state: RootState) => state.scheduledTask.loading);
 
@@ -224,41 +151,30 @@ const TaskList: React.FC<TaskListProps> = ({ onRequestDelete, onCreateTask }) =>
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6">
-        <div className="mb-4 rounded-2xl p-4 dark:bg-dark-surface/50 bg-surface-hover/70">
-          <ClockIcon className="h-10 w-10 dark:text-dark-text-secondary/50 text-text-secondary/50" />
-        </div>
-        <p className="text-base font-semibold dark:text-dark-text text-text-primary mb-1.5">
+        <ClockIcon className="h-12 w-12 dark:text-dark-text-secondary/40 text-text-secondary/40 mb-4" />
+        <p className="text-sm font-medium dark:text-dark-text-secondary text-text-secondary mb-1">
           {i18nService.t('scheduledTasksEmptyState')}
         </p>
-        <p className="text-sm dark:text-dark-text-secondary/80 text-text-secondary/80 text-center mb-5 max-w-md">
+        <p className="text-xs dark:text-dark-text-secondary/70 text-text-secondary/70 text-center">
           {i18nService.t('scheduledTasksEmptyHint')}
         </p>
-        <button
-          type="button"
-          onClick={onCreateTask}
-          className="app-primary-btn h-10 gap-1.5 px-4 text-sm"
-        >
-          <PlusIcon className="h-4 w-4" />
-          {i18nService.t('scheduledTasksNewTask')}
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {/* Column Headers */}
-      <div className="grid grid-cols-[1fr_1fr_110px_40px] items-center gap-3 px-3 py-1">
-        <div className="text-xs font-semibold tracking-wide dark:text-dark-text-secondary text-text-secondary">
+    <div>
+      <div className="grid grid-cols-[1.2fr_1fr_110px_40px] items-center gap-3 px-4 py-2 border-b dark:border-dark-border/50 border-border/50">
+        <div className="text-xs font-medium dark:text-dark-text-secondary text-text-secondary">
           {i18nService.t('scheduledTasksListColTitle')}
         </div>
-        <div className="text-xs font-semibold tracking-wide dark:text-dark-text-secondary text-text-secondary">
+        <div className="text-xs font-medium dark:text-dark-text-secondary text-text-secondary">
           {i18nService.t('scheduledTasksListColSchedule')}
         </div>
-        <div className="text-xs font-semibold tracking-wide dark:text-dark-text-secondary text-text-secondary">
+        <div className="text-xs font-medium dark:text-dark-text-secondary text-text-secondary">
           {i18nService.t('scheduledTasksListColStatus')}
         </div>
-        <div className="text-xs font-semibold tracking-wide dark:text-dark-text-secondary text-text-secondary text-center">
+        <div className="text-xs font-medium dark:text-dark-text-secondary text-text-secondary text-center">
           {i18nService.t('scheduledTasksListColMore')}
         </div>
       </div>

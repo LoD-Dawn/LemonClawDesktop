@@ -3,17 +3,8 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { scheduledTaskService } from '../../services/scheduledTask';
 import { i18nService } from '../../services/i18n';
-import type { ScheduledTaskRunWithName } from '../../types/scheduledTask';
 import { ClockIcon } from '@heroicons/react/24/outline';
-import SpinnerIcon from '../icons/SpinnerIcon';
-
-
-function formatDuration(ms: number | null): string {
-  if (!ms) return '-';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.round(ms / 60000)}m`;
-}
+import { formatDateTime, formatDuration } from './utils';
 
 const statusConfig: Record<string, { label: string; textClass: string; badgeClass: string }> = {
   success: {
@@ -26,6 +17,11 @@ const statusConfig: Record<string, { label: string; textClass: string; badgeClas
     textClass: 'text-red-600 dark:text-red-400',
     badgeClass: 'bg-red-100/80 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   },
+  skipped: {
+    label: 'scheduledTasksStatusSkipped',
+    textClass: 'text-yellow-600 dark:text-yellow-400',
+    badgeClass: 'bg-yellow-100/80 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  },
   running: {
     label: 'scheduledTasksStatusRunning',
     textClass: 'text-blue-600 dark:text-blue-400',
@@ -37,19 +33,11 @@ const AllRunsHistory: React.FC = () => {
   const allRuns = useSelector((state: RootState) => state.scheduledTask.allRuns);
 
   useEffect(() => {
-    scheduledTaskService.loadAllRuns(50);
+    void scheduledTaskService.loadAllRuns(50);
   }, []);
 
   const handleLoadMore = () => {
-    scheduledTaskService.loadAllRuns(50, allRuns.length);
-  };
-
-  const handleViewSession = (run: ScheduledTaskRunWithName) => {
-    if (run.sessionId) {
-      window.dispatchEvent(new CustomEvent('scheduledTask:viewSession', {
-        detail: { sessionId: run.sessionId },
-      }));
-    }
+    void scheduledTaskService.loadAllRuns(50, allRuns.length);
   };
 
   if (allRuns.length === 0) {
@@ -67,7 +55,6 @@ const AllRunsHistory: React.FC = () => {
 
   return (
     <div className="space-y-2">
-      {/* Column Headers */}
       <div className="grid grid-cols-[1.1fr_1fr_120px] items-center gap-3 px-3 py-1">
         <div className="text-xs font-semibold tracking-wide dark:text-dark-text-secondary text-text-secondary">
           {i18nService.t('scheduledTasksHistoryColTitle')}
@@ -80,14 +67,9 @@ const AllRunsHistory: React.FC = () => {
         </div>
       </div>
 
-      {/* Run rows */}
       {allRuns.map((run) => {
         const cfg = statusConfig[run.status] || statusConfig.success;
-        const triggerLabel = run.trigger === 'manual'
-          ? i18nService.t('scheduledTasksManual')
-          : i18nService.t('scheduledTasksScheduled');
         const clickable = Boolean(run.sessionId);
-
         return (
           <div
             key={run.id}
@@ -96,37 +78,34 @@ const AllRunsHistory: React.FC = () => {
                 ? 'cursor-pointer dark:border-dark-border/70 border-border/70 dark:bg-dark-surface/35 bg-white/80 hover:dark:bg-dark-surface-hover/55 hover:bg-surface-hover/70'
                 : 'dark:border-dark-border/65 border-border/65 dark:bg-dark-surface/30 bg-white/70'
             }`}
-            onClick={() => handleViewSession(run)}
+            onClick={() => {
+              if (run.sessionId) {
+                window.dispatchEvent(new CustomEvent('scheduledTask:viewSession', {
+                  detail: { sessionId: run.sessionId },
+                }));
+              }
+            }}
           >
-            {/* Task title */}
             <div className="min-w-0">
               <div className="text-sm font-medium dark:text-dark-text text-text-primary truncate">
                 {run.taskName}
-                {run.status === 'running' && (
-                  <SpinnerIcon className="inline-block w-3 h-3 ml-1.5 animate-spin text-blue-500" />
-                )}
               </div>
-              <div className="mt-1 flex items-center gap-2 text-xs dark:text-dark-text-secondary text-text-secondary">
-                <span className="inline-flex items-center rounded-md px-1.5 py-0.5 dark:bg-dark-surface-hover/80 bg-surface-hover/90">
-                  {triggerLabel}
-                </span>
-                {clickable && (
-                  <span className="text-primary">{i18nService.t('scheduledTasksViewSession')}</span>
-                )}
-              </div>
+              {clickable && (
+                <div className="mt-1 text-xs text-primary">
+                  {i18nService.t('scheduledTasksViewSession')}
+                </div>
+              )}
             </div>
 
-            {/* Run time + duration */}
             <div className="min-w-0">
               <div className="text-sm dark:text-dark-text-secondary text-text-secondary truncate">
-                {new Date(run.startedAt).toLocaleString()}
+                {formatDateTime(new Date(run.startedAt))}
               </div>
               <div className="mt-1 text-xs dark:text-dark-text-secondary/80 text-text-secondary/80">
                 {run.durationMs !== null ? formatDuration(run.durationMs) : '-'}
               </div>
             </div>
 
-            {/* Status */}
             <div className="flex justify-start">
               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${cfg.badgeClass} ${cfg.textClass}`}>
                 {i18nService.t(cfg.label)}
@@ -142,7 +121,6 @@ const AllRunsHistory: React.FC = () => {
         );
       })}
 
-      {/* Load more */}
       {allRuns.length >= 50 && allRuns.length % 50 === 0 && (
         <button
           type="button"

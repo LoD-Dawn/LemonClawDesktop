@@ -204,9 +204,25 @@ export interface WecomGatewayStatus {
   lastOutboundAt: number | null;
 }
 
+// ==================== Weixin (微信) Types ====================
+
+export interface WeixinConfig {
+  enabled: boolean;
+  accountId: string;
+  debug?: boolean;
+}
+
+export interface WeixinGatewayStatus {
+  connected: boolean;
+  startedAt: number | null;
+  lastError: string | null;
+  lastInboundAt: number | null;
+  lastOutboundAt: number | null;
+}
+
 // ==================== Common IM Types ====================
 
-export type IMPlatform = 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom';
+export type IMPlatform = 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom' | 'weixin';
 
 export interface IMGatewayConfig {
   dingtalk: DingTalkConfig;
@@ -217,6 +233,7 @@ export interface IMGatewayConfig {
   nim: NimConfig;
   xiaomifeng: XiaomifengConfig;
   wecom: WecomConfig;
+  weixin: WeixinConfig;
   settings: IMSettings;
 }
 
@@ -234,6 +251,7 @@ export interface IMGatewayStatus {
   nim: NimGatewayStatus;
   xiaomifeng: XiaomifengGatewayStatus;
   wecom: WecomGatewayStatus;
+  weixin: WeixinGatewayStatus;
 }
 
 // ==================== Media Attachment Types ====================
@@ -413,6 +431,12 @@ export const DEFAULT_WECOM_CONFIG: WecomConfig = {
   debug: true,
 };
 
+export const DEFAULT_WEIXIN_CONFIG: WeixinConfig = {
+  enabled: false,
+  accountId: '',
+  debug: true,
+};
+
 export const DEFAULT_IM_SETTINGS: IMSettings = {
   systemPrompt: '',
   skillsEnabled: true,
@@ -427,6 +451,7 @@ export const DEFAULT_IM_CONFIG: IMGatewayConfig = {
   nim: DEFAULT_NIM_CONFIG,
   xiaomifeng: DEFAULT_XIAOMIFENG_CONFIG,
   wecom: DEFAULT_WECOM_CONFIG,
+  weixin: DEFAULT_WEIXIN_CONFIG,
   settings: DEFAULT_IM_SETTINGS,
 };
 
@@ -501,6 +526,14 @@ export const DEFAULT_WECOM_STATUS: WecomGatewayStatus = {
   lastOutboundAt: null,
 };
 
+export const DEFAULT_WEIXIN_STATUS: WeixinGatewayStatus = {
+  connected: false,
+  startedAt: null,
+  lastError: null,
+  lastInboundAt: null,
+  lastOutboundAt: null,
+};
+
 export const DEFAULT_IM_STATUS: IMGatewayStatus = {
   dingtalk: DEFAULT_DINGTALK_STATUS,
   feishu: DEFAULT_FEISHU_STATUS,
@@ -510,6 +543,7 @@ export const DEFAULT_IM_STATUS: IMGatewayStatus = {
   nim: DEFAULT_NIM_STATUS,
   xiaomifeng: DEFAULT_XIAOMIFENG_STATUS,
   wecom: DEFAULT_WECOM_STATUS,
+  weixin: DEFAULT_WEIXIN_STATUS,
 };
 
 // ==================== DingTalk Media Types ====================

@@ -4,6 +4,7 @@ import SearchIcon from '../icons/SearchIcon';
 import { i18nService } from '../../services/i18n';
 import type { CoworkSessionSummary } from '../../types/cowork';
 import type { ScheduledTask } from '../../types/scheduledTask';
+import { formatDeliveryLabel, formatScheduleLabel, getTaskPromptText } from '../scheduledTasks/utils';
 
 type SearchScope = 'all' | 'sessions' | 'tasks';
 
@@ -120,7 +121,8 @@ const CoworkSearchModal: React.FC<CoworkSearchModalProps> = ({
     );
     const matchedTasks = normalizedQuery
       ? sortedTasks.filter((task) => {
-          const taskText = `${task.name} ${task.prompt} ${task.workingDirectory}`.toLowerCase();
+          const taskPrompt = getTaskPromptText(task);
+          const taskText = `${task.name} ${taskPrompt} ${task.sessionKey ?? ''}`.toLowerCase();
           return taskText.includes(normalizedQuery);
         })
       : sortedTasks.slice(0, RECENT_RESULT_LIMIT);
@@ -129,8 +131,8 @@ const CoworkSearchModal: React.FC<CoworkSearchModalProps> = ({
       id: task.id,
       kind: 'task',
       title: task.name,
-      subtitle: normalizedQuery && task.prompt.toLowerCase().includes(normalizedQuery)
-        ? task.prompt
+      subtitle: normalizedQuery && getTaskPromptText(task).toLowerCase().includes(normalizedQuery)
+        ? getTaskPromptText(task)
         : formatTaskSubtitle(task),
     }));
   }, [scheduledTasks, normalizedQuery]);
@@ -409,7 +411,7 @@ const CoworkSearchModal: React.FC<CoworkSearchModalProps> = ({
                 </div>
                 <div className="rounded-xl border dark:border-dark-border border-border p-4">
                   <div className="text-xs dark:text-dark-text-secondary text-text-secondary mb-2">{i18nService.t('scheduledTasksPrompt')}</div>
-                  <div className="text-sm leading-relaxed dark:text-dark-text text-text-primary whitespace-pre-wrap break-words">{activeTask.prompt}</div>
+                  <div className="text-sm leading-relaxed dark:text-dark-text text-text-primary whitespace-pre-wrap break-words">{getTaskPromptText(activeTask)}</div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl border dark:border-dark-border border-border p-4">
@@ -426,8 +428,12 @@ const CoworkSearchModal: React.FC<CoworkSearchModalProps> = ({
                   </div>
                 </div>
                 <div className="rounded-xl border dark:border-dark-border border-border p-4">
-                  <div className="text-xs dark:text-dark-text-secondary text-text-secondary mb-2">{i18nService.t('scheduledTasksWorkingDirectory')}</div>
-                  <div className="text-sm font-mono dark:text-dark-text text-text-primary break-all">{activeTask.workingDirectory || '-'}</div>
+                  <div className="text-xs dark:text-dark-text-secondary text-text-secondary mb-2">{i18nService.t('scheduledTasksListColSchedule')}</div>
+                  <div className="text-sm dark:text-dark-text text-text-primary break-words">{formatScheduleLabel(activeTask.schedule)}</div>
+                </div>
+                <div className="rounded-xl border dark:border-dark-border border-border p-4">
+                  <div className="text-xs dark:text-dark-text-secondary text-text-secondary mb-2">{i18nService.t('scheduledTasksFormDelivery')}</div>
+                  <div className="text-sm dark:text-dark-text text-text-primary break-words">{formatDeliveryLabel(activeTask.delivery)}</div>
                 </div>
               </div>
             ) : (

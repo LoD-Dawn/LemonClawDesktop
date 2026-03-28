@@ -8,7 +8,8 @@ import {
   openAIToAnthropic,
   type OpenAIStreamChunk,
 } from './coworkFormatTransform';
-import type { ScheduledTaskStore, ScheduledTaskInput } from '../scheduledTaskStore';
+import type { ScheduledTaskStore } from '../scheduledTaskStore';
+import type { ScheduledTaskInput } from '../../scheduled-task/types';
 import type { Scheduler } from './scheduler';
 
 export type OpenAICompatUpstreamConfig = {
@@ -2201,61 +2202,73 @@ async function handleCreateScheduledTask(
     return;
   }
 
+  const normalizeSchedule = (raw: any): ScheduledTaskInput['schedule'] | null => {
+    if (raw?.kind === 'at' && raw.at) return { kind: 'at', at: raw.at };
+    if (raw?.kind === 'every' && Number.isFinite(raw.everyMs)) {
+      return {
+        kind: 'every',
+        everyMs: Number(raw.everyMs),
+        ...(Number.isFinite(raw.anchorMs) ? { anchorMs: Number(raw.anchorMs) } : {}),
+      };
+    }
+    if (raw?.kind === 'cron' && raw.expr) {
+      return {
+        kind: 'cron',
+        expr: raw.expr,
+        ...(typeof raw.tz === 'string' ? { tz: raw.tz } : {}),
+      };
+    }
+    if (raw?.type === 'at' && raw.datetime) return { kind: 'at', at: raw.datetime };
+    if (raw?.type === 'interval') {
+      const everyMs = Number(raw.intervalMs) || Number(raw.value) * (
+        raw.unit === 'days' ? 86_400_000 : raw.unit === 'hours' ? 3_600_000 : 60_000
+      );
+      if (everyMs > 0) return { kind: 'every', everyMs };
+    }
+    if (raw?.type === 'cron' && raw.expression) return { kind: 'cron', expr: raw.expression };
+    return null;
+  };
+
   // Validate required fields
   if (!input.name?.trim()) {
     writeJSON(res, 400, { success: false, error: 'Missing required field: name' } as any);
     return;
   }
-  if (!input.prompt?.trim()) {
-    writeJSON(res, 400, { success: false, error: 'Missing required field: prompt' } as any);
+  const normalizedSchedule = normalizeSchedule(input.schedule);
+  const payloadText = typeof input.payload?.message === 'string'
+    ? input.payload.message
+    : (typeof input.payload?.text === 'string' ? input.payload.text : input.prompt);
+  if (!payloadText?.trim()) {
+    writeJSON(res, 400, { success: false, error: 'Missing required payload text' } as any);
     return;
   }
-  if (!input.schedule?.type) {
-    writeJSON(res, 400, { success: false, error: 'Missing required field: schedule.type' } as any);
-    return;
-  }
-  if (!['at', 'interval', 'cron'].includes(input.schedule.type)) {
-    writeJSON(res, 400, { success: false, error: 'Invalid schedule type. Must be: at, interval, cron' } as any);
-    return;
-  }
-  if (input.schedule.type === 'cron' && !input.schedule.expression) {
-    writeJSON(res, 400, { success: false, error: 'Cron schedule requires expression field' } as any);
-    return;
-  }
-  if (input.schedule.type === 'at' && !input.schedule.datetime) {
-    writeJSON(res, 400, { success: false, error: 'At schedule requires datetime field' } as any);
+  if (!normalizedSchedule) {
+    writeJSON(res, 400, { success: false, error: 'Invalid schedule payload' } as any);
     return;
   }
 
-  // Validate: "at" type must be in the future
-  if (input.schedule.type === 'at' && input.schedule.datetime) {
-    const targetMs = new Date(input.schedule.datetime).getTime();
+  if (normalizedSchedule.kind === 'at') {
+    const targetMs = new Date(normalizedSchedule.at).getTime();
     if (targetMs <= Date.now()) {
       writeJSON(res, 400, { success: false, error: 'Execution time must be in the future for one-time (at) tasks' } as any);
       return;
     }
   }
 
-  // Validate: expiresAt must not be in the past
-  if (input.expiresAt) {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    if (input.expiresAt <= todayStr) {
-      writeJSON(res, 400, { success: false, error: 'Expiration date must be in the future' } as any);
-      return;
-    }
-  }
-
-  // Build ScheduledTaskInput with defaults
   const taskInput: ScheduledTaskInput = {
     name: input.name.trim(),
     description: input.description || '',
-    schedule: input.schedule,
-    prompt: input.prompt.trim(),
-    workingDirectory: normalizeScheduledTaskWorkingDirectory(input.workingDirectory),
-    systemPrompt: input.systemPrompt || '',
-    executionMode: input.executionMode || 'auto',
-    expiresAt: input.expiresAt || null,
-    notifyPlatforms: input.notifyPlatforms || [],
+    schedule: normalizedSchedule,
+    sessionTarget: input.sessionTarget === 'main' ? 'main' : 'isolated',
+    wakeMode: 'now',
+    payload: input.payload?.kind === 'systemEvent'
+      ? { kind: 'systemEvent', text: payloadText.trim() }
+      : { kind: 'agentTurn', message: payloadText.trim() },
+    delivery: input.delivery,
+    agentId: input.agentId ?? null,
+    sessionKey: input.sessionKey ?? null,
+    origin: input.origin,
+    binding: input.binding,
     enabled: input.enabled !== false,
   };
 
@@ -2377,19 +2390,26 @@ async function handleUpdateScheduledTask(
     }
   }
 
-  // Validate expiresAt if provided
-  if (input.expiresAt !== undefined && input.expiresAt !== null) {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    if (input.expiresAt <= todayStr) {
-      writeJSON(res, 400, { success: false, error: 'Expiration date must be in the future' } as any);
-      return;
-    }
-  }
-
-  // Normalize workingDirectory if provided
   const updateInput: Partial<ScheduledTaskInput> = { ...input };
-  if (input.workingDirectory !== undefined) {
-    updateInput.workingDirectory = normalizeScheduledTaskWorkingDirectory(input.workingDirectory);
+  if (input.schedule) {
+    if (input.schedule.kind || input.schedule.type) {
+      const normalizedSchedule = input.schedule.kind
+        ? input.schedule
+        : (
+          input.schedule.type === 'at'
+            ? { kind: 'at', at: input.schedule.datetime }
+            : input.schedule.type === 'cron'
+              ? { kind: 'cron', expr: input.schedule.expression }
+              : input.schedule.type === 'interval'
+                ? { kind: 'every', everyMs: Number(input.schedule.intervalMs) || Number(input.schedule.value) * (input.schedule.unit === 'days' ? 86_400_000 : input.schedule.unit === 'hours' ? 3_600_000 : 60_000) }
+                : null
+        );
+      if (!normalizedSchedule) {
+        writeJSON(res, 400, { success: false, error: 'Invalid schedule payload' } as any);
+        return;
+      }
+      updateInput.schedule = normalizedSchedule as ScheduledTaskInput['schedule'];
+    }
   }
 
   try {

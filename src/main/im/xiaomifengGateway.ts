@@ -975,4 +975,16 @@ export class XiaomifengGateway extends EventEmitter {
   async sendNotificationWithMedia(text: string): Promise<void> {
     await this.sendNotification(text);
   }
+
+  getNotificationTarget(): { senderId: string; conversationId: string; beeChatId?: string } | null {
+    return this.lastConversation ? { ...this.lastConversation } : null;
+  }
+
+  setNotificationTarget(target: { senderId: string; conversationId: string; beeChatId?: string }): void {
+    this.lastConversation = {
+      senderId: target.senderId,
+      conversationId: target.conversationId,
+      ...(target.beeChatId ? { beeChatId: target.beeChatId } : {}),
+    };
+  }
 }

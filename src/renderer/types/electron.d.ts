@@ -376,7 +376,7 @@ interface IElectronAPI {
   cowork: {
     startSession: (options: { prompt: string; cwd?: string; systemPrompt?: string; title?: string; providerKey?: string; modelId?: string; modelSource?: ClawManagedModelSource; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
     continueSession: (options: { sessionId: string; prompt: string; systemPrompt?: string; providerKey?: string; modelId?: string; modelSource?: ClawManagedModelSource; activeSkillIds?: string[]; imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }> }) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
-    stopSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+    stopSession: (sessionId: string) => Promise<{ success: boolean; session?: CoworkSession; error?: string }>;
     deleteSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
     deleteSessions: (sessionIds: string[]) => Promise<{ success: boolean; error?: string }>;
     setSessionPinned: (options: { sessionId: string; pinned: boolean }) => Promise<{ success: boolean; error?: string }>;
@@ -428,6 +428,7 @@ interface IElectronAPI {
     onStreamComplete: (callback: (data: { sessionId: string; claudeSessionId: string | null }) => void) => () => void;
     onStreamError: (callback: (data: { sessionId: string; error: string }) => void) => () => void;
     onStreamQuota: (callback: (data: { sessionId: string; reservation: ClawSessionReservation | null; overview?: Partial<ClawQuotaOverview> }) => void) => () => void;
+    onSessionsChanged: (callback: (data: { sessionIds: string[] }) => void) => () => void;
   };
   dialog: {
     selectDirectory: () => Promise<{ success: boolean; path: string | null }>;
@@ -468,13 +469,15 @@ interface IElectronAPI {
   im: {
     getConfig: () => Promise<{ success: boolean; config?: IMGatewayConfig; error?: string }>;
     setConfig: (config: Partial<IMGatewayConfig>) => Promise<{ success: boolean; error?: string }>;
-    startGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom') => Promise<{ success: boolean; error?: string }>;
-    stopGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom') => Promise<{ success: boolean; error?: string }>;
+    startGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom' | 'weixin') => Promise<{ success: boolean; error?: string }>;
+    stopGateway: (platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom' | 'weixin') => Promise<{ success: boolean; error?: string }>;
     testGateway: (
-      platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom',
+      platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom' | 'weixin',
       configOverride?: Partial<IMGatewayConfig>
     ) => Promise<{ success: boolean; result?: IMConnectivityTestResult; error?: string }>;
     getStatus: () => Promise<{ success: boolean; status?: IMGatewayStatus; error?: string }>;
+    weixinQrLoginStart: () => Promise<{ success: boolean; qrDataUrl?: string; message: string; sessionKey?: string }>;
+    weixinQrLoginWait: (accountId?: string) => Promise<{ success: boolean; connected: boolean; message: string; accountId?: string }>;
     onStatusChange: (callback: (status: IMGatewayStatus) => void) => () => void;
     onMessageReceived: (callback: (message: IMMessage) => void) => () => void;
   };
@@ -490,8 +493,12 @@ interface IElectronAPI {
     listRuns: (taskId: string, limit?: number, offset?: number) => Promise<any>;
     countRuns: (taskId: string) => Promise<any>;
     listAllRuns: (limit?: number, offset?: number) => Promise<any>;
+    resolveSession: (sessionKey: string) => Promise<any>;
+    listChannels: () => Promise<any>;
+    listChannelConversations: (channel: string) => Promise<any>;
     onStatusUpdate: (callback: (data: any) => void) => () => void;
     onRunUpdate: (callback: (data: any) => void) => () => void;
+    onRefresh?: (callback: () => void) => () => void;
   };
   permissions: {
     checkCalendar: () => Promise<{ success: boolean; status?: string; error?: string; autoRequested?: boolean }>;
@@ -540,6 +547,7 @@ interface IMGatewayConfig {
   nim: NimConfig;
   xiaomifeng: XiaomifengConfig;
   wecom: WecomConfig;
+  weixin: WeixinConfig;
   settings: IMSettings;
 }
 
@@ -614,6 +622,12 @@ interface WecomConfig {
   debug?: boolean;
 }
 
+interface WeixinConfig {
+  enabled: boolean;
+  accountId: string;
+  debug?: boolean;
+}
+
 interface IMSettings {
   systemPrompt?: string;
   skillsEnabled: boolean;
@@ -628,6 +642,7 @@ interface IMGatewayStatus {
   nim: NimGatewayStatus;
   xiaomifeng: XiaomifengGatewayStatus;
   wecom: WecomGatewayStatus;
+  weixin: WeixinGatewayStatus;
 }
 
 type IMConnectivityVerdict = 'pass' | 'warn' | 'fail';
@@ -657,7 +672,7 @@ interface IMConnectivityCheck {
 }
 
 interface IMConnectivityTestResult {
-  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom';
+  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom' | 'weixin';
   testedAt: number;
   verdict: IMConnectivityVerdict;
   checks: IMConnectivityCheck[];
@@ -734,8 +749,16 @@ interface WecomGatewayStatus {
   lastOutboundAt: number | null;
 }
 
+interface WeixinGatewayStatus {
+  connected: boolean;
+  startedAt: number | null;
+  lastError: string | null;
+  lastInboundAt: number | null;
+  lastOutboundAt: number | null;
+}
+
 interface IMMessage {
-  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom';
+  platform: 'dingtalk' | 'feishu' | 'qq' | 'telegram' | 'discord' | 'nim' | 'xiaomifeng' | 'wecom' | 'weixin';
   messageId: string;
   conversationId: string;
   senderId: string;
