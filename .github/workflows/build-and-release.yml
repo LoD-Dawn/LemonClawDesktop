@@ -1,0 +1,134 @@
+name: Build And Release To Gitee
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-win:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Windows Package
+        run: npm run dist:win
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-win
+          path: release/**
+          if-no-files-found: error
+
+  build-mac:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build macOS Package
+        run: npm run dist:mac:x64
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-mac
+          path: release/**
+          if-no-files-found: error
+
+  publish-gitee:
+    name: Publish To Gitee Release
+    needs:
+      - build-win
+      - build-mac
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-win
+          path: artifacts/win
+
+      - name: Download macOS Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-mac
+          path: artifacts/mac
+
+      - name: Generate Changelog And Publish Release
+        shell: bash
+        env:
+          GITEE_OWNER: omini_1
+          GITEE_REPO: lemon-claw-desktop
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          APP_VERSION=$(node -p "require('./package.json').version")
+          SHORT_SHA=$(git rev-parse --short HEAD)
+
+          export RELEASE_TARGET=$(git rev-parse HEAD)
+          export RELEASE_TAG="main-${APP_VERSION}+gh.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          export RELEASE_NAME="LemonClaw ${APP_VERSION} build ${GITHUB_RUN_NUMBER}"
+          export PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          node scripts/generate-gitee-changelog.cjs --output CHANGELOG.auto.md
+          node scripts/create-gitee-release.cjs --body-file CHANGELOG.auto.md --release-dir artifacts
+
+      - name: Upload Release Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-meta
+          path: CHANGELOG.auto.md
+          if-no-files-found: error
