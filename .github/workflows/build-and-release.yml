@@ -141,6 +141,10 @@ jobs:
           GITEE_REPO: lemon-claw-desktop
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           RELEASE_PRERELEASE: ${{ startsWith(github.ref, 'refs/tags/v') && 'false' || 'true' }}
+          GITEE_REQUEST_TIMEOUT_MS: '300000'
+          GITEE_REQUEST_RETRIES: '5'
+          GITEE_REQUEST_RETRY_DELAY_MS: '8000'
+          GITEE_UPLOAD_TIMEOUT_MS: '900000'
         run: |
           set -euo pipefail
 

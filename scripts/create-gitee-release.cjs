@@ -1,6 +1,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const DEFAULT_TIMEOUT_MS = Number(process.env.GITEE_REQUEST_TIMEOUT_MS || 180000);
+const DEFAULT_RETRIES = Number(process.env.GITEE_REQUEST_RETRIES || 4);
+const DEFAULT_RETRY_DELAY_MS = Number(process.env.GITEE_REQUEST_RETRY_DELAY_MS || 5000);
+
 function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i += 1) {
@@ -33,7 +37,7 @@ function requireEnv(name) {
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetchWithRetry(url, options);
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
 
@@ -45,13 +49,62 @@ async function requestJson(url, options = {}) {
 }
 
 async function request(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetchWithRetry(url, options);
   const text = await response.text();
   if (!response.ok) {
     throw new Error(`Request failed (${response.status} ${response.statusText}): ${text}`);
   }
 
   return text;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableError(error) {
+  if (!error) {
+    return false;
+  }
+
+  return (
+    error.name === 'TimeoutError' ||
+    error.code === 'UND_ERR_HEADERS_TIMEOUT' ||
+    error.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+    error.code === 'ECONNRESET' ||
+    error.code === 'ETIMEDOUT' ||
+    /timeout/i.test(error.message || '')
+  );
+}
+
+function buildRequestOptions(options = {}) {
+  const timeoutMs = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
+  const { timeoutMs: _timeoutMs, ...rest } = options;
+  return {
+    ...rest,
+    signal: AbortSignal.timeout(timeoutMs),
+  };
+}
+
+async function fetchWithRetry(url, options = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= DEFAULT_RETRIES; attempt += 1) {
+    try {
+      return await fetch(url, buildRequestOptions(options));
+    } catch (error) {
+      lastError = error;
+      if (attempt >= DEFAULT_RETRIES || !isRetryableError(error)) {
+        throw error;
+      }
+
+      console.warn(
+        `[gitee-release] Request attempt ${attempt}/${DEFAULT_RETRIES} failed: ${error.message}. Retrying...`,
+      );
+      await sleep(DEFAULT_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  throw lastError;
 }
 
 function collectFiles(rootDir) {
@@ -91,7 +144,7 @@ function shouldUpload(filePath, includeAll) {
 
 async function getReleaseByTag(apiBase, owner, repo, token, tag) {
   const url = `${apiBase}/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(tag)}?access_token=${encodeURIComponent(token)}`;
-  const response = await fetch(url);
+  const response = await fetchWithRetry(url);
   if (response.status === 404) {
     return null;
   }
@@ -171,6 +224,7 @@ async function uploadAttachment(apiBase, owner, repo, token, releaseId, filePath
 
   return requestJson(`${apiBase}/repos/${owner}/${repo}/releases/${releaseId}/attach_files`, {
     method: 'POST',
+    timeoutMs: Number(process.env.GITEE_UPLOAD_TIMEOUT_MS || 600000),
     body: form,
   });
 }
