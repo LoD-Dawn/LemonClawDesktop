@@ -7,6 +7,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 concurrency:
@@ -37,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows Package
-        run: npm run dist:win
+        run: npm run dist:win -- --publish never
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
@@ -69,13 +71,26 @@ jobs:
         run: npm ci
 
       - name: Build macOS Package
-        run: npm run dist:mac:x64
+        shell: bash
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.APPLE_TEAM_ID || '' }}
+          CSC_LINK: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.CSC_KEY_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ startsWith(github.ref, 'refs/tags/v') && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            if [[ -z "${CSC_LINK}" || -z "${CSC_KEY_PASSWORD}" || -z "${APPLE_ID}" || -z "${APPLE_APP_SPECIFIC_PASSWORD}" || -z "${APPLE_TEAM_ID}" ]]; then
+              echo "Tag release requires Apple signing and notarization secrets."
+              exit 1
+            fi
+            npm run dist:mac:x64 -- --publish never
+          else
+            npm run dist:mac:x64 -- --publish never
+          fi
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
@@ -121,6 +136,7 @@ jobs:
           GITEE_OWNER: omini_1
           GITEE_REPO: lemon-claw-desktop
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          RELEASE_PRERELEASE: ${{ startsWith(github.ref, 'refs/tags/v') && 'false' || 'true' }}
         run: |
           set -euo pipefail
 
@@ -128,8 +144,13 @@ jobs:
           SHORT_SHA=$(git rev-parse --short HEAD)
 
           export RELEASE_TARGET=$(git rev-parse HEAD)
-          export RELEASE_TAG="main-${APP_VERSION}+gh.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
-          export RELEASE_NAME="LemonClaw ${APP_VERSION} build ${GITHUB_RUN_NUMBER}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            export RELEASE_TAG="${GITHUB_REF_NAME}"
+            export RELEASE_NAME="LemonClaw ${GITHUB_REF_NAME}"
+          else
+            export RELEASE_TAG="main-${APP_VERSION}+gh.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+            export RELEASE_NAME="LemonClaw ${APP_VERSION} build ${GITHUB_RUN_NUMBER}"
+          fi
           export PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
 
           node scripts/generate-gitee-changelog.cjs --output CHANGELOG.auto.md
