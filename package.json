@@ -50,6 +50,7 @@
     "dist:linux": "npm run build && npm run compile:electron && npm run build:skills && electron-builder --linux",
     "release:changelog": "node scripts/generate-gitee-changelog.cjs",
     "release:gitee": "node scripts/create-gitee-release.cjs",
+    "release:local": "node scripts/publish-local-gitee-release.cjs",
     "sandbox:image:mac": "bash scripts/build-sandbox-image-mac.sh",
     "sandbox:image:win:mac": "bash scripts/build-sandbox-image-win-on-mac.sh",
     "sandbox:image:docker": "bash scripts/build-sandbox-image-docker.sh",

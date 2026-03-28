@@ -1,4 +1,4 @@
-name: Build And Release To Gitee
+name: Build Packages
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -101,73 +101,4 @@ jobs:
         with:
           name: release-mac
           path: release/**
-          if-no-files-found: error
-
-  publish-gitee:
-    name: Publish To Gitee Release
-    needs:
-      - build-win
-      - build-mac
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Download Windows Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-win
-          path: artifacts/win
-
-      - name: Download macOS Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-mac
-          path: artifacts/mac
-
-      - name: Generate Changelog And Publish Release
-        shell: bash
-        env:
-          GITEE_OWNER: omini_1
-          GITEE_REPO: lemon-claw-desktop
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          RELEASE_PRERELEASE: ${{ startsWith(github.ref, 'refs/tags/v') && 'false' || 'true' }}
-          GITEE_REQUEST_TIMEOUT_MS: '300000'
-          GITEE_REQUEST_RETRIES: '5'
-          GITEE_REQUEST_RETRY_DELAY_MS: '8000'
-          GITEE_UPLOAD_TIMEOUT_MS: '900000'
-        run: |
-          set -euo pipefail
-
-          APP_VERSION=$(node -p "require('./package.json').version")
-          SHORT_SHA=$(git rev-parse --short HEAD)
-
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            export RELEASE_TARGET="main"
-            export RELEASE_TAG="${GITHUB_REF_NAME}"
-            export RELEASE_NAME="LemonClaw ${GITHUB_REF_NAME}"
-          else
-            export RELEASE_TARGET="main"
-            export RELEASE_TAG="main-${APP_VERSION}-gh-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
-            export RELEASE_NAME="LemonClaw ${APP_VERSION} build ${GITHUB_RUN_NUMBER}"
-          fi
-          export PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-
-          node scripts/generate-gitee-changelog.cjs --output CHANGELOG.auto.md
-          node scripts/create-gitee-release.cjs --body-file CHANGELOG.auto.md --release-dir artifacts
-
-      - name: Upload Release Metadata
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-meta
-          path: CHANGELOG.auto.md
           if-no-files-found: error
