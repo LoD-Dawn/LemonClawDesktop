@@ -180,7 +180,6 @@ const ScheduledTasksView: React.FC<ScheduledTasksViewProps> = ({
               {viewMode === 'list' && (
                 <TaskList
                   onRequestDelete={handleRequestDelete}
-                  onCreateTask={handleCreateTask}
                 />
               )}
               {viewMode === 'create' && (

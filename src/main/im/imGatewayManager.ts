@@ -18,6 +18,11 @@ import { WecomGateway } from './wecomGateway';
 import { IMChatHandler } from './imChatHandler';
 import { IMCoworkHandler } from './imCoworkHandler';
 import { IMStore } from './imStore';
+import {
+  createIMScheduledTaskRequestDetector,
+  type IMScheduledTaskCreationResult,
+  type ParsedIMScheduledTaskRequest,
+} from './imScheduledTaskHandler';
 import { getOapiAccessToken } from './dingtalkMedia';
 import { fetchJsonWithTimeout } from './http';
 import {
@@ -51,6 +56,11 @@ interface DiscordUserResponse {
 export interface IMGatewayManagerOptions {
   coworkRunner?: CoworkRunner;
   coworkStore?: CoworkStore;
+  createScheduledTask?: (params: {
+    sessionId: string;
+    message: IMMessage;
+    request: ParsedIMScheduledTaskRequest;
+  }) => Promise<IMScheduledTaskCreationResult>;
 }
 
 export class IMGatewayManager extends EventEmitter {
@@ -71,9 +81,12 @@ export class IMGatewayManager extends EventEmitter {
   // Cowork dependencies
   private coworkRunner: CoworkRunner | null = null;
   private coworkStore: CoworkStore | null = null;
+  private createScheduledTask: IMGatewayManagerOptions['createScheduledTask'] | null = null;
 
   // NIM probe mutex: serializes concurrent connectivity tests
   private nimProbePromise: Promise<void> | null = null;
+  private notificationTargetBusy = new Set<IMPlatform>();
+  private notificationTargetQueues = new Map<IMPlatform, Array<() => void>>();
 
   constructor(db: Database, saveDb: () => void, options?: IMGatewayManagerOptions) {
     super();
@@ -93,6 +106,7 @@ export class IMGatewayManager extends EventEmitter {
       this.coworkRunner = options.coworkRunner;
       this.coworkStore = options.coworkStore;
     }
+    this.createScheduledTask = options?.createScheduledTask ?? null;
 
     // Forward gateway events
     this.setupGatewayEventForwarding();
@@ -306,7 +320,7 @@ export class IMGatewayManager extends EventEmitter {
       replyFn: (text: string) => Promise<void>
     ): Promise<void> => {
       // Persist notification target whenever we receive a message
-      this.persistNotificationTarget(message.platform);
+      this.persistNotificationTarget(message.platform, message.conversationId);
 
       try {
         let response: string;
@@ -357,26 +371,14 @@ export class IMGatewayManager extends EventEmitter {
   /**
    * Persist the notification target for a platform after receiving a message.
    */
-  private persistNotificationTarget(platform: IMPlatform): void {
+  private persistNotificationTarget(platform: IMPlatform, conversationId?: string): void {
     try {
-      let target: any = null;
-      if (platform === 'dingtalk') {
-        target = this.dingtalkGateway.getNotificationTarget();
-      } else if (platform === 'feishu') {
-        target = this.feishuGateway.getNotificationTarget();
-      } else if (platform === 'telegram') {
-        target = this.telegramGateway.getNotificationTarget();
-      } else if (platform === 'discord') {
-        target = this.discordGateway.getNotificationTarget();
-      } else if (platform === 'nim') {
-        target = this.nimGateway.getNotificationTarget();
-      } else if (platform === 'qq') {
-        target = this.qqGateway.getNotificationTarget();
-      } else if (platform === 'wecom') {
-        target = this.wecomGateway.getNotificationTarget();
-      }
+      const target = this.getGatewayNotificationTarget(platform);
       if (target != null) {
         this.imStore.setNotificationTarget(platform, target);
+        if (conversationId) {
+          this.imStore.setConversationNotificationTarget(platform, conversationId, target);
+        }
       }
     } catch (err: any) {
       console.warn(`[IMGatewayManager] Failed to persist notification target for ${platform}:`, err.message);
@@ -401,6 +403,8 @@ export class IMGatewayManager extends EventEmitter {
         this.discordGateway.setNotificationTarget(target);
       } else if (platform === 'nim') {
         this.nimGateway.setNotificationTarget(target);
+      } else if (platform === 'xiaomifeng') {
+        this.xiaomifengGateway.setNotificationTarget(target);
       } else if (platform === 'qq') {
         this.qqGateway.setNotificationTarget(target);
       } else if (platform === 'wecom') {
@@ -445,6 +449,10 @@ export class IMGatewayManager extends EventEmitter {
         coworkStore: this.coworkStore,
         imStore: this.imStore,
         getSkillsPrompt: this.getSkillsPrompt || undefined,
+        detectScheduledTaskRequest: this.getLLMConfig
+          ? createIMScheduledTaskRequestDetector({ getLLMConfig: this.getLLMConfig })
+          : undefined,
+        createScheduledTask: this.createScheduledTask || undefined,
       });
       console.log('[IMGatewayManager] Cowork handler created');
     }
@@ -457,6 +465,10 @@ export class IMGatewayManager extends EventEmitter {
    */
   getConfig(): IMGatewayConfig {
     return this.imStore.getConfig();
+  }
+
+  getIMStore(): IMStore {
+    return this.imStore;
   }
 
   /**
@@ -625,6 +637,13 @@ export class IMGatewayManager extends EventEmitter {
       nim: this.nimGateway.getStatus(),
       xiaomifeng: this.xiaomifengGateway.getStatus(),
       wecom: this.wecomGateway.getStatus(),
+      weixin: {
+        connected: this.isConnected('weixin'),
+        startedAt: null,
+        lastError: null,
+        lastInboundAt: null,
+        lastOutboundAt: null,
+      },
     };
   }
 
@@ -828,6 +847,17 @@ export class IMGatewayManager extends EventEmitter {
         message: '企业微信机器人通过 WebSocket 长连接接收消息。',
         suggestion: '请在企业微信中向机器人发送消息触发对话。群聊中需 @机器人。',
       });
+    } else if (platform === 'weixin') {
+      addCheck({
+        code: 'gateway_running',
+        level: config.weixin.enabled ? 'info' : 'warn',
+        message: config.weixin.enabled
+          ? '微信渠道通过 OpenClaw 网关运行。'
+          : '微信渠道当前未启用。',
+        suggestion: config.weixin.enabled
+          ? '如需重新登录，请重新扫码连接微信。'
+          : '请先启用微信渠道并完成扫码登录。',
+      });
     }
 
     return {
@@ -865,6 +895,8 @@ export class IMGatewayManager extends EventEmitter {
       await this.qqGateway.start(config.qq);
     } else if (platform === 'wecom') {
       await this.wecomGateway.start(config.wecom);
+    } else if (platform === 'weixin') {
+      // Weixin lifecycle is managed by the OpenClaw gateway in main.ts.
     }
 
     // Restore persisted notification target
@@ -891,6 +923,8 @@ export class IMGatewayManager extends EventEmitter {
       await this.qqGateway.stop();
     } else if (platform === 'wecom') {
       await this.wecomGateway.stop();
+    } else if (platform === 'weixin') {
+      // Weixin lifecycle is managed by the OpenClaw gateway in main.ts.
     }
   }
 
@@ -963,6 +997,14 @@ export class IMGatewayManager extends EventEmitter {
         console.error(`[IMGatewayManager] Failed to start WeCom: ${error.message}`);
       }
     }
+
+    if (config.weixin?.enabled) {
+      try {
+        await this.startGateway('weixin');
+      } catch (error: any) {
+        console.error(`[IMGatewayManager] Failed to start Weixin: ${error.message}`);
+      }
+    }
   }
 
   /**
@@ -978,6 +1020,7 @@ export class IMGatewayManager extends EventEmitter {
       this.xiaomifengGateway.stop(),
       this.qqGateway.stop(),
       this.wecomGateway.stop(),
+      this.stopGateway('weixin'),
     ]);
   }
 
@@ -985,7 +1028,15 @@ export class IMGatewayManager extends EventEmitter {
    * Check if any gateway is connected
    */
   isAnyConnected(): boolean {
-    return this.dingtalkGateway.isConnected() || this.feishuGateway.isConnected() || this.telegramGateway.isConnected() || this.discordGateway.isConnected() || this.nimGateway.isConnected() || this.xiaomifengGateway.isConnected() || this.qqGateway.isConnected() || this.wecomGateway.isConnected();
+    return this.dingtalkGateway.isConnected()
+      || this.feishuGateway.isConnected()
+      || this.telegramGateway.isConnected()
+      || this.discordGateway.isConnected()
+      || this.nimGateway.isConnected()
+      || this.xiaomifengGateway.isConnected()
+      || this.qqGateway.isConnected()
+      || this.wecomGateway.isConnected()
+      || this.isConnected('weixin');
   }
 
   /**
@@ -1012,6 +1063,10 @@ export class IMGatewayManager extends EventEmitter {
     }
     if (platform === 'wecom') {
       return this.wecomGateway.isConnected();
+    }
+    if (platform === 'weixin') {
+      const config = this.imStore.getWeixinConfig();
+      return Boolean(config.enabled && config.accountId);
     }
     return this.feishuGateway.isConnected();
   }
@@ -1083,6 +1138,123 @@ export class IMGatewayManager extends EventEmitter {
     }
   }
 
+  async sendConversationNotificationWithMedia(
+    platform: IMPlatform,
+    conversationId: string,
+    text: string
+  ): Promise<boolean> {
+    const target = this.imStore.getConversationNotificationTarget(platform, conversationId);
+    if (target == null) {
+      console.warn(`[IMGatewayManager] No persisted notification target for ${platform}:${conversationId}`);
+      return false;
+    }
+
+    return this.withNotificationTargetLock(platform, async () => {
+      const previousTarget = this.getGatewayNotificationTarget(platform);
+      try {
+        this.applyGatewayNotificationTarget(platform, target);
+        return await this.sendNotificationWithMedia(platform, text);
+      } finally {
+        if (previousTarget != null) {
+          this.applyGatewayNotificationTarget(platform, previousTarget);
+        }
+      }
+    });
+  }
+
+  private async withNotificationTargetLock<T>(
+    platform: IMPlatform,
+    work: () => Promise<T>
+  ): Promise<T> {
+    const release = await this.acquireNotificationTargetLock(platform);
+    try {
+      return await work();
+    } finally {
+      release();
+    }
+  }
+
+  private acquireNotificationTargetLock(platform: IMPlatform): Promise<() => void> {
+    if (!this.notificationTargetBusy.has(platform)) {
+      this.notificationTargetBusy.add(platform);
+      return Promise.resolve(() => this.releaseNotificationTargetLock(platform));
+    }
+
+    return new Promise((resolve) => {
+      const queue = this.notificationTargetQueues.get(platform) ?? [];
+      queue.push(() => {
+        this.notificationTargetBusy.add(platform);
+        resolve(() => this.releaseNotificationTargetLock(platform));
+      });
+      this.notificationTargetQueues.set(platform, queue);
+    });
+  }
+
+  private releaseNotificationTargetLock(platform: IMPlatform): void {
+    const queue = this.notificationTargetQueues.get(platform);
+    const next = queue?.shift();
+    if (next) {
+      if (queue && queue.length === 0) {
+        this.notificationTargetQueues.delete(platform);
+      }
+      next();
+      return;
+    }
+
+    this.notificationTargetBusy.delete(platform);
+    if (queue) {
+      this.notificationTargetQueues.delete(platform);
+    }
+  }
+
+  private getGatewayNotificationTarget(platform: IMPlatform): any | null {
+    if (platform === 'dingtalk') {
+      return this.dingtalkGateway.getNotificationTarget();
+    }
+    if (platform === 'feishu') {
+      return this.feishuGateway.getNotificationTarget();
+    }
+    if (platform === 'telegram') {
+      return this.telegramGateway.getNotificationTarget();
+    }
+    if (platform === 'discord') {
+      return this.discordGateway.getNotificationTarget();
+    }
+    if (platform === 'nim') {
+      return this.nimGateway.getNotificationTarget();
+    }
+    if (platform === 'xiaomifeng') {
+      return this.xiaomifengGateway.getNotificationTarget();
+    }
+    if (platform === 'qq') {
+      return this.qqGateway.getNotificationTarget();
+    }
+    if (platform === 'wecom') {
+      return this.wecomGateway.getNotificationTarget();
+    }
+    return null;
+  }
+
+  private applyGatewayNotificationTarget(platform: IMPlatform, target: any): void {
+    if (platform === 'dingtalk') {
+      this.dingtalkGateway.setNotificationTarget(target);
+    } else if (platform === 'feishu') {
+      this.feishuGateway.setNotificationTarget(target);
+    } else if (platform === 'telegram') {
+      this.telegramGateway.setNotificationTarget(target);
+    } else if (platform === 'discord') {
+      this.discordGateway.setNotificationTarget(target);
+    } else if (platform === 'nim') {
+      this.nimGateway.setNotificationTarget(target);
+    } else if (platform === 'xiaomifeng') {
+      this.xiaomifengGateway.setNotificationTarget(target);
+    } else if (platform === 'qq') {
+      this.qqGateway.setNotificationTarget(target);
+    } else if (platform === 'wecom') {
+      this.wecomGateway.setNotificationTarget(target);
+    }
+  }
+
   private buildMergedConfig(configOverride?: Partial<IMGatewayConfig>): IMGatewayConfig {
     const current = this.getConfig();
     if (!configOverride) {
@@ -1099,6 +1271,7 @@ export class IMGatewayManager extends EventEmitter {
       nim: { ...current.nim, ...(configOverride.nim || {}) },
       xiaomifeng: { ...current.xiaomifeng, ...(configOverride.xiaomifeng || {}) },
       wecom: { ...current.wecom, ...(configOverride.wecom || {}) },
+      weixin: { ...current.weixin, ...(configOverride.weixin || {}) },
       settings: { ...current.settings, ...(configOverride.settings || {}) },
     };
   }
@@ -1143,6 +1316,9 @@ export class IMGatewayManager extends EventEmitter {
       if (!config.wecom?.botId) fields.push('botId');
       if (!config.wecom?.secret) fields.push('secret');
       return fields;
+    }
+    if (platform === 'weixin') {
+      return [];
     }
     return config.discord.botToken ? [] : ['botToken'];
   }
@@ -1230,6 +1406,15 @@ export class IMGatewayManager extends EventEmitter {
       } finally {
         try { tmpClient.disconnect(); } catch (_) { /* ignore */ }
       }
+    }
+
+    if (platform === 'weixin') {
+      if (!config.weixin.enabled) {
+        return '微信渠道当前未启用。';
+      }
+      return config.weixin.accountId
+        ? `微信配置已就绪（Account ID: ${config.weixin.accountId}）。`
+        : '微信配置已就绪。';
     }
 
     if (platform === 'discord') {
@@ -1421,6 +1606,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.startedAt;
     if (platform === 'qq') return status.qq.startedAt;
     if (platform === 'wecom') return status.wecom.startedAt;
+    if (platform === 'weixin') return status.weixin.startedAt;
     return status.discord.startedAt;
   }
 
@@ -1432,6 +1618,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.lastInboundAt;
     if (platform === 'qq') return status.qq.lastInboundAt;
     if (platform === 'wecom') return status.wecom.lastInboundAt;
+    if (platform === 'weixin') return status.weixin.lastInboundAt;
     return status.discord.lastInboundAt;
   }
 
@@ -1443,6 +1630,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.lastOutboundAt;
     if (platform === 'qq') return status.qq.lastOutboundAt;
     if (platform === 'wecom') return status.wecom.lastOutboundAt;
+    if (platform === 'weixin') return status.weixin.lastOutboundAt;
     return status.discord.lastOutboundAt;
   }
 
@@ -1454,6 +1642,7 @@ export class IMGatewayManager extends EventEmitter {
     if (platform === 'xiaomifeng') return status.xiaomifeng.lastError;
     if (platform === 'qq') return status.qq.lastError;
     if (platform === 'wecom') return status.wecom.lastError;
+    if (platform === 'weixin') return status.weixin.lastError;
     return status.discord.lastError;
   }
 

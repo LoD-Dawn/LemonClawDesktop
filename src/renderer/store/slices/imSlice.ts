@@ -15,6 +15,7 @@ import type {
   NimConfig,
   XiaomifengConfig,
   WecomConfig,
+  WeixinConfig,
   IMSettings,
 } from '../../types/im';
 import {
@@ -67,6 +68,9 @@ const imSlice = createSlice({
     setWecomConfig: (state, action: PayloadAction<Partial<WecomConfig>>) => {
       state.config.wecom = { ...state.config.wecom, ...action.payload };
     },
+    setWeixinConfig: (state, action: PayloadAction<Partial<WeixinConfig>>) => {
+      state.config.weixin = { ...state.config.weixin, ...action.payload };
+    },
     setIMSettings: (state, action: PayloadAction<Partial<IMSettings>>) => {
       state.config.settings = { ...state.config.settings, ...action.payload };
     },
@@ -95,6 +99,7 @@ export const {
   setNimConfig,
   setXiaomifengConfig,
   setWecomConfig,
+  setWeixinConfig,
   setIMSettings,
   setStatus,
   setLoading,

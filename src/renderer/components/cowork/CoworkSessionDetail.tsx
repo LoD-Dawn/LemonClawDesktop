@@ -1842,8 +1842,3 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
 
 export default CoworkSessionDetail;
 
-
-
-
-
-

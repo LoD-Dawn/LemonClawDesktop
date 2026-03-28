@@ -22,6 +22,8 @@ import { isAutoLaunched, getAutoLaunchEnabled, setAutoLaunchEnabled } from './au
 import { McpStore } from './mcpStore';
 import { ScheduledTaskStore } from './scheduledTaskStore';
 import { Scheduler } from './libs/scheduler';
+import { BindingKind, DeliveryMode, IpcChannel as ScheduledTaskIpc, OriginKind } from '../scheduled-task/constants';
+import type { ScheduledTaskInput } from '../scheduled-task/types';
 import { downloadUpdate, installUpdate, cancelActiveDownload } from './libs/appUpdateInstaller';
 import { initLogger, getLogFilePath } from './logger';
 import { getCoworkLogPath } from './libs/coworkLogger';
@@ -33,13 +35,19 @@ import {
   restoreOriginalProxyEnv,
   setSystemProxyEnabled,
 } from './libs/systemProxy';
+import { OpenClawEngineManager } from './libs/openclawEngineManager';
+import { OpenClawGatewayClientManager } from './libs/openclawGatewayClient';
+import { OpenClawWeixinConfigSync } from './libs/openclawWeixinConfigSync';
+import { OpenClawWeixinSessionBridge } from './libs/openclawWeixinSessionBridge';
 import { AuthStore } from './authStore';
 import { resolveModelConfig } from './libs/modelConfigResolver';
 import { getUserPreferences, updateUserPreferences } from './libs/userPreferencesStore';
 import type { ProviderConfig, ProviderModelConfig, ResolvedModelConfig, TenantConfig, TenantConfigMeta } from '../shared/modelConfig';
 import { CoworkQuotaManager } from './libs/coworkQuotaManager';
 import type { ClawQuotaStreamPayload } from '../shared/quota';
+import { isOpenClawWeixinSessionId } from '../shared/openclawSession';
 import crypto from 'crypto';
+import { buildManagedSessionKey, parseManagedSessionKey } from './libs/scheduledTaskSessionKey';
 
 // 主进程本地类型定义（不依赖渲染层类型文件）
 type AuthOrganization = {
@@ -1367,18 +1375,6 @@ const resolveTaskWorkingDirectory = (workspaceRoot: string): string => {
   return resolvedWorkspaceRoot;
 };
 
-const resolveExistingTaskWorkingDirectory = (workspaceRoot: string): string => {
-  const trimmed = workspaceRoot.trim();
-  if (!trimmed) {
-    throw new Error('Please select a task folder before submitting.');
-  }
-  const resolvedWorkspaceRoot = path.resolve(trimmed);
-  if (!fs.existsSync(resolvedWorkspaceRoot) || !fs.statSync(resolvedWorkspaceRoot).isDirectory()) {
-    throw new Error(`Task folder does not exist or is not a directory: ${resolvedWorkspaceRoot}`);
-  }
-  return resolvedWorkspaceRoot;
-};
-
 const getDefaultExportImageName = (defaultFileName?: string): string => {
   const normalized = typeof defaultFileName === 'string' && defaultFileName.trim()
     ? defaultFileName.trim()
@@ -1683,6 +1679,10 @@ let skillManager: SkillManager | null = null;
 let mcpStore: McpStore | null = null;
 let imGatewayManager: IMGatewayManager | null = null;
 let scheduledTaskStore: ScheduledTaskStore | null = null;
+let openClawEngineManager: OpenClawEngineManager | null = null;
+let openClawGatewayClientManager: OpenClawGatewayClientManager | null = null;
+let openClawWeixinConfigSync: OpenClawWeixinConfigSync | null = null;
+let openClawWeixinSessionBridge: OpenClawWeixinSessionBridge | null = null;
 let scheduler: Scheduler | null = null;
 let storeInitPromise: Promise<SqliteStore> | null = null;
 
@@ -1728,6 +1728,19 @@ const broadcastCoworkQuotaUpdate = (payload: ClawQuotaStreamPayload): void => {
         win.webContents.send('cowork:stream:quota', payload);
       } catch (error) {
         console.error('Failed to forward cowork quota update:', error);
+      }
+    }
+  });
+};
+
+const broadcastCoworkSessionsChanged = (sessionIds: string[]): void => {
+  const windows = BrowserWindow.getAllWindows();
+  windows.forEach((win) => {
+    if (!win.isDestroyed()) {
+      try {
+        win.webContents.send('cowork:stream:sessionsChanged', { sessionIds });
+      } catch (error) {
+        console.error('Failed to forward cowork session change:', error);
       }
     }
   });
@@ -1905,6 +1918,218 @@ const getMcpStore = () => {
   return mcpStore;
 };
 
+const getOpenClawEngineManager = () => {
+  if (!openClawEngineManager) {
+    openClawEngineManager = new OpenClawEngineManager();
+  }
+  return openClawEngineManager;
+};
+
+const getOpenClawGatewayClientManager = () => {
+  if (!openClawGatewayClientManager) {
+    openClawGatewayClientManager = new OpenClawGatewayClientManager(getOpenClawEngineManager());
+  }
+  return openClawGatewayClientManager;
+};
+
+const getOpenClawWeixinConfigSync = () => {
+  if (!openClawWeixinConfigSync) {
+    openClawWeixinConfigSync = new OpenClawWeixinConfigSync({
+      engineManager: getOpenClawEngineManager(),
+      getCoworkConfig: () => getCoworkStore().getConfig(),
+      getWeixinConfig: () => getIMGatewayManager().getConfig().weixin,
+    });
+  }
+  return openClawWeixinConfigSync;
+};
+
+const getOpenClawWeixinSessionBridge = () => {
+  if (!openClawWeixinSessionBridge) {
+    openClawWeixinSessionBridge = new OpenClawWeixinSessionBridge({
+      coworkStore: getCoworkStore(),
+      gatewayClientManager: getOpenClawGatewayClientManager(),
+      getDefaultCwd: () => getCoworkStore().getConfig().workingDirectory || '',
+      isWeixinEnabled: () => Boolean(getIMGatewayManager().getConfig().weixin?.enabled),
+    });
+    openClawWeixinSessionBridge.on('sessionsChanged', ({ sessionIds }: { sessionIds: string[] }) => {
+      broadcastCoworkSessionsChanged(sessionIds);
+    });
+    openClawWeixinSessionBridge.start();
+  }
+  return openClawWeixinSessionBridge;
+};
+
+const syncOpenClawWeixinConfig = async (options?: {
+  restartGatewayIfRunning?: boolean;
+  ensureGatewayAfterSync?: boolean;
+}) => {
+  const result = getOpenClawWeixinConfigSync().sync();
+  if (!result.ok) {
+    throw new Error(result.error || 'Failed to sync OpenClaw Weixin config');
+  }
+
+  const engineManager = getOpenClawEngineManager();
+  if (options?.restartGatewayIfRunning && result.changed && engineManager.getStatus().phase === 'running') {
+    await engineManager.restartGateway();
+  }
+
+  if (options?.ensureGatewayAfterSync) {
+    await getOpenClawGatewayClientManager().ensureReady();
+  }
+
+  return result;
+};
+
+const getOpenClawRuntimeHintPath = (): string => {
+  const envRuntimeDir = (process.env.OPENCLAW_RUNTIME_DIR || '').trim();
+  return envRuntimeDir || path.join(process.cwd(), 'vendor', 'openclaw-runtime', 'current');
+};
+
+const normalizeOpenClawWeixinError = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/OpenClaw runtime is missing/i.test(message)) {
+    return [
+      '未检测到 OpenClaw runtime。',
+      `请先将已构建 runtime 放到 ${getOpenClawRuntimeHintPath()}，`,
+      '或设置环境变量 OPENCLAW_RUNTIME_DIR 指向 runtime 根目录，',
+      '然后执行 npm run openclaw:runtime:host。',
+    ].join('');
+  }
+  return message || 'OpenClaw gateway is unavailable.';
+};
+
+const buildOpenClawWeixinOutboundMessage = (prompt: string, systemPrompt?: string): string => {
+  const normalizedPrompt = prompt.trim();
+  const normalizedSystemPrompt = (systemPrompt || '').trim();
+  if (!normalizedSystemPrompt) {
+    return normalizedPrompt;
+  }
+
+  return [
+    '[LemonClaw system instructions]',
+    'Apply the instructions below for this request.',
+    normalizedSystemPrompt,
+    '[Current user request]',
+    normalizedPrompt,
+  ].join('\n\n');
+};
+
+const scheduleOpenClawWeixinRefresh = (): void => {
+  [400, 1_800, 5_000].forEach((delayMs) => {
+    setTimeout(() => {
+      void getOpenClawWeixinSessionBridge().syncNow();
+    }, delayMs);
+  });
+};
+
+const continueOpenClawWeixinSession = async (options: {
+  sessionId: string;
+  prompt: string;
+  systemPrompt?: string;
+  activeSkillIds?: string[];
+  imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
+}): Promise<{ success: boolean; error?: string; session?: ReturnType<CoworkStore['getSession']> }> => {
+  const normalizedPrompt = options.prompt.trim();
+  if (!normalizedPrompt) {
+    return { success: false, error: 'Prompt is required.' };
+  }
+
+  try {
+    await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+
+    const coworkStoreInstance = getCoworkStore();
+    const session = coworkStoreInstance.getSession(options.sessionId);
+    if (!session) {
+      return { success: false, error: 'Session not found.' };
+    }
+
+    const sessionKey = getOpenClawWeixinSessionBridge().getSessionKeyForSession(options.sessionId);
+    if (!sessionKey) {
+      return { success: false, error: 'OpenClaw Weixin session key is unavailable.' };
+    }
+
+    const messageMetadata: Record<string, unknown> = {};
+    if (options.activeSkillIds?.length) {
+      messageMetadata.skillIds = options.activeSkillIds;
+    }
+    if (options.imageAttachments?.length) {
+      messageMetadata.imageAttachments = options.imageAttachments;
+    }
+
+    coworkStoreInstance.addMessage(options.sessionId, {
+      type: 'user',
+      content: normalizedPrompt,
+      metadata: Object.keys(messageMetadata).length > 0 ? messageMetadata : undefined,
+    });
+    coworkStoreInstance.updateSession(options.sessionId, { status: 'running' });
+    broadcastCoworkSessionsChanged([options.sessionId]);
+
+    const attachments = options.imageAttachments?.length
+      ? options.imageAttachments.map((image) => ({
+        type: 'image',
+        mimeType: image.mimeType,
+        content: image.base64Data,
+      }))
+      : undefined;
+
+    await getOpenClawGatewayClientManager().request<Record<string, unknown>>('chat.send', {
+      sessionKey,
+      message: buildOpenClawWeixinOutboundMessage(normalizedPrompt, options.systemPrompt),
+      idempotencyKey: `${options.sessionId}:${Date.now()}`,
+      ...(attachments ? { attachments } : {}),
+    });
+
+    scheduleOpenClawWeixinRefresh();
+
+    return {
+      success: true,
+      session: coworkStoreInstance.getSession(options.sessionId),
+    };
+  } catch (error) {
+    const message = normalizeOpenClawWeixinError(error);
+    const coworkStoreInstance = getCoworkStore();
+    coworkStoreInstance.updateSession(options.sessionId, { status: 'error' });
+    coworkStoreInstance.addMessage(options.sessionId, {
+      type: 'system',
+      content: `Error: ${message}`,
+      metadata: { error: message },
+    });
+    broadcastCoworkSessionsChanged([options.sessionId]);
+    return {
+      success: false,
+      error: message,
+      session: coworkStoreInstance.getSession(options.sessionId),
+    };
+  }
+};
+
+const stopOpenClawWeixinSession = async (
+  sessionId: string,
+): Promise<{ success: boolean; error?: string; session?: ReturnType<CoworkStore['getSession']> }> => {
+  try {
+    await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+    const sessionKey = getOpenClawWeixinSessionBridge().getSessionKeyForSession(sessionId);
+    if (!sessionKey) {
+      return { success: false, error: 'OpenClaw Weixin session key is unavailable.' };
+    }
+
+    const coworkStoreInstance = getCoworkStore();
+    await getOpenClawGatewayClientManager().request('chat.abort', { sessionKey });
+    coworkStoreInstance.updateSession(sessionId, { status: 'idle' });
+    broadcastCoworkSessionsChanged([sessionId]);
+    scheduleOpenClawWeixinRefresh();
+    return {
+      success: true,
+      session: coworkStoreInstance.getSession(sessionId),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: normalizeOpenClawWeixinError(error),
+    };
+  }
+};
+
 const getIMGatewayManager = () => {
   if (!imGatewayManager) {
     const sqliteStore = getStore();
@@ -1919,6 +2144,56 @@ const getIMGatewayManager = () => {
       {
         coworkRunner: runner,
         coworkStore: store,
+        createScheduledTask: async ({ sessionId, message, request }) => {
+          const session = store.getSession(sessionId);
+          if (!session) {
+            throw new Error(`IM 会话不存在: ${sessionId}`);
+          }
+
+          const taskInput: ScheduledTaskInput = {
+            name: request.taskName,
+            description: request.sourceText,
+            enabled: true,
+            schedule: {
+              kind: 'at',
+              at: request.scheduleAt,
+            },
+            sessionTarget: 'main',
+            wakeMode: 'now',
+            payload: {
+              kind: 'agentTurn',
+              message: request.taskPrompt,
+            },
+            delivery: {
+              mode: DeliveryMode.Announce,
+              channel: message.platform,
+              to: message.conversationId,
+            },
+            sessionKey: buildManagedSessionKey(sessionId),
+            origin: {
+              kind: OriginKind.IM,
+              platform: message.platform,
+              conversationId: message.conversationId,
+            },
+            binding: {
+              kind: BindingKind.IMSession,
+              platform: message.platform,
+              conversationId: message.conversationId,
+              sessionId,
+            },
+          };
+
+          const task = getScheduledTaskStore().createTask(taskInput);
+
+          getScheduler().reschedule();
+
+          return {
+            id: task.id,
+            name: task.name,
+            payloadText: request.payloadText,
+            scheduleAt: request.scheduleAt,
+          };
+        },
       }
     );
 
@@ -2002,6 +2277,28 @@ const getScheduler = () => {
   }
   return scheduler;
 };
+
+const CHANNEL_PLATFORM_MAP = {
+  dingtalk: 'dingtalk',
+  feishu: 'feishu',
+  telegram: 'telegram',
+  discord: 'discord',
+  nim: 'nim',
+  xiaomifeng: 'xiaomifeng',
+  qq: 'qq',
+  wecom: 'wecom',
+} as const satisfies Record<string, IMPlatform>;
+
+const listScheduledTaskChannels = () => ([
+  { value: 'dingtalk', label: 'DingTalk' },
+  { value: 'feishu', label: 'Feishu' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'discord', label: 'Discord' },
+  { value: 'nim', label: 'NIM' },
+  { value: 'xiaomifeng', label: 'Xiaomifeng' },
+  { value: 'qq', label: 'QQ' },
+  { value: 'wecom', label: 'WeCom' },
+]);
 
 // 获取正确的预加载脚本路径
 const PRELOAD_PATH = app.isPackaged
@@ -2832,6 +3129,10 @@ if (!gotTheLock) {
     imageAttachments?: Array<{ name: string; mimeType: string; base64Data: string }>;
   }) => {
     try {
+      if (isOpenClawWeixinSessionId(options.sessionId)) {
+        return continueOpenClawWeixinSession(options);
+      }
+
       const authContext = await ensureActiveAuthSession();
       if ('error' in authContext) {
         const { error } = authContext;
@@ -2904,6 +3205,9 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:stop', async (_event, sessionId: string) => {
     try {
+      if (isOpenClawWeixinSessionId(sessionId)) {
+        return stopOpenClawWeixinSession(sessionId);
+      }
       const runner = getCoworkRunner();
       runner.stopSession(sessionId);
       void getCoworkQuotaManager().finishSession(sessionId, 'stopped_by_user');
@@ -2918,6 +3222,9 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:delete', async (_event, sessionId: string) => {
     try {
+      if (isOpenClawWeixinSessionId(sessionId)) {
+        getOpenClawWeixinSessionBridge().markSessionDeleted(sessionId);
+      }
       const coworkStoreInstance = getCoworkStore();
       coworkStoreInstance.deleteSession(sessionId);
       return { success: true };
@@ -2931,6 +3238,11 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:deleteBatch', async (_event, sessionIds: string[]) => {
     try {
+      sessionIds
+        .filter((sessionId) => isOpenClawWeixinSessionId(sessionId))
+        .forEach((sessionId) => {
+          getOpenClawWeixinSessionBridge().markSessionDeleted(sessionId);
+        });
       const coworkStoreInstance = getCoworkStore();
       coworkStoreInstance.deleteSessions(sessionIds);
       return { success: true };
@@ -2974,7 +3286,13 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:get', async (_event, sessionId: string) => {
     try {
-      const session = getCoworkStore().getSession(sessionId);
+      let session = getCoworkStore().getSession(sessionId);
+      if (!session && isOpenClawWeixinSessionId(sessionId)) {
+        await getOpenClawWeixinSessionBridge().syncNow();
+        session = getCoworkStore().getSession(sessionId);
+      } else {
+        void getOpenClawWeixinSessionBridge().syncNow();
+      }
       return {
         success: true,
         session: session ? {
@@ -2992,6 +3310,7 @@ if (!gotTheLock) {
 
   ipcMain.handle('cowork:session:list', async () => {
     try {
+      void getOpenClawWeixinSessionBridge().syncNow();
       const sessions = getCoworkStore().listSessions();
       return { success: true, sessions };
     } catch (error) {
@@ -3291,7 +3610,7 @@ if (!gotTheLock) {
 
   // ==================== Scheduled Task IPC Handlers ====================
 
-  ipcMain.handle('scheduledTask:list', async () => {
+  ipcMain.handle(ScheduledTaskIpc.List, async () => {
     try {
       const tasks = getScheduledTaskStore().listTasks();
       return { success: true, tasks };
@@ -3300,7 +3619,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:get', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.Get, async (_event, id: string) => {
     try {
       const task = getScheduledTaskStore().getTask(id);
       return { success: true, task };
@@ -3309,15 +3628,9 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:create', async (_event, input: any) => {
+  ipcMain.handle(ScheduledTaskIpc.Create, async (_event, input: ScheduledTaskInput) => {
     try {
-      const coworkConfig = getCoworkStore().getConfig();
-      const normalizedInput = input && typeof input === 'object' ? { ...input } : {};
-      const candidateWorkingDirectory = typeof normalizedInput.workingDirectory === 'string' && normalizedInput.workingDirectory.trim()
-        ? normalizedInput.workingDirectory
-        : coworkConfig.workingDirectory;
-      normalizedInput.workingDirectory = resolveExistingTaskWorkingDirectory(candidateWorkingDirectory);
-
+      const normalizedInput = input && typeof input === 'object' ? { ...input } : {} as ScheduledTaskInput;
       const task = getScheduledTaskStore().createTask(normalizedInput);
       getScheduler().reschedule();
       return { success: true, task };
@@ -3326,22 +3639,9 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:update', async (_event, id: string, input: any) => {
+  ipcMain.handle(ScheduledTaskIpc.Update, async (_event, id: string, input: Partial<ScheduledTaskInput>) => {
     try {
-      const scheduledTaskStore = getScheduledTaskStore();
-      const existingTask = scheduledTaskStore.getTask(id);
-      if (!existingTask) {
-        return { success: false, error: `Task not found: ${id}` };
-      }
-
-      const coworkConfig = getCoworkStore().getConfig();
-      const normalizedInput = input && typeof input === 'object' ? { ...input } : {};
-      const candidateWorkingDirectory = typeof normalizedInput.workingDirectory === 'string'
-        ? (normalizedInput.workingDirectory.trim() || existingTask.workingDirectory || coworkConfig.workingDirectory)
-        : (existingTask.workingDirectory || coworkConfig.workingDirectory);
-      normalizedInput.workingDirectory = resolveExistingTaskWorkingDirectory(candidateWorkingDirectory);
-
-      const task = scheduledTaskStore.updateTask(id, normalizedInput);
+      const task = getScheduledTaskStore().updateTask(id, input ?? {});
       getScheduler().reschedule();
       return { success: true, task };
     } catch (error) {
@@ -3349,7 +3649,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:delete', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.Delete, async (_event, id: string) => {
     try {
       getScheduler().stopTask(id);
       const result = getScheduledTaskStore().deleteTask(id);
@@ -3360,7 +3660,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:toggle', async (_event, id: string, enabled: boolean) => {
+  ipcMain.handle(ScheduledTaskIpc.Toggle, async (_event, id: string, enabled: boolean) => {
     try {
       const { task, warning } = getScheduledTaskStore().toggleTask(id, enabled);
       getScheduler().reschedule();
@@ -3370,7 +3670,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:runManually', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.RunManually, async (_event, id: string) => {
     try {
       const authContext = await ensureActiveAuthSession();
       if ('error' in authContext) {
@@ -3387,7 +3687,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:stop', async (_event, id: string) => {
+  ipcMain.handle(ScheduledTaskIpc.Stop, async (_event, id: string) => {
     try {
       const result = getScheduler().stopTask(id);
       return { success: true, result };
@@ -3396,7 +3696,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:listRuns', async (_event, taskId: string, limit?: number, offset?: number) => {
+  ipcMain.handle(ScheduledTaskIpc.ListRuns, async (_event, taskId: string, limit?: number, offset?: number) => {
     try {
       const runs = getScheduledTaskStore().listRuns(taskId, limit, offset);
       return { success: true, runs };
@@ -3405,7 +3705,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:countRuns', async (_event, taskId: string) => {
+  ipcMain.handle(ScheduledTaskIpc.CountRuns, async (_event, taskId: string) => {
     try {
       const count = getScheduledTaskStore().countRuns(taskId);
       return { success: true, count };
@@ -3414,12 +3714,51 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('scheduledTask:listAllRuns', async (_event, limit?: number, offset?: number) => {
+  ipcMain.handle(ScheduledTaskIpc.ListAllRuns, async (_event, limit?: number, offset?: number) => {
     try {
       const runs = getScheduledTaskStore().listAllRuns(limit, offset);
       return { success: true, runs };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to list all runs' };
+    }
+  });
+
+  ipcMain.handle(ScheduledTaskIpc.ResolveSession, async (_event, sessionKey: string) => {
+    try {
+      if (!sessionKey) return { success: true, session: null };
+      const parsed = parseManagedSessionKey(sessionKey);
+      const sessionId = parsed?.sessionId ?? sessionKey;
+      const session = getCoworkStore().getSession(sessionId);
+      return { success: true, session: session ?? null };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to resolve session' };
+    }
+  });
+
+  ipcMain.handle(ScheduledTaskIpc.ListChannels, async () => {
+    try {
+      return { success: true, channels: listScheduledTaskChannels() };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to list channels' };
+    }
+  });
+
+  ipcMain.handle(ScheduledTaskIpc.ListChannelConversations, async (_event, channel: string) => {
+    try {
+      const platform = CHANNEL_PLATFORM_MAP[channel as keyof typeof CHANNEL_PLATFORM_MAP];
+      if (!platform) {
+        return { success: true, conversations: [] };
+      }
+      const mappings = getIMGatewayManager().getIMStore().listSessionMappings(platform);
+      const conversations = mappings.map((mapping) => ({
+        conversationId: mapping.imConversationId,
+        platform: mapping.platform,
+        coworkSessionId: mapping.coworkSessionId,
+        lastActiveAt: mapping.lastActiveAt,
+      }));
+      return { success: true, conversations };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to list conversations' };
     }
   });
 
@@ -3479,6 +3818,9 @@ if (!gotTheLock) {
   ipcMain.handle('im:config:set', async (_event, config: Partial<IMGatewayConfig>) => {
     try {
       getIMGatewayManager().setConfig(config);
+      if (config.weixin) {
+        await syncOpenClawWeixinConfig({ restartGatewayIfRunning: true });
+      }
       return { success: true };
     } catch (error) {
       return {
@@ -3493,12 +3835,21 @@ if (!gotTheLock) {
       // Persist enabled state
       const manager = getIMGatewayManager();
       manager.setConfig({ [platform]: { enabled: true } });
+      if (platform === 'weixin') {
+        await syncOpenClawWeixinConfig({
+          restartGatewayIfRunning: true,
+          ensureGatewayAfterSync: true,
+        });
+        return { success: true };
+      }
       await manager.startGateway(platform);
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to start gateway',
+        error: platform === 'weixin'
+          ? normalizeOpenClawWeixinError(error)
+          : error instanceof Error ? error.message : 'Failed to start gateway',
       };
     }
   });
@@ -3508,6 +3859,10 @@ if (!gotTheLock) {
       // Persist disabled state
       const manager = getIMGatewayManager();
       manager.setConfig({ [platform]: { enabled: false } });
+      if (platform === 'weixin') {
+        await syncOpenClawWeixinConfig({ restartGatewayIfRunning: true });
+        return { success: true };
+      }
       await manager.stopGateway(platform);
       return { success: true };
     } catch (error) {
@@ -3542,6 +3897,55 @@ if (!gotTheLock) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to get IM status',
+      };
+    }
+  });
+
+  ipcMain.handle('im:weixin:qr-login-start', async () => {
+    try {
+      await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+      const result = await getOpenClawGatewayClientManager().request<{
+        qrDataUrl?: string;
+        message: string;
+        sessionKey?: string;
+      }>('web.login.start', { force: true, timeoutMs: 300000, verbose: true });
+      return { success: true, ...result };
+    } catch (error) {
+      return {
+        success: false,
+        message: normalizeOpenClawWeixinError(error),
+      };
+    }
+  });
+
+  ipcMain.handle('im:weixin:qr-login-wait', async (_event, accountId?: string) => {
+    try {
+      await syncOpenClawWeixinConfig({ ensureGatewayAfterSync: true });
+      const result = await getOpenClawGatewayClientManager().request<{
+        connected: boolean;
+        message: string;
+        accountId?: string;
+      }>('web.login.wait', { timeoutMs: 480000, ...(accountId ? { accountId } : {}) });
+
+      if (result.connected) {
+        getIMGatewayManager().setConfig({
+          weixin: {
+            enabled: true,
+            accountId: result.accountId || accountId || '',
+          },
+        });
+        await syncOpenClawWeixinConfig({
+          restartGatewayIfRunning: true,
+          ensureGatewayAfterSync: true,
+        });
+      }
+
+      return { success: true, ...result };
+    } catch (error) {
+      return {
+        success: false,
+        connected: false,
+        message: normalizeOpenClawWeixinError(error),
       };
     }
   });
@@ -4137,6 +4541,10 @@ if (!gotTheLock) {
       });
     }
 
+    if (openClawWeixinSessionBridge) {
+      openClawWeixinSessionBridge.stop();
+    }
+
     // Stop the scheduler
     if (scheduler) {
       scheduler.stop();
@@ -4276,6 +4684,7 @@ if (!gotTheLock) {
     console.log('[Main] initApp: creating window');
     createWindow();
     console.log('[Main] initApp: window created');
+    getOpenClawWeixinSessionBridge();
 
     const initialDeepLinkUrl = findAuthDeepLinkArg(process.argv);
     if (initialDeepLinkUrl) {
@@ -4285,6 +4694,13 @@ if (!gotTheLock) {
     getIMGatewayManager().startAllEnabled().catch((error) => {
       console.error('[IM] Failed to auto-start enabled gateways:', error);
     });
+    if (getIMGatewayManager().getConfig().weixin.enabled) {
+      void syncOpenClawWeixinConfig({
+        ensureGatewayAfterSync: true,
+      }).catch((error) => {
+        console.error('[OpenClaw] Failed to auto-start Weixin gateway:', error);
+      });
+    }
 
     // 首次启动时默认开启开机自启动（先写标记再设置，避免崩溃后重复设置）
     if (!getStore().get('auto_launch_initialized')) {

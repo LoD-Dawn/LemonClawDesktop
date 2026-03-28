@@ -220,7 +220,14 @@ class IMService {
    */
   isAnyConnected(): boolean {
     const status = this.getStatus();
-    return status.dingtalk.connected || status.feishu.connected || status.telegram.connected || status.discord.connected || status.nim.connected || status.xiaomifeng.connected || status.wecom.connected;
+    return status.dingtalk.connected
+      || status.feishu.connected
+      || status.telegram.connected
+      || status.discord.connected
+      || status.nim.connected
+      || status.xiaomifeng.connected
+      || status.wecom.connected
+      || status.weixin.connected;
   }
 }
 
