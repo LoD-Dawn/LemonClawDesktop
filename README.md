@@ -2,6 +2,7 @@
 
 <p align="center">
   <img src="public/logo.png" alt="LemonClaw" width="120">
+  
 </p>
 
 <p align="center">
