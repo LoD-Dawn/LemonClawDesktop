@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <strong>A 24/7 personal assistant Agent that gets things done, built by Zhongke Wenge</strong>
+  <strong>A 24/7 personal assistant Agent that gets things done, built for LemonClaw</strong>
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 ---
 
-**LemonClaw** is an all-in-one personal assistant Agent developed by [Zhongke Wenge](https://www.wenge.com/about/index.html). It works around the clock to handle your everyday tasks — data analysis, making presentations, generating videos, writing documents, searching the web, sending emails, scheduling tasks, and more.
+**LemonClaw** is an all-in-one personal assistant Agent that works around the clock to handle your everyday tasks — data analysis, making presentations, generating videos, writing documents, searching the web, sending emails, scheduling tasks, and more.
 
 At its core is **Cowork mode** — it executes tools, manipulates files, and runs commands in a local or sandboxed environment, all under your supervision. You can also chat with agent via Telegram, Discord, DingTalk or Feishu (Lark) and get work done from your phone anytime, anywhere.
 
@@ -384,4 +384,4 @@ Please include in your PR description: a summary of changes, linked issue (if an
 
 ---
 
-Built and maintained by [Zhongke Wenge](https://www.wenge.com/about/index.html).
+Built and maintained by LemonClaw.
