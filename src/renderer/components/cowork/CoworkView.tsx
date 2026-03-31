@@ -32,6 +32,7 @@ export interface CoworkViewProps {
 const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSkills, isSidebarCollapsed, onToggleSidebar, onNewChat, updateBadge }) => {
   const dispatch = useDispatch();
   const isMac = window.electron.platform === 'darwin';
+  const clawLogoSrc = `${import.meta.env.BASE_URL}clawLogo.png`;
   const [isInitialized, setIsInitialized] = useState(false);
   // Track if we're starting a session to prevent duplicate submissions
   const isStartingRef = useRef(false);
@@ -435,7 +436,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
           {/* Welcome Section */}
           <div className="text-center space-y-3 mb-2">
             <img
-              src="/clawLogo.png"
+              src={clawLogoSrc}
               alt="Logo"
               className="w-28 h-28 mx-auto object-contain"
             />
