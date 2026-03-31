@@ -84,7 +84,7 @@ npm run lint
 使用 [electron-builder](https://www.electron.build/) 生成各平台安装包，输出到 `release/` 目录。
 
 ```bash
-# macOS (.dmg)
+# macOS (.dmg，当前主机架构)
 npm run dist:mac
 
 # macOS - 仅 Intel
@@ -93,7 +93,7 @@ npm run dist:mac:x64
 # macOS - 仅 Apple Silicon
 npm run dist:mac:arm64
 
-# macOS - Universal (双架构)
+# macOS - Universal（当前暂不支持）
 npm run dist:mac:universal
 
 # Windows (.exe NSIS 安装包)
@@ -102,6 +102,9 @@ npm run dist:win
 # Linux (.AppImage)
 npm run dist:linux
 ```
+
+`npm run dist:mac` 现在统一走同一套 macOS 打包脚本，并会针对当前构建主机架构执行完整打包。
+由于内置的 OpenClaw runtime 目前仍然是按架构区分的，Universal macOS 包已明确禁用；请分别构建 Intel 和 Apple Silicon 安装包。
 
 Windows 打包会内置便携 Python 运行时到 `resources/python-win`（安装包资源目录为 `python-win`），终端用户无需手动安装 Python。
 该运行时以解释器为主，不预装 LemonClaw 技能所需的 Python 三方包；相关依赖可在运行时按需安装。

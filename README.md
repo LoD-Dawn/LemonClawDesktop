@@ -85,7 +85,7 @@ npm run lint
 Uses [electron-builder](https://www.electron.build/) to produce platform-specific installers. Output goes to `release/`.
 
 ```bash
-# macOS (.dmg)
+# macOS (.dmg, host architecture)
 npm run dist:mac
 
 # macOS - Intel only
@@ -94,7 +94,7 @@ npm run dist:mac:x64
 # macOS - Apple Silicon only
 npm run dist:mac:arm64
 
-# macOS - Universal (both architectures)
+# macOS - Universal (currently unsupported)
 npm run dist:mac:universal
 
 # Windows (.exe NSIS installer)
@@ -103,6 +103,9 @@ npm run dist:win
 # Linux (.AppImage & .deb)
 npm run dist:linux
 ```
+
+`npm run dist:mac` now routes through a single macOS packaging script and performs a full build for the current host architecture.
+Universal macOS packaging is intentionally disabled for now because the bundled OpenClaw runtime is architecture-specific; build separate Intel and Apple Silicon installers instead.
 
 Windows builds bundle a portable Python runtime under `resources/python-win` (included as installer resource `python-win`), so end users do not need to install Python manually.
 The bundled runtime is interpreter-focused and does not preinstall LemonClaw skill Python packages; those can be installed at runtime on demand.
