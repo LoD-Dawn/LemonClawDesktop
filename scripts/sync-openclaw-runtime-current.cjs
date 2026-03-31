@@ -47,7 +47,15 @@ console.log(`[sync-openclaw-runtime-current] Synced ${targetId} -> vendor/opencl
 // so bare files must exist on the real filesystem.
 const gatewayAsarPath = path.join(currentRuntimeDir, 'gateway.asar');
 const bareEntryPath = path.join(currentRuntimeDir, 'openclaw.mjs');
-if (fs.existsSync(gatewayAsarPath) && !fs.existsSync(bareEntryPath)) {
+const bareGatewayEntryPath = path.join(currentRuntimeDir, 'dist', 'gateway-entry.js');
+const bareFullEntryJsPath = path.join(currentRuntimeDir, 'dist', 'entry.js');
+const bareFullEntryMjsPath = path.join(currentRuntimeDir, 'dist', 'entry.mjs');
+const needsBareGatewayFiles = !fs.existsSync(bareEntryPath)
+  || (!fs.existsSync(bareGatewayEntryPath)
+    && !fs.existsSync(bareFullEntryJsPath)
+    && !fs.existsSync(bareFullEntryMjsPath));
+
+if (fs.existsSync(gatewayAsarPath) && needsBareGatewayFiles) {
   try {
     const asar = require('@electron/asar');
     const entries = asar.listPackage(gatewayAsarPath);
