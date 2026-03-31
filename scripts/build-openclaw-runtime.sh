@@ -116,9 +116,12 @@ try {
 READPH
     )
     if [[ "$BUILT_VERSION" == "$DESIRED_VERSION" && "$BUILT_PATCH_HASH" == "$PATCH_HASH" ]]; then
-      echo "[openclaw-runtime] Already built for $DESIRED_VERSION (target=$TARGET_ID, patchHash=${PATCH_HASH:0:12}…), skipping."
-      echo "[openclaw-runtime] Use OPENCLAW_FORCE_BUILD=1 to force rebuild."
-      exit 0
+      if [[ -d "$OUT_DIR/node_modules" && -f "$OUT_DIR/gateway.asar" && -f "$OUT_DIR/dist/control-ui/index.html" ]]; then
+        echo "[openclaw-runtime] Already built for $DESIRED_VERSION (target=$TARGET_ID, patchHash=${PATCH_HASH:0:12}…), skipping."
+        echo "[openclaw-runtime] Use OPENCLAW_FORCE_BUILD=1 to force rebuild."
+        exit 0
+      fi
+      echo "[openclaw-runtime] Cached runtime metadata matches, but build output is incomplete. Rebuilding."
     fi
     if [[ "$BUILT_VERSION" == "$DESIRED_VERSION" && "$BUILT_PATCH_HASH" != "$PATCH_HASH" ]]; then
       echo "[openclaw-runtime] Patches changed (was=${BUILT_PATCH_HASH:0:12}…, now=${PATCH_HASH:0:12}…), rebuilding."
