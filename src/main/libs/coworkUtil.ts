@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, session } from 'electron';
 import { execSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, chmodSync, statSync, readdirSync } from 'fs';
 import { delimiter, dirname, join } from 'path';
@@ -1436,6 +1436,19 @@ function extractApiErrorSnippet(rawText: string): string {
   return trimmed.replace(/\s+/g, ' ').slice(0, API_ERROR_SNIPPET_MAX_CHARS);
 }
 
+async function fetchCoworkApi(url: string, options: RequestInit): Promise<Response> {
+  if (app.isReady()) {
+    try {
+      return await session.defaultSession.fetch(url, options);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[cowork-api] session fetch failed, falling back to global fetch: ${message}`);
+    }
+  }
+
+  return fetch(url, options);
+}
+
 function extractTextFromAnthropicResponse(payload: unknown): string {
   if (!payload || typeof payload !== 'object') return '';
   const record = payload as Record<string, unknown>;
@@ -1533,7 +1546,7 @@ export async function probeCoworkModelReadiness(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(buildAnthropicMessagesUrl(config.baseURL), {
+    const response = await fetchCoworkApi(buildAnthropicMessagesUrl(config.baseURL), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1600,7 +1613,7 @@ export async function generateSessionTitle(userIntent: string | null): Promise<s
     const url = buildAnthropicMessagesUrl(config.baseURL);
     const prompt = `Generate a short title from this input, keep the same language, return plain text only (no markdown), and keep it within ${SESSION_TITLE_MAX_CHARS} characters: ${normalizedInput}`;
 
-    const response = await fetch(url, {
+    const response = await fetchCoworkApi(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1630,6 +1643,10 @@ export async function generateSessionTitle(userIntent: string | null): Promise<s
     const llmTitle = extractTextFromAnthropicResponse(payload);
     return normalizeTitleToPlainText(llmTitle, fallbackTitle);
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('[cowork-title] Title generation timed out, using fallback title.');
+      return fallbackTitle;
+    }
     console.error('Failed to generate session title:', error);
     return fallbackTitle;
   } finally {
