@@ -66,10 +66,13 @@ const t0 = Date.now();
 esbuild
   .build({
     entryPoints: [entryPath],
+    absWorkingDir: runtimeDir,
     bundle: true,
     platform: 'node',
     format: 'esm',
     outfile: bundleOutPath,
+    // Keep runtime package imports external and only collapse the relative dist graph.
+    packages: 'external',
     external: EXTERNAL_PACKAGES,
     banner: {
       js: `import { createRequire as __bundleCreateRequire } from 'node:module';\n`
