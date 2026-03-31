@@ -20,8 +20,10 @@ const DisabledScreen: React.FC<DisabledScreenProps> = ({ user, onSwitchAccount }
   return (
     <div className="app-shell h-screen overflow-hidden flex flex-col">
       {isWindows && (
-        <div className="draggable relative h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
-          <WindowTitleBar className="top-1.5 right-1.5" />
+        <div className="draggable relative h-11 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
+          <div className="absolute inset-y-0 right-1.5 z-[55] flex items-center">
+            <WindowTitleBar inline />
+          </div>
         </div>
       )}
 

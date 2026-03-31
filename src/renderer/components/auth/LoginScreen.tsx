@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { ArrowTopRightOnSquareIcon, KeyIcon } from '@heroicons/react/24/outline';
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import type { AuthUser } from '../../types/auth';
 import SpinnerIcon from '../icons/SpinnerIcon';
 import WindowTitleBar from '../window/WindowTitleBar';
@@ -14,6 +14,7 @@ interface LoginScreenProps {
  * 主进程捕获 token 并通过 IPC 通知此组件完成登录。
  */
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
   const [isOpening, setIsOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waitingForCallback, setWaitingForCallback] = useState(false);
@@ -58,8 +59,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <div className="app-shell h-screen overflow-hidden flex flex-col">
       {/* Windows 标题栏占位（匹配主界面风格） */}
       {isWindows && (
-        <div className="draggable relative h-9 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
-          <WindowTitleBar className="top-1.5 right-1.5" />
+        <div className="draggable relative h-11 shrink-0 dark:bg-dark-surface-muted bg-surface-muted">
+          <div className="absolute inset-y-0 right-1.5 z-[55] flex items-center">
+            <WindowTitleBar inline />
+          </div>
         </div>
       )}
 
@@ -67,9 +70,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <div className="w-full max-w-sm px-8 flex flex-col items-center gap-6">
           {/* Logo / Icon */}
           <div className="flex flex-col items-center gap-3">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-glow-accent">
-              <KeyIcon className="w-9 h-9 text-white" />
-            </div>
+            <img
+              src={logoSrc}
+              alt="LemonClaw Logo"
+              className="w-16 h-16 object-contain"
+            />
             <div className="text-center">
               <h1 className="text-xl font-semibold dark:text-dark-text text-text-primary">LemonClaw</h1>
               <p className="text-sm dark:text-dark-text-secondary text-text-secondary mt-0.5">
