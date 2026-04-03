@@ -733,6 +733,32 @@ const normalizeMarketplaceTag = (tag: unknown): { id: string; en: string; zh: st
   };
 };
 
+const normalizeMarketplaceDownloadUrl = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString();
+    }
+  } catch {
+    // Fall back to resolving relative paths against the admin server.
+  }
+
+  try {
+    return new URL(trimmed, `${ADMIN_API_BASE_URL}/`).toString();
+  } catch {
+    return trimmed;
+  }
+};
+
 const normalizeMarketplaceSkillItem = (item: ExternalMarketplaceSkillItem) => {
   const normalizedTags = Array.isArray(item.tags)
     ? item.tags
@@ -750,7 +776,7 @@ const normalizeMarketplaceSkillItem = (item: ExternalMarketplaceSkillItem) => {
     description: normalizeMarketplaceDescription(item.description),
     tags: normalizedTags,
     tagIds: normalizedTagIds,
-    url: typeof item.url === 'string' ? item.url : '',
+    url: normalizeMarketplaceDownloadUrl(item.url),
     version: typeof item.version === 'string' ? item.version : '',
     source: {
       from: typeof item.source?.from === 'string' ? item.source.from : '',
@@ -2747,7 +2773,34 @@ if (!gotTheLock) {
   });
 
   ipcMain.handle('skills:download', async (_event, source: string) => {
-    return getSkillManager().downloadSkill(source);
+    const trimmedSource = source.trim();
+    if (!trimmedSource) {
+      return { success: false, error: 'Missing skill source' };
+    }
+
+    let resolvedSource = trimmedSource;
+    let requestHeaders: Record<string, string> | undefined;
+    try {
+      const isRelativeAdminPath = trimmedSource.startsWith('/');
+      const candidateUrl = isRelativeAdminPath
+        ? new URL(trimmedSource, `${ADMIN_API_BASE_URL}/`)
+        : new URL(trimmedSource);
+      const adminOrigin = new URL(ADMIN_API_BASE_URL).origin;
+      if (candidateUrl.origin === adminOrigin) {
+        const authContext = await ensureActiveAuthSession();
+        if (authContext.ok === false) {
+          return { success: false, error: authContext.error, reason: authContext.reason };
+        }
+        resolvedSource = candidateUrl.toString();
+        requestHeaders = {
+          Authorization: `Bearer ${authContext.accessToken}`,
+        };
+      }
+    } catch {
+      resolvedSource = trimmedSource;
+    }
+
+    return getSkillManager().downloadSkill(resolvedSource, { requestHeaders });
   });
 
   ipcMain.handle('skills:fetchMarketplace', async (_event, options?: { page?: number; pageSize?: number }) => {

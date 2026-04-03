@@ -2,20 +2,14 @@ import { app, BrowserWindow, session } from 'electron';
 import { execSync, spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import yaml from 'js-yaml';
 import extractZip from 'extract-zip';
-import { loadRuntimeEnvFiles } from './libs/runtimeEnv';
 import { SqliteStore } from './sqliteStore';
 import { cpRecursiveSync } from './fsCompat';
 import { getElectronNodeRuntimePath } from './libs/coworkUtil';
 import { getDevProjectRoot } from './libs/devPaths';
 import { appendPythonRuntimeToEnv } from './libs/pythonRuntime';
-import {
-  TENCENT_COS_BUCKET,
-  TENCENT_COS_REGION,
-  TENCENT_COS_SKILL_PACKAGE_MAX_MB,
-} from '../shared/appConstants';
+import { SKILL_PACKAGE_MAX_MB } from '../shared/appConstants';
 
 /**
  * Resolve the user's login shell PATH on macOS/Linux.
@@ -812,120 +806,6 @@ const isRemoteZipUrl = (source: string): boolean => {
   }
 };
 
-type TencentCosConfig = {
-  secretId: string;
-  secretKey: string;
-  bucket?: string;
-  region?: string;
-  maxBytes?: number;
-};
-
-type TencentCosPrivateConstants = {
-  TENCENT_COS_SECRET_ID?: string;
-  TENCENT_COS_SECRET_KEY?: string;
-  TENCENT_COS_BUCKET?: string;
-  TENCENT_COS_REGION?: string;
-  TENCENT_COS_SKILL_PACKAGE_MAX_MB?: number;
-};
-
-const TENCENT_COS_SIGN_TTL_SECONDS = 3600;
-
-const loadTencentCosPrivateConstants = (): TencentCosPrivateConstants => {
-  try {
-    return require('./appConstants.private') as TencentCosPrivateConstants;
-  } catch {
-    return {};
-  }
-};
-
-const getTencentCosConfig = (): TencentCosConfig | null => {
-  loadRuntimeEnvFiles();
-  const privateConstants = loadTencentCosPrivateConstants();
-
-  const secretId = process.env.TENCENT_COS_SECRET_ID?.trim() || privateConstants.TENCENT_COS_SECRET_ID?.trim();
-  const secretKey = process.env.TENCENT_COS_SECRET_KEY?.trim() || privateConstants.TENCENT_COS_SECRET_KEY?.trim();
-  if (!secretId || !secretKey) {
-    return null;
-  }
-
-  const maxMbRaw = process.env.TENCENT_COS_SKILL_PACKAGE_MAX_MB?.trim();
-  const maxMb = maxMbRaw
-    ? Number(maxMbRaw)
-    : privateConstants.TENCENT_COS_SKILL_PACKAGE_MAX_MB ?? TENCENT_COS_SKILL_PACKAGE_MAX_MB;
-
-  return {
-    secretId,
-    secretKey,
-    bucket: process.env.TENCENT_COS_BUCKET?.trim() || privateConstants.TENCENT_COS_BUCKET?.trim() || TENCENT_COS_BUCKET || undefined,
-    region: process.env.TENCENT_COS_REGION?.trim() || privateConstants.TENCENT_COS_REGION?.trim() || TENCENT_COS_REGION || undefined,
-    maxBytes: Number.isFinite(maxMb) && maxMb > 0 ? Math.floor(maxMb * 1024 * 1024) : undefined,
-  };
-};
-
-const isTencentCosUrl = (rawUrl: string): boolean => {
-  try {
-    const parsed = new URL(rawUrl);
-    const hostname = parsed.hostname.toLowerCase();
-    return hostname.endsWith('.myqcloud.com') && hostname.includes('.cos.');
-  } catch {
-    return false;
-  }
-};
-
-const encodeTencentCosComponent = (value: string): string => {
-  return encodeURIComponent(value)
-    .replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
-};
-
-const buildTencentCosSignedUrl = (
-  rawUrl: string,
-  config: TencentCosConfig,
-  options?: { signHost?: boolean }
-): string => {
-  const url = new URL(rawUrl);
-  const now = Math.floor(Date.now() / 1000);
-  const keyTime = `${now - 60};${now + TENCENT_COS_SIGN_TTL_SECONDS}`;
-  const signKey = crypto
-    .createHmac('sha1', config.secretKey)
-    .update(keyTime)
-    .digest('hex');
-
-  const existingParams = Array.from(url.searchParams.entries())
-    .map(([key, value]) => [key.toLowerCase(), value] as const)
-    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
-  const urlParamList = existingParams.map(([key]) => key).join(';');
-  const queryString = existingParams
-    .map(([key, value]) => `${encodeTencentCosComponent(key)}=${encodeTencentCosComponent(value)}`)
-    .join('&');
-
-  const signHost = options?.signHost ?? true;
-  const headerList = signHost ? 'host' : '';
-  const headersString = signHost ? `host=${encodeTencentCosComponent(url.host.toLowerCase())}` : '';
-  const httpString = [
-    'get',
-    url.pathname || '/',
-    queryString,
-    headersString,
-    '',
-  ].join('\n');
-  const httpStringSha1 = crypto.createHash('sha1').update(httpString).digest('hex');
-  const stringToSign = ['sha1', keyTime, httpStringSha1, ''].join('\n');
-  const signature = crypto
-    .createHmac('sha1', signKey)
-    .update(stringToSign)
-    .digest('hex');
-
-  url.searchParams.set('q-sign-algorithm', 'sha1');
-  url.searchParams.set('q-ak', config.secretId);
-  url.searchParams.set('q-sign-time', keyTime);
-  url.searchParams.set('q-key-time', keyTime);
-  url.searchParams.set('q-header-list', headerList);
-  url.searchParams.set('q-url-param-list', urlParamList);
-  url.searchParams.set('q-signature', signature);
-
-  return url.toString();
-};
-
 const readZipResponseBuffer = async (
   response: Response,
   maxBytes?: number
@@ -944,48 +824,29 @@ const readZipResponseBuffer = async (
   return buffer;
 };
 
-const downloadZipUrl = async (zipUrl: string, tempRoot: string): Promise<string> => {
-  const cosConfig = getTencentCosConfig();
-  let response = await session.defaultSession.fetch(zipUrl, {
+type RemoteSkillDownloadOptions = {
+  requestHeaders?: Record<string, string>;
+};
+
+const downloadZipUrl = async (
+  zipUrl: string,
+  tempRoot: string,
+  options?: RemoteSkillDownloadOptions
+): Promise<string> => {
+  const requestHeaders = {
+    'User-Agent': 'LemonClaw Skill Downloader',
+    ...(options?.requestHeaders || {}),
+  };
+  const response = await session.defaultSession.fetch(zipUrl, {
     method: 'GET',
-    headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
+    headers: requestHeaders,
   });
 
-  if (!response.ok && response.status === 403 && cosConfig && isTencentCosUrl(zipUrl)) {
-    const signedUrl = buildTencentCosSignedUrl(zipUrl, cosConfig, { signHost: true });
-    response = await session.defaultSession.fetch(signedUrl, {
-      method: 'GET',
-      headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
-    });
-
-    if (!response.ok && response.status === 403) {
-      const hostAgnosticSignedUrl = buildTencentCosSignedUrl(zipUrl, cosConfig, { signHost: false });
-      response = await session.defaultSession.fetch(hostAgnosticSignedUrl, {
-        method: 'GET',
-        headers: { 'User-Agent': 'LemonClaw Skill Downloader' },
-      });
-    }
-  }
-
   if (!response.ok) {
-    if (response.status === 403 && isTencentCosUrl(zipUrl) && !cosConfig) {
-      throw new Error(
-        'Download failed (403 Forbidden). Tencent COS credentials are not loaded in the Electron main process. '
-        + 'Please provide TENCENT_COS_SECRET_ID and TENCENT_COS_SECRET_KEY via environment variables or src/main/appConstants.private.ts.'
-      );
-    }
-
-    if (response.status === 403 && isTencentCosUrl(zipUrl) && cosConfig) {
-      throw new Error(
-        'Download failed (403 Forbidden). Tencent COS signed retries also failed. '
-        + 'Please verify TENCENT_COS_SECRET_ID/TENCENT_COS_SECRET_KEY and the object access policy.'
-      );
-    }
-
     throw new Error(`Download failed (${response.status} ${response.statusText})`);
   }
 
-  const buffer = await readZipResponseBuffer(response, cosConfig?.maxBytes);
+  const buffer = await readZipResponseBuffer(response, Math.floor(SKILL_PACKAGE_MAX_MB * 1024 * 1024));
   const zipPath = path.join(tempRoot, 'remote-skill.zip');
   const extractRoot = path.join(tempRoot, 'remote-skill');
   fs.writeFileSync(zipPath, buffer);
@@ -1410,7 +1271,10 @@ export class SkillManager {
     return this.listSkills();
   }
 
-  async downloadSkill(source: string): Promise<{ success: boolean; skills?: SkillRecord[]; error?: string }> {
+  async downloadSkill(
+    source: string,
+    options?: RemoteSkillDownloadOptions
+  ): Promise<{ success: boolean; skills?: SkillRecord[]; error?: string }> {
     let cleanupPath: string | null = null;
     try {
       const trimmed = source.trim();
@@ -1437,7 +1301,7 @@ export class SkillManager {
       } else if (isRemoteZipUrl(trimmed)) {
         const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'diclaw-skill-zip-'));
         cleanupPath = tempRoot;
-        localSource = await downloadZipUrl(trimmed, tempRoot);
+        localSource = await downloadZipUrl(trimmed, tempRoot, options);
       } else {
         const normalized = this.normalizeGitSource(trimmed);
         if (!normalized) {
